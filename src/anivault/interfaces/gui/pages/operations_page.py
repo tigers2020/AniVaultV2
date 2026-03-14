@@ -1,0 +1,33 @@
+"""Operations page: FolderStructurePreview + ExecutionCard + LogList (organisms only)."""
+
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea
+
+from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.organisms import (
+    FolderStructurePreview,
+    ExecutionCard,
+    LogList,
+)
+
+
+class OperationsPage(QWidget):
+    """Operations: folder structure list + execution card + log list (two-col)."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(theme.scroll_area_transparent())
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.addWidget(FolderStructurePreview())
+        two_col = QWidget()
+        two_col_layout = QHBoxLayout(two_col)
+        two_col_layout.setSpacing(18)
+        two_col_layout.addWidget(ExecutionCard(), 12)
+        two_col_layout.addWidget(LogList(), 8)
+        content_layout.addWidget(two_col)
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
