@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anivault"
+version = "2.0.0.dev0"
+description = "AniVault V2 — 애니메이션 라이브러리 스캔·매칭·정리"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = []
+keywords = ["anime", "library", "organizer", "tmdb"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    # Phase 1: parser (anitopy or equivalent), Phase 2: TMDB, Phase 4: CLI, Phase 5: GUI
+    # "anitopy",  # Phase 1
+    # "requests", # Phase 2
+    # "typer", "rich",  # Phase 4
+    # "PySide6",  # Phase 5
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-cov",
+]
+
+[project.scripts]
+anivault = "anivault.interfaces.cli.main:run"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-v"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

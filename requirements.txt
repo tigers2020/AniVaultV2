@@ -1,0 +1,6 @@
+# AniVault V2 — Python 3.12+
+# Phase별로 필요한 패키지는 pyproject.toml [project.dependencies]에 추가
+
+# 개발/테스트
+pytest>=7
+pytest-cov

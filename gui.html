@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AniVault V2 GUI Prototype</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121933;
+      --panel-2: #182243;
+      --border: #2b3766;
+      --text: #e8ecff;
+      --muted: #9aa7d3;
+      --accent: #7aa2ff;
+      --accent-2: #73e0c1;
+      --warn: #ffb454;
+      --danger: #ff6b81;
+      --ok: #4ade80;
+      --shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #0a0f1d 0%, #0f1730 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: rgba(10, 15, 30, 0.9);
+      border-right: 1px solid var(--border);
+      padding: 24px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      backdrop-filter: blur(14px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(122, 162, 255, 0.10), rgba(115, 224, 193, 0.06));
+      margin-bottom: 22px;
+    }
+
+    .brand-badge {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: #08101f;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.02rem;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .nav-title {
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 18px 10px 10px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav button {
+      width: 100%;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      padding: 13px 14px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: 0.18s ease;
+      font-size: 0.95rem;
+    }
+
+    .nav button:hover,
+    .nav button.active {
+      background: rgba(122, 162, 255, 0.12);
+      border-color: rgba(122, 162, 255, 0.28);
+    }
+
+    .sidebar-card {
+      margin-top: 18px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(24, 34, 67, 0.88);
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar-card h3 {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+    }
+
+    .sidebar-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+
+    .steps {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .step {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(43, 55, 102, 0.55);
+    }
+
+    .step:last-child { border-bottom: none; }
+
+    .step-index {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #091120;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      flex: 0 0 auto;
+    }
+
+    .step-text {
+      font-size: 0.84rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .sidebar-footer {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 20px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(24, 34, 67, 0.88);
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar-footer .label {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .sidebar-footer .value {
+      margin-top: 6px;
+      font-weight: 700;
+    }
+
+    main {
+      padding: 26px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .topbar h2 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .topbar p {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 11px 14px;
+      background: rgba(18, 25, 51, 0.9);
+      color: var(--text);
+      cursor: pointer;
+      transition: 0.18s ease;
+      font-weight: 600;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+
+    .btn.primary {
+      background: linear-gradient(135deg, var(--accent), #8e8cff);
+      color: #0a1022;
+      border-color: transparent;
+    }
+
+    .btn.success {
+      background: linear-gradient(135deg, var(--accent-2), #91f0da);
+      color: #07151a;
+      border-color: transparent;
+    }
+
+    .btn.warn {
+      background: rgba(255, 180, 84, 0.14);
+      border-color: rgba(255, 180, 84, 0.28);
+      color: var(--text);
+    }
+
+    .btn.danger {
+      background: rgba(255, 107, 129, 0.14);
+      border-color: rgba(255, 107, 129, 0.28);
+      color: var(--text);
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: rgba(18, 25, 51, 0.88);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card {
+      padding: 18px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.86rem;
+      margin-bottom: 10px;
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 18px 18px 0;
+    }
+
+    .panel-header h3 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .panel-header p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      border: 1px solid transparent;
+    }
+
+    .pill.blue { background: rgba(122, 162, 255, 0.14); color: var(--text); border-color: rgba(122, 162, 255, 0.25); }
+    .pill.green { background: rgba(74, 222, 128, 0.14); color: var(--text); border-color: rgba(74, 222, 128, 0.25); }
+    .pill.yellow { background: rgba(255, 180, 84, 0.14); color: var(--text); border-color: rgba(255, 180, 84, 0.25); }
+    .pill.red { background: rgba(255, 107, 129, 0.14); color: var(--text); border-color: rgba(255, 107, 129, 0.25); }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1.2fr 1.2fr 0.9fr 0.9fr;
+      gap: 10px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .pipeline-table-wrap {
+      overflow-x: auto;
+    }
+
+    .poster-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .poster-card {
+      background: rgba(24, 34, 67, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .poster-image {
+      aspect-ratio: 2 / 3;
+      width: 100%;
+      object-fit: cover;
+      display: block;
+      background: rgba(11, 16, 32, 0.82);
+    }
+
+    .poster-body {
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .poster-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .poster-meta {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .poster-path {
+      background: rgba(11, 16, 32, 0.65);
+      border: 1px solid rgba(43, 55, 102, 0.7);
+      border-radius: 12px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #d5ddff;
+      line-height: 1.45;
+      word-break: break-all;
+      font-size: 0.82rem;
+    }
+
+    .settings-layout {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: rgba(11, 16, 32, 0.82);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 11px 12px;
+      outline: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(24, 34, 67, 0.65);
+    }
+
+    th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(43, 55, 102, 0.7);
+      text-align: left;
+      font-size: 0.92rem;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      background: rgba(11, 16, 32, 0.45);
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .item {
+      background: rgba(24, 34, 67, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .item strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.96rem;
+    }
+
+    .muted { color: var(--muted); }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .path-box {
+      background: rgba(11, 16, 32, 0.65);
+      border: 1px solid rgba(43, 55, 102, 0.7);
+      border-radius: 12px;
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #d5ddff;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+
+    .hidden { display: none; }
+
+    @media (max-width: 1350px) {
+      .stats,
+      .toolbar,
+      .two-col,
+      .settings-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+      .sidebar-footer {
+        position: static;
+        margin-top: 18px;
+      }
+      main { padding: 18px; }
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">A</div>
+        <div>
+          <h1>AniVault V2</h1>
+          <p>Parse → TMDB 한글 제목 → 구조화 이동</p>
+        </div>
+      </div>
+
+      <div class="nav-title">Main Views</div>
+      <div class="nav">
+        <button class="tab-btn active" data-tab="organizer">Organizer</button>
+        <button class="tab-btn" data-tab="operations">Operations</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
+      </div>
+
+      <div class="sidebar-card">
+        <h3>Pipeline</h3>
+        <div class="steps">
+          <div class="step">
+            <div class="step-index">1</div>
+            <div class="step-text"><strong>폴더 스캔</strong><br/>비디오 파일 수집</div>
+          </div>
+          <div class="step">
+            <div class="step-index">2</div>
+            <div class="step-text"><strong>파일명 Parse</strong><br/>원본 제목, 시즌, 해상도 추출</div>
+          </div>
+          <div class="step">
+            <div class="step-index">3</div>
+            <div class="step-text"><strong>Parse Title Group</strong><br/>정규화된 제목끼리 1차 그룹</div>
+          </div>
+          <div class="step">
+            <div class="step-index">4</div>
+            <div class="step-text"><strong>TMDB Scan</strong><br/>한글 제목, 연도, 시즌 정보 확인</div>
+          </div>
+          <div class="step">
+            <div class="step-index">5</div>
+            <div class="step-text"><strong>한글 제목 Group</strong><br/>최종 그룹명 확정</div>
+          </div>
+          <div class="step">
+            <div class="step-index">6</div>
+            <div class="step-text"><strong>구조화 Move</strong><br/>Resolution → Year → 한글 제목 → Season##</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="label">Output Pattern</div>
+        <div class="value">Target&#92;Resolution&#92;Year&#92;한글 제목&#92;Season##&#92;Original File</div>
+        <div class="status-row">
+          <span class="pill green">TMDB Linked</span>
+          <span class="pill blue">Original Filename Kept</span>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div>
+          <h2 id="page-title">Organizer</h2>
+          <p id="page-desc">폴더 스캔부터 한글 제목 그룹 확정과 최종 경로 미리보기까지 한 화면에서 처리</p>
+        </div>
+        <div class="top-actions">
+          <button class="btn">Load Preset</button>
+          <button class="btn">Export Plan</button>
+          <button class="btn primary" id="simulate-btn">Simulate Pipeline</button>
+        </div>
+      </div>
+
+      <section id="organizer" class="tab-panel">
+        <div class="grid stats">
+          <div class="card stat-card">
+            <div class="stat-label">Scanned Files</div>
+            <div class="stat-value">9,048</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-label">Parsed Titles</div>
+            <div class="stat-value">8,991</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-label">TMDB Korean Matches</div>
+            <div class="stat-value">8,918</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-label">Planned Moves</div>
+            <div class="stat-value">8,975</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
+              <h3>Pipeline Result Table</h3>
+              <p>Parsed Filename Result, Parse Title Group, TMDB Korean Title Group 결과를 하나의 리스트 테이블로 통합</p>
+            </div>
+            <span class="pill blue">Unified Table</span>
+          </div>
+          <div class="panel-body pipeline-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Original File</th>
+                  <th>Parsed Title</th>
+                  <th>Parse Title Group</th>
+                  <th>TMDB Korean Title Group</th>
+                  <th>Year</th>
+                  <th>Season</th>
+                  <th>Res</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>[SubsPlease] Sousou no Frieren - 01 (1080p).mkv</td>
+                  <td>Sousou no Frieren</td>
+                  <td>Sousou no Frieren</td>
+                  <td>장송의 프리렌</td>
+                  <td>2023</td>
+                  <td>Season01</td>
+                  <td>1080p</td>
+                  <td><span class="pill green">TMDB Matched</span></td>
+                </tr>
+                <tr>
+                  <td>[Erai-raws] Kusuriya no Hitorigoto - 12 [1080p].mkv</td>
+                  <td>Kusuriya no Hitorigoto</td>
+                  <td>Kusuriya no Hitorigoto</td>
+                  <td>약사의 혼잣말</td>
+                  <td>2023</td>
+                  <td>Season01</td>
+                  <td>1080p</td>
+                  <td><span class="pill green">TMDB Matched</span></td>
+                </tr>
+                <tr>
+                  <td>One Piece 1089 WEBRip 720p.avi</td>
+                  <td>One Piece</td>
+                  <td>One Piece</td>
+                  <td>원피스</td>
+                  <td>1999</td>
+                  <td>Season01</td>
+                  <td>720p</td>
+                  <td><span class="pill green">TMDB Matched</span></td>
+                </tr>
+                <tr>
+                  <td>Random_File_Final_v2.avi</td>
+                  <td>Unknown</td>
+                  <td>Unknown</td>
+                  <td>Needs_Review</td>
+                  <td>Unknown</td>
+                  <td>Season00</td>
+                  <td>Unknown</td>
+                  <td><span class="pill yellow">Manual Review</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <div class="panel-header">
+            <div>
+              <h3>Final Move Preview</h3>
+              <p>TMDB poster 이미지를 기준으로 최종 이동 결과를 카드 그리드로 미리보기</p>
+            </div>
+            <span class="pill green">Poster Grid</span>
+          </div>
+          <div class="panel-body poster-grid">
+            <div class="poster-card">
+              <img class="poster-image" src="https://image.tmdb.org/t/p/w342/4KzSmKGY2FX6HPHk3rX4WQkB7VL.jpg" alt="장송의 프리렌 포스터" />
+              <div class="poster-body">
+                <p class="poster-title">장송의 프리렌</p>
+                <div class="poster-meta">Parsed: Sousou no Frieren<br/>Year: 2023 • Season01 • 1080p</div>
+                <div class="poster-path">G:/AniSorted&#92;1080p&#92;2023&#92;장송의 프리렌&#92;Season01&#92;[SubsPlease] Sousou no Frieren - 01 (1080p).mkv</div>
+              </div>
+            </div>
+            <div class="poster-card">
+              <img class="poster-image" src="https://image.tmdb.org/t/p/w342/k5SJCke8KXz3Qw2dOjPyfzmZR8z.jpg" alt="약사의 혼잣말 포스터" />
+              <div class="poster-body">
+                <p class="poster-title">약사의 혼잣말</p>
+                <div class="poster-meta">Parsed: Kusuriya no Hitorigoto<br/>Year: 2023 • Season01 • 1080p</div>
+                <div class="poster-path">G:/AniSorted&#92;1080p&#92;2023&#92;약사의 혼잣말&#92;Season01&#92;[Erai-raws] Kusuriya no Hitorigoto - 12 [1080p].mkv</div>
+              </div>
+            </div>
+            <div class="poster-card">
+              <img class="poster-image" src="https://image.tmdb.org/t/p/w342/cMD9Ygz11zjJzAovURpO75Qg7rT.jpg" alt="원피스 포스터" />
+              <div class="poster-body">
+                <p class="poster-title">원피스</p>
+                <div class="poster-meta">Parsed: One Piece<br/>Year: 1999 • Season01 • 720p</div>
+                <div class="poster-path">G:/AniSorted&#92;720p&#92;1999&#92;원피스&#92;Season01&#92;One Piece 1089 WEBRip 720p.avi</div>
+              </div>
+            </div>
+            <div class="poster-card">
+              <img class="poster-image" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 450'><rect width='300' height='450' fill='%2311192b'/><rect x='16' y='16' width='268' height='418' rx='18' fill='%23182443' stroke='%232b3766'/><text x='150' y='180' text-anchor='middle' fill='%239aa7d3' font-size='22' font-family='Arial'>Needs Review</text><text x='150' y='215' text-anchor='middle' fill='%237aa2ff' font-size='16' font-family='Arial'>TMDB Poster Missing</text></svg>" alt="검토 필요 포스터 자리" />
+              <div class="poster-body">
+                <p class="poster-title">Needs_Review</p>
+                <div class="poster-meta">Parsed: Unknown<br/>Year: Unknown • Season00 • Unknown</div>
+                <div class="poster-path">G:/AniSorted&#92;Unknown&#92;Unknown&#92;Needs_Review&#92;Season00&#92;Random_File_Final_v2.avi</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="operations" class="tab-panel hidden">
+        <div class="grid">
+          <div class="card">
+            <div class="panel-header">
+              <div>
+                <h3>Folder Structure Preview</h3>
+                <p>실제 생성될 디렉토리 샘플과 정렬 구조를 한 곳에서 확인</p>
+              </div>
+              <span class="pill blue">Structure</span>
+            </div>
+            <div class="panel-body list">
+              <div class="item">
+                <strong>1080p</strong>
+                <div class="path-box">G:/AniSorted&#92;1080p&#92;2023&#92;장송의 프리렌&#92;Season01</div>
+              </div>
+              <div class="item">
+                <strong>1080p</strong>
+                <div class="path-box">G:/AniSorted&#92;1080p&#92;2023&#92;약사의 혼잣말&#92;Season01</div>
+              </div>
+              <div class="item">
+                <strong>720p</strong>
+                <div class="path-box">G:/AniSorted&#92;720p&#92;1999&#92;원피스&#92;Season01</div>
+              </div>
+              <div class="item">
+                <strong>Unknown</strong>
+                <div class="path-box">G:/AniSorted&#92;Unknown&#92;Unknown&#92;Needs_Review&#92;Season00</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <div class="card">
+              <div class="panel-header">
+                <div>
+                  <h3>Execution</h3>
+                  <p>최종 이동 실행과 최근 작업 되돌리기를 같은 탭에서 관리</p>
+                </div>
+                <span class="pill green">Ready</span>
+              </div>
+              <div class="panel-body">
+                <div class="item">
+                  <strong>Move Summary</strong>
+                  <div class="muted">8,975 files will be moved using resolution, year, Korean title group, and season folder rules.</div>
+                  <div class="status-row">
+                    <span class="pill green">Preview Complete</span>
+                    <span class="pill yellow">73 Review Files</span>
+                  </div>
+                </div>
+                <div class="action-row">
+                  <button class="btn primary">Move Files</button>
+                  <button class="btn success">Create Folder Tree Only</button>
+                  <button class="btn danger">Undo Last Move</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="panel-header">
+                <div>
+                  <h3>Recent Activity</h3>
+                  <p>스캔, parse, TMDB 조회, 계획 생성 로그를 실행과 함께 확인</p>
+                </div>
+                <span class="pill blue">Log View</span>
+              </div>
+              <div class="panel-body list" id="log-list">
+                <div class="item"><strong>[12:55:08]</strong><div class="muted">Folder scan started for G:/Animations</div></div>
+                <div class="item"><strong>[12:56:42]</strong><div class="muted">Filename parse completed for 9,048 files</div></div>
+                <div class="item"><strong>[12:57:10]</strong><div class="muted">Parse title groups created: 412</div></div>
+                <div class="item"><strong>[12:57:28]</strong><div class="muted">TMDB Korean title lookup resolved 8,918 files</div></div>
+                <div class="item"><strong>[12:57:45]</strong><div class="muted">Structured move plan generated</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings" class="tab-panel hidden">
+        <div class="card" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
+              <h3>Scan and Build Plan</h3>
+              <p>입력 폴더 스캔, parse, TMDB 조회, 한글 제목 그룹, 최종 이동 경로 생성을 Settings 탭에서 관리</p>
+            </div>
+            <span class="pill blue">Pipeline Controls</span>
+          </div>
+          <div class="panel-body">
+            <div class="toolbar">
+              <input value="Source: G:/Animations; D:/Incoming_Downloads" />
+              <input value="Target Root: G:/AniSorted" />
+              <select>
+                <option>TMDB TV Search</option>
+                <option>TMDB Multi Search</option>
+              </select>
+              <select>
+                <option>Unknown to Needs_Review</option>
+                <option>Leave unknown in source</option>
+              </select>
+            </div>
+            <div class="action-row">
+              <button class="btn primary">1. Scan Folder</button>
+              <button class="btn">2. Parse Names</button>
+              <button class="btn">3. Query TMDB</button>
+              <button class="btn warn">4. Build Move Plan</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-layout">
+          <div class="card">
+            <div class="panel-header">
+              <div>
+                <h3>Path Rules</h3>
+                <p>최종 출력 구조와 기본값 설정</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <label class="muted" for="target-root-folder">Target root folder</label>
+              <input id="target-root-folder" value="G:/AniSorted" />
+              <div style="height:12px"></div>
+              <label class="muted" for="path-template">Path template</label>
+              <input id="path-template" value="{target}&#92;{resolution}&#92;{year}&#92;{korean_title_group}&#92;Season{season:02}&#92;{original_filename}" />
+              <div style="height:12px"></div>
+              <label class="muted" for="unknown-resolution">Unknown resolution</label>
+              <input id="unknown-resolution" value="Unknown" />
+              <div style="height:12px"></div>
+              <label class="muted" for="unknown-group-folder">Unknown group folder</label>
+              <input id="unknown-group-folder" value="Needs_Review" />
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="panel-header">
+              <div>
+                <h3>Parse and TMDB Rules</h3>
+                <p>파일명 파싱과 TMDB 한글 제목 매핑 기준</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <label class="muted" for="ignore-tokens">Ignore tokens</label>
+              <input id="ignore-tokens" value="1080p, 720p, x264, WEBRip, BluRay, AAC, HEVC" />
+              <div style="height:12px"></div>
+              <label class="muted" for="video-extensions">Video extensions</label>
+              <input id="video-extensions" value=".mkv, .mp4, .avi" />
+              <div style="height:12px"></div>
+              <label class="muted" for="tmdb-search-mode">TMDB search mode</label>
+              <select id="tmdb-search-mode">
+                <option>Prefer TV and Korean localized title</option>
+                <option>Prefer original title then localized fallback</option>
+              </select>
+              <div style="height:12px"></div>
+              <label class="muted" for="season-folder-format">Season folder format</label>
+              <input id="season-folder-format" value="Season{season:02}" />
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const pageMeta = {
+      organizer: {
+        title: 'Organizer',
+        desc: '중간 결과 테이블과 poster 기반 최종 이동 미리보기를 확인'
+      },
+      operations: {
+        title: 'Operations',
+        desc: '폴더 구조, 실행, 최근 활동을 한 탭에서 관리'
+      },
+      settings: {
+        title: 'Settings',
+        desc: 'scan/build controls와 path, parse, TMDB 규칙 설정'
+      }
+    };
+
+    const buttons = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.tab-panel');
+    const pageTitle = document.getElementById('page-title');
+    const pageDesc = document.getElementById('page-desc');
+    const simulateBtn = document.getElementById('simulate-btn');
+    const logList = document.getElementById('log-list');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        panels.forEach(panel => panel.classList.add('hidden'));
+        document.getElementById(tab).classList.remove('hidden');
+        pageTitle.textContent = pageMeta[tab].title;
+        pageDesc.textContent = pageMeta[tab].desc;
+      });
+    });
+
+    simulateBtn.addEventListener('click', () => {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      const entry = document.createElement('div');
+      entry.className = 'item';
+      entry.innerHTML = '<strong>[' + hh + ':' + mm + ':' + ss + ']</strong><div class="muted">Simulated pipeline advanced through parse and TMDB grouping</div>';
+      if (logList) logList.prepend(entry);
+    });
+  </script>
+</body>
+</html>
