@@ -4,3 +4,8 @@
 # 개발/테스트
 pytest>=7
 pytest-cov
+
+# 린트/포맷/타입체크 (pyproject.toml [tool.*] 통합 설정)
+mypy>=1.8
+black>=24
+ruff>=0.4

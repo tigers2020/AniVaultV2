@@ -24,13 +24,16 @@ dependencies = [
     # "anitopy",  # Phase 1
     # "requests", # Phase 2
     # "typer", "rich",  # Phase 4
-    # "PySide6",  # Phase 5
+    "PySide6>=6.6",  # Phase 5: GUI
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7",
     "pytest-cov",
+    "mypy>=1.8",
+    "black>=24",
+    "ruff>=0.4",
 ]
 
 [project.scripts]
@@ -44,9 +47,47 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-v"
 
+# -----------------------------------------------------------------------------
+# 공통: Python 3.12, line-length 100, src 레이아웃
+# -----------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+show_error_codes = true
+exclude = [
+    "build/",
+    "dist/",
+    "\\.venv/",
+    "venv/",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+include = "\\.pyi?$"
+exclude = """
+/(
+    \\.git
+    | \\.venv
+    | venv
+    | build
+    | dist
+)/
+"""
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+exclude = [".git", ".venv", "venv", "build", "dist"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]  # line length → black 담당
+
+[tool.ruff.lint.isort]
+known-first-party = ["anivault"]
