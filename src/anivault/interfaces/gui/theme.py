@@ -476,3 +476,34 @@ def view_toggle_menu() -> str:
             margin: 6px 8px;
         }}
     """
+
+
+# ---------------------------------------------------------------------------
+# Progress dialog
+# ---------------------------------------------------------------------------
+
+def progress_dialog() -> str:
+    c = _c()
+    return f"""
+        QProgressDialog {{
+            background-color: {c["panel"]};
+            border: 1px solid {c["border"]};
+            border-radius: {RADIUS_PX}px;
+            color: {c["text"]};
+        }}
+        QProgressDialog QLabel {{
+            color: {c["text"]};
+            font-size: 0.95rem;
+        }}
+        QProgressBar {{
+            border: 1px solid {c["border"]};
+            border-radius: 10px;
+            text-align: center;
+            background-color: rgba(11, 16, 32, 0.82);
+        }}
+        QProgressBar::chunk {{
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 {c["accent"]}, stop:1 #8e8cff);
+            border-radius: 9px;
+        }}
+    """

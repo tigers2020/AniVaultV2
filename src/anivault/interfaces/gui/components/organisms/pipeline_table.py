@@ -13,7 +13,12 @@ class PipelineTable(QFrame):
 
     selection_changed = Signal(int)  # row index
 
-    def __init__(self, show_header: bool = True, parent=None):
+    def __init__(
+        self,
+        show_header: bool = True,
+        model: PipelineTableModel | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -26,7 +31,7 @@ class PipelineTable(QFrame):
                     pill_color="blue",
                 )
             )
-        self._model = PipelineTableModel()
+        self._model = model if model is not None else PipelineTableModel()
         self._view = QTableView()
         self._view.setModel(self._model)
         self._view.setShowGrid(True)

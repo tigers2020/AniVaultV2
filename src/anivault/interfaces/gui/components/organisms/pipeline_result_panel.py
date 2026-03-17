@@ -23,7 +23,7 @@ from anivault.interfaces.gui.components.organisms.pipeline_table import Pipeline
 from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
 from anivault.interfaces.gui.components.organisms.preview_pane import PreviewPane
 from anivault.interfaces.gui.components.organisms.tile_view import TileView
-from anivault.interfaces.gui.models import PipelineRow
+from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel
 
 from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
     VIEW_DETAILS,
@@ -55,8 +55,13 @@ class PipelineResultPanel(QFrame):
 
     selection_changed = Signal(int)
 
-    def __init__(self, parent=None):
+    def __init__(
+        self,
+        model: PipelineTableModel | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
+        self._model = model if model is not None else PipelineTableModel()
         self._rows: list[PipelineRow] = []
         self._selected_index = -1
         self._pane_mode: str | None = None  # "details" | "preview" | None
@@ -77,8 +82,8 @@ class PipelineResultPanel(QFrame):
         # Main content: stacked views
         self._stack = QStackedWidget()
 
-        # 0: Details (table)
-        table = PipelineTable(show_header=False)
+        # 0: Details (table) — use shared model when provided
+        table = PipelineTable(show_header=False, model=self._model)
         table.selection_changed.connect(self._on_selection)
         self._stack.addWidget(table)
         self._table = table
@@ -131,6 +136,9 @@ class PipelineResultPanel(QFrame):
         view_bar.details_pane_changed.connect(self._on_details_pane)
         view_bar.preview_pane_changed.connect(self._on_preview_pane)
 
+        # Sync list/tile/content/poster when model changes
+        self._model.modelReset.connect(self._sync_views_from_model)
+
     def _on_view_changed(self, key: str) -> None:
         if key in VIEW_TO_INDEX:
             self._stack.setCurrentIndex(VIEW_TO_INDEX[key])
@@ -181,7 +189,9 @@ class PipelineResultPanel(QFrame):
         card.setCursor(Qt.CursorShape.PointingHandCursor)
         card.mousePressEvent = lambda e, idx=index: self._on_selection(idx)
 
-    def set_rows(self, rows: list[PipelineRow]) -> None:
+    def _sync_views_from_model(self) -> None:
+        """Update list/tile/content/poster from model (called on modelReset)."""
+        rows = self._model.rows()
         self._rows = list(rows)
         cards = [
             PosterCard(
@@ -194,13 +204,18 @@ class PipelineResultPanel(QFrame):
         ]
         for i, card in enumerate(cards):
             self._make_card_clickable(card, i)
-
-        self._table.set_rows(rows)
         self._list_view.set_rows(rows)
         self._tile_view.set_cards(cards)
         self._content_view.set_rows(rows)
         for grid in self._poster_grids.values():
             grid.set_cards(cards)
-
         if rows and self._selected_index < 0:
             self._on_selection(0)
+
+    def model(self) -> PipelineTableModel:
+        """Return shared model for presenter updates."""
+        return self._model
+
+    def set_rows(self, rows: list[PipelineRow]) -> None:
+        """Set rows. Updates model (triggers _sync_views_from_model for list/tile/content/poster)."""
+        self._model.set_rows(rows)

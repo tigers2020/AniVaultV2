@@ -1,6 +1,7 @@
 """Organisms: composition of molecules/atoms."""
 
 from anivault.interfaces.gui.components.organisms.compact_list_view import CompactListView
+from anivault.interfaces.gui.components.organisms.folder_scan_bar import FolderScanBar
 from anivault.interfaces.gui.components.organisms.content_view import ContentView
 from anivault.interfaces.gui.components.organisms.details_pane import DetailsPane
 from anivault.interfaces.gui.components.organisms.execution_card import ExecutionCard
@@ -24,6 +25,7 @@ from anivault.interfaces.gui.components.organisms.parse_tmdb_form import ParseTm
 
 __all__ = [
     "CompactListView",
+    "FolderScanBar",
     "ContentView",
     "DetailsPane",
     "ExecutionCard",

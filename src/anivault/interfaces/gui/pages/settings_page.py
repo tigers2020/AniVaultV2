@@ -8,13 +8,20 @@ from anivault.interfaces.gui.components.organisms import (
     PathRulesForm,
     ParseTmdbForm,
 )
+from anivault.interfaces.gui.presenters import SettingsPresenter
 
 
 class SettingsPage(QWidget):
     """Settings: scan/build card + path rules + parse/TMDB rules (organisms only)."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, presenter: SettingsPresenter | None = None):
         super().__init__(parent)
+        self._presenter = presenter if presenter is not None else SettingsPresenter(parent=self)
+        if presenter is not None:
+            self._presenter.setParent(self)
+        scan_card = ScanBuildCard()
+        scan_card.scan_clicked.connect(self._presenter.on_scan_clicked)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
@@ -22,7 +29,7 @@ class SettingsPage(QWidget):
         scroll.setStyleSheet(theme.scroll_area_transparent())
         content = QWidget()
         content_layout = QVBoxLayout(content)
-        content_layout.addWidget(ScanBuildCard())
+        content_layout.addWidget(scan_card)
         settings_layout = QHBoxLayout()
         settings_layout.setSpacing(18)
         settings_layout.addWidget(PathRulesForm(), 12)

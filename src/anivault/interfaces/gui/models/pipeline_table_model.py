@@ -1,26 +1,10 @@
 """QAbstractTableModel for pipeline table. Row shape per plan §7.2."""
 
-from dataclasses import dataclass
 from typing import Any
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
-
-@dataclass
-class PipelineRow:
-    """One row in pipeline table. Shared by table / poster / operations."""
-
-    original_file: str
-    parsed_title: str
-    parse_group: str
-    tmdb_korean_title_group: str
-    year: str
-    season: str
-    resolution: str
-    status: str
-    poster_url: str
-    target_path: str
-
+from anivault.interfaces.gui.models.ui_rows import PipelineRow
 
 COLUMNS = [
     ("Original File", "original_file"),
@@ -74,6 +58,10 @@ class PipelineTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._rows = list(rows)
         self.endResetModel()
+
+    def rows(self) -> list[PipelineRow]:
+        """Return current rows for sync to other views (list, tile, poster)."""
+        return list(self._rows)
 
     def row_at(self, index: int) -> PipelineRow | None:
         if 0 <= index < len(self._rows):

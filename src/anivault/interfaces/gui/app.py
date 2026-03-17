@@ -4,7 +4,6 @@ from PySide6.QtWidgets import QMainWindow
 
 from anivault.interfaces.gui.theme import global_stylesheet
 from anivault.interfaces.gui.templates import MainShell
-from anivault.interfaces.gui.pages import OrganizerPage, OperationsPage, SettingsPage
 from anivault.interfaces.gui.components.organisms import LogList
 
 PAGE_META = {
@@ -34,9 +33,15 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(global_stylesheet())
         self._shell = MainShell()
         self.setCentralWidget(self._shell)
-        self._shell.add_page(OrganizerPage())
-        self._shell.add_page(OperationsPage())
-        self._shell.add_page(SettingsPage())
+        from anivault.interfaces.gui.composition import (
+            create_organizer_page,
+            create_operations_page,
+            create_settings_page,
+        )
+
+        self._shell.add_page(create_organizer_page())
+        self._shell.add_page(create_operations_page())
+        self._shell.add_page(create_settings_page())
         self._shell.tab_clicked.connect(self._on_tab_clicked)
         organizer_idx = 0
         operations_idx = 1

@@ -1,6 +1,6 @@
-"""Entry point for `python -m anivault`. Delegates to CLI."""
+"""Entry point for `python -m anivault`. GUI-first; CLI available via anivault-cli."""
 
-from anivault.interfaces.cli.main import run
+from anivault.interfaces.gui.main import run
 
 if __name__ == "__main__":
     run()

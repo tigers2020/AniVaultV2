@@ -37,7 +37,8 @@ dev = [
 ]
 
 [project.scripts]
-anivault = "anivault.interfaces.cli.main:run"
+anivault = "anivault.interfaces.gui.main:run"
+anivault-cli = "anivault.interfaces.cli.main:run"
 
 [tool.setuptools.packages.find]
 where = ["src"]

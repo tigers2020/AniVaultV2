@@ -1,5 +1,6 @@
 """Execution card: Move summary + action row (Move Files, Undo, etc.)."""
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QWidget, QHBoxLayout, QLabel
 
 from anivault.interfaces.gui.components.molecules import PanelHeader
@@ -9,6 +10,9 @@ from anivault.interfaces.gui import theme
 
 class ExecutionCard(QFrame):
     """Execution panel: summary text, pills, action buttons."""
+
+    apply_clicked = Signal()
+    rollback_clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -42,9 +46,14 @@ class ExecutionCard(QFrame):
         actions = QHBoxLayout()
         actions.setSpacing(10)
         actions.setContentsMargins(0, 16, 0, 0)
-        actions.addWidget(Button("Move Files", "primary"))
-        actions.addWidget(Button("Create Folder Tree Only", "success"))
-        actions.addWidget(Button("Undo Last Move", "danger"))
-        body.addLayout(actions)
+        apply_btn = Button("Move Files", "primary")
+        apply_btn.clicked.connect(self.apply_clicked.emit)
+        actions.addWidget(apply_btn)
+        create_tree_btn = Button("Create Folder Tree Only", "success")
+        create_tree_btn.clicked.connect(self.apply_clicked.emit)
+        actions.addWidget(create_tree_btn)
+        undo_btn = Button("Undo Last Move", "danger")
+        undo_btn.clicked.connect(self.rollback_clicked.emit)
+        actions.addWidget(undo_btn)
         layout.addLayout(body)
         self.setStyleSheet(theme.card_panel())
