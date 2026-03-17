@@ -35,19 +35,20 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Unit test / coverage
-.htmlcov
-.tox
-.nox
+htmlcov/
+.tox/
+.nox/
 .coverage
 .coverage.*
 .cache
 nosetests.xml
 coverage.xml
 *.cover
-*.py,cover
+*.py.cover
 .hypothesis/
 pytest_cache/
 .pytest_cache/
+cover/
 
 # Translations
 *.mo
@@ -55,6 +56,7 @@ pytest_cache/
 
 # Environments
 .env
+.envrc
 .venv
 env/
 venv/
@@ -96,7 +98,7 @@ dmypy.json
 Thumbs.db
 desktop.ini
 
-# 일단
+# Project specific
 tests/
 documents/
 persona/
