@@ -8,6 +8,7 @@ from anivault.interfaces.gui.components.molecules.path_box import PathBox
 from anivault.interfaces.gui.components.molecules.poster_card import PosterCard
 from anivault.interfaces.gui.components.molecules.stat_card import StatCard
 from anivault.interfaces.gui.components.molecules.step_row import StepRow
+from anivault.interfaces.gui.components.molecules.view_toggle_bar import ViewToggleBar
 
 __all__ = [
     "Brand",
@@ -18,4 +19,5 @@ __all__ = [
     "PosterCard",
     "StatCard",
     "StepRow",
+    "ViewToggleBar",
 ]

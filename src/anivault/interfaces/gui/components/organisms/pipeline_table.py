@@ -9,22 +9,23 @@ from anivault.interfaces.gui import theme
 
 
 class PipelineTable(QFrame):
-    """Table with panel header. Selection feeds preview."""
+    """Table with optional panel header. Selection feeds preview."""
 
     selection_changed = Signal(int)  # row index
 
-    def __init__(self, parent=None):
+    def __init__(self, show_header: bool = True, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(
-            PanelHeader(
-                "Pipeline Result Table",
-                "Parsed Filename Result, Parse Title Group, TMDB Korean Title Group 결과를 하나의 리스트 테이블로 통합",
-                pill_text="Unified Table",
-                pill_color="blue",
+        if show_header:
+            layout.addWidget(
+                PanelHeader(
+                    "Pipeline Result Table",
+                    "Parsed Filename Result, Parse Title Group, TMDB Korean Title Group 결과를 하나의 리스트 테이블로 통합",
+                    pill_text="Unified Table",
+                    pill_color="blue",
+                )
             )
-        )
         self._model = PipelineTableModel()
         self._view = QTableView()
         self._view.setModel(self._model)

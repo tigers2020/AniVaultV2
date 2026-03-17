@@ -423,3 +423,56 @@ def list_item_muted() -> str:
 def form_label_muted() -> str:
     c = _c()
     return f"{FONT_CAPTION} color: {c['muted']}; background: transparent; border: none;"
+
+
+# ---------------------------------------------------------------------------
+# View toggle bar
+# ---------------------------------------------------------------------------
+
+def view_toggle_button() -> str:
+    c = _c()
+    return f"""
+        QToolButton {{
+            background-color: rgba(24, 34, 67, 0.7);
+            border: 1px solid {c["border"]};
+            border-radius: 10px;
+            color: {c["text"]};
+            padding: 8px 12px;
+            font-size: 0.88rem;
+        }}
+        QToolButton:hover {{
+            background-color: rgba(122, 162, 255, 0.12);
+            border-color: rgba(122, 162, 255, 0.28);
+        }}
+        QToolButton::menu-indicator {{
+            width: 16px;
+        }}
+    """
+
+
+def view_toggle_menu() -> str:
+    c = _c()
+    return f"""
+        QMenu {{
+            background-color: {c["panel"]};
+            border: 1px solid {c["border"]};
+            border-radius: 12px;
+            padding: 6px;
+        }}
+        QMenu::item {{
+            padding: 10px 24px;
+            border-radius: 8px;
+            color: {c["text"]};
+        }}
+        QMenu::item:selected {{
+            background-color: rgba(122, 162, 255, 0.18);
+        }}
+        QMenu::item:disabled {{
+            color: {c["muted"]};
+        }}
+        QMenu::separator {{
+            height: 1px;
+            background: {c["border"]};
+            margin: 6px 8px;
+        }}
+    """

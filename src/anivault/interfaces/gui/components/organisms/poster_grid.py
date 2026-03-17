@@ -13,15 +13,16 @@ GRID_MARGINS = (0, 0, 0, 0)
 POSTER_ASPECT = 3 / 2
 
 
-def _column_count(width: int) -> int:
-    return max(1, (width + GRID_SPACING) // (MIN_CARD_WIDTH + GRID_SPACING))
+def _column_count(width: int, min_card: int) -> int:
+    return max(1, (width + GRID_SPACING) // (min_card + GRID_SPACING))
 
 
 class _GridContainer(QWidget):
     """Container that relayouts grid when width changes."""
 
-    def __init__(self, parent=None):
+    def __init__(self, min_card_width: int = MIN_CARD_WIDTH, parent=None):
         super().__init__(parent)
+        self._min_card_width = min_card_width
         self._grid = QGridLayout(self)
         self._grid.setSpacing(GRID_SPACING)
         self._grid.setContentsMargins(*GRID_MARGINS)
@@ -43,13 +44,14 @@ class _GridContainer(QWidget):
         if not self._cards:
             return
         w = self.width()
+        mc = self._min_card_width
         if w <= 0:
-            w = MIN_CARD_WIDTH * 2 + GRID_SPACING
-        cols = _column_count(w)
+            w = mc * 2 + GRID_SPACING
+        cols = _column_count(w, mc)
         self._last_cols = cols
         self._last_width = w
         # One size for all cards so height never "shrinks" by column
-        card_w = max(MIN_CARD_WIDTH, (w - (cols - 1) * GRID_SPACING) // cols)
+        card_w = max(mc, (w - (cols - 1) * GRID_SPACING) // cols)
         card_h = int(card_w * POSTER_ASPECT)
         for c in range(cols):
             self._grid.setColumnStretch(c, 1)
@@ -75,23 +77,29 @@ class _GridContainer(QWidget):
 class PosterGrid(QFrame):
     """Grid of poster cards. Portrait 2:3 ratio; columns from available width."""
 
-    def __init__(self, parent=None):
+    def __init__(
+        self,
+        min_card_width: int = MIN_CARD_WIDTH,
+        show_header: bool = True,
+        parent=None,
+    ):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(
-            PanelHeader(
-                "Final Move Preview",
-                "TMDB poster 이미지를 기준으로 최종 이동 결과를 카드 그리드로 미리보기",
-                pill_text="Poster Grid",
-                pill_color="green",
+        if show_header:
+            layout.addWidget(
+                PanelHeader(
+                    "Final Move Preview",
+                    "TMDB poster 이미지를 기준으로 최종 이동 결과를 카드 그리드로 미리보기",
+                    pill_text="Poster Grid",
+                    pill_color="green",
+                )
             )
-        )
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(scroll.horizontalScrollBarPolicy())
         scroll.setStyleSheet(theme.scroll_area_transparent())
-        self._container = _GridContainer()
+        self._container = _GridContainer(min_card_width=min_card_width)
         scroll.setWidget(self._container)
         layout.addWidget(scroll)
         self.setStyleSheet(theme.card_panel())

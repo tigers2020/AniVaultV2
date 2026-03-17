@@ -1,10 +1,9 @@
-"""Organizer page: StatsGrid + PipelineTable + PosterGrid (organisms only)."""
+"""Organizer page: StatsGrid + PipelineResultPanel (organisms only)."""
 
 from PySide6.QtWidgets import QScrollArea, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui import theme
-from anivault.interfaces.gui.components.molecules import PosterCard
-from anivault.interfaces.gui.components.organisms import PipelineTable, PosterGrid, StatsGrid
+from anivault.interfaces.gui.components.organisms import PipelineResultPanel, StatsGrid
 from anivault.interfaces.gui.models import PipelineRow
 
 STATUS_TMDB_MATCHED = "TMDB Matched"
@@ -76,21 +75,8 @@ class OrganizerPage(QWidget):
         content = QWidget()
         content_layout = QVBoxLayout(content)
         content_layout.addWidget(StatsGrid())
-        pipeline_table = PipelineTable()
-        pipeline_table.set_rows(_sample_rows())
-        content_layout.addWidget(pipeline_table)
-        rows = _sample_rows()
-        cards = [
-            PosterCard(
-                title=r.tmdb_korean_title_group,
-                meta=f"Parsed: {r.parsed_title}\nYear: {r.year} • {r.season} • {r.resolution}",
-                path=r.target_path,
-                image_url=r.poster_url,
-            )
-            for r in rows
-        ]
-        poster_grid = PosterGrid()
-        poster_grid.set_cards(cards)
-        content_layout.addWidget(poster_grid)
+        panel = PipelineResultPanel()
+        panel.set_rows(_sample_rows())
+        content_layout.addWidget(panel)
         scroll.setWidget(content)
         layout.addWidget(scroll)

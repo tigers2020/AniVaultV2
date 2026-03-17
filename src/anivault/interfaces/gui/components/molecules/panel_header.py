@@ -1,4 +1,4 @@
-"""Panel header: title + description + optional Pill."""
+"""Panel header: title + description + optional Pill or right widget."""
 
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout
 
@@ -7,7 +7,7 @@ from anivault.interfaces.gui import theme
 
 
 class PanelHeader(QWidget):
-    """Title, optional description, and optional right-side pill."""
+    """Title, optional description, and optional right-side pill or widget."""
 
     def __init__(
         self,
@@ -15,6 +15,7 @@ class PanelHeader(QWidget):
         description: str = "",
         pill_text: str = "",
         pill_color: str = "blue",
+        right_widget: QWidget | None = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -31,5 +32,7 @@ class PanelHeader(QWidget):
             desc_lbl.setStyleSheet(theme.panel_header_desc())
             left.addWidget(desc_lbl)
         layout.addLayout(left, 1)
-        if pill_text:
+        if right_widget is not None:
+            layout.addWidget(right_widget)
+        elif pill_text:
             layout.addWidget(Pill(pill_text, pill_color))
