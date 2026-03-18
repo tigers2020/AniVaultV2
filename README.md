@@ -2,8 +2,8 @@
 
 애니메이션 라이브러리 **스캔·매칭·정리** 도구. V2는 그린필드 전략으로 재구성한다.
 
-- **전략·Phase**: [documents/v2/README.md](documents/v2/README.md)
-- **알고리즘·규칙**: [documents/v2/ALGORITHMS_AND_KNOWLEDGE.md](documents/v2/ALGORITHMS_AND_KNOWLEDGE.md)
+- **아키텍처·Phase**: [documents/QT_Architecture_Spec.md](documents/QT_Architecture_Spec.md)
+- **프로토콜**: [protocols/](protocols/)
 
 ## 요구 사항
 
@@ -19,11 +19,11 @@ pip install -e .
 
 ```
 src/anivault/
-  __main__.py   # python -m anivault → CLI
+  __main__.py   # python -m anivault → GUI
   domain/       # 모델, 서비스, 규칙
   application/  # 유스케이스, DTO, ports(계약)
   adapters/     # fs, metadata/tmdb, cache, operation_log
-  interfaces/   # cli/main.py, gui/main.py (비즈니스 로직 없음)
+  interfaces/   # gui/main.py (비즈니스 로직 없음)
   bootstrap/    # container, settings
 tests/
   unit/
@@ -32,7 +32,7 @@ tests/
 ```
 
 - **ports**: `application/ports` — MetadataProvider, FileRepository, OperationLogRepository, CacheRepository. 어댑터가 구현.
-- **진입점**: CLI `interfaces/cli/main.py`, GUI `interfaces/gui/main.py`. `python -m anivault`는 CLI 실행.
+- **진입점**: GUI `interfaces/gui/main.py`. `python -m anivault`로 실행.
 
 ## 테스트
 

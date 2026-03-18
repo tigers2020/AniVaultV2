@@ -1,9 +1,10 @@
 """OrganizerPresenter: orchestrates OrganizerPage <-> scan/match/plan use cases."""
 
 from PySide6.QtCore import QObject, QThread
+
+from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.application.use_cases.scan_library import execute as scan_library_execute
 from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel
-from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.interfaces.gui.workers import UseCaseWorker, WorkerSignals, run_worker
 
 

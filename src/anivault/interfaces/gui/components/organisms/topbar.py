@@ -1,10 +1,10 @@
 """Topbar: page title + description + action buttons."""
 
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel
 from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui.components.atoms import Button
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import Button
 
 
 class Topbar(QWidget):

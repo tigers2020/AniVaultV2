@@ -1,11 +1,11 @@
 """Operations page: FolderStructurePreview + ExecutionCard + LogList (organisms only)."""
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea
+from PySide6.QtWidgets import QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import (
-    FolderStructurePreview,
     ExecutionCard,
+    FolderStructurePreview,
     LogList,
 )
 from anivault.interfaces.gui.presenters import OperationsPresenter

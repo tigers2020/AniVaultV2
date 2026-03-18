@@ -1,11 +1,11 @@
 """Scan/Build card: Source/Target inputs + TMDB/Unknown selects + Scan·Build buttons."""
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QWidget, QHBoxLayout
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui.components.molecules import PanelHeader, PathSelectField
-from anivault.interfaces.gui.components.atoms import Button, LineEdit, ComboBox
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import Button, ComboBox, LineEdit
+from anivault.interfaces.gui.components.molecules import PanelHeader, PathSelectField
 
 
 class ScanBuildCard(QFrame):

@@ -1,11 +1,11 @@
 """Execution card: Move summary + action row (Move Files, Undo, etc.)."""
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QWidget, QHBoxLayout, QLabel
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui.components.molecules import PanelHeader
-from anivault.interfaces.gui.components.atoms import Button, Pill
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import Button, Pill
+from anivault.interfaces.gui.components.molecules import PanelHeader
 
 
 class ExecutionCard(QFrame):

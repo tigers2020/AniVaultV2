@@ -1,21 +1,24 @@
 """Tile view: large cards with image + title + parsed/tmdb/path summary."""
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QScrollArea, QVBoxLayout, QWidget, QGridLayout
+from PySide6.QtWidgets import QFrame, QGridLayout, QScrollArea, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui.components.molecules import PosterCard
 from anivault.interfaces.gui import theme
-from anivault.interfaces.gui.models import PipelineRow
+from anivault.interfaces.gui.components.molecules import PosterCard
 
 TILE_MIN_WIDTH = 200
 
 
 def _make_clickable_card(card: PosterCard, index: int, callback) -> None:
     """Replace mousePressEvent to emit selection."""
+
     def _on_click(event):
         callback(index)
-    card.mousePressEvent = _on_click
+
+    card.mousePressEvent = _on_click  # type: ignore[method-assign]
     card.setCursor(Qt.CursorShape.PointingHandCursor)
+
+
 GRID_SPACING = 20
 POSTER_ASPECT = 3 / 2
 

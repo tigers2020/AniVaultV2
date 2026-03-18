@@ -3,18 +3,27 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
-    QVBoxLayout,
-    QHBoxLayout,
-    QWidget,
-    QStackedWidget,
     QSplitter,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import (
     PanelHeader,
-    ViewToggleBar,
     PosterCard,
+    ViewToggleBar,
+)
+from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
+    VIEW_CONTENT,
+    VIEW_DETAILS,
+    VIEW_ICON_L,
+    VIEW_ICON_M,
+    VIEW_ICON_S,
+    VIEW_ICON_XL,
+    VIEW_LIST,
+    VIEW_TILES,
 )
 from anivault.interfaces.gui.components.organisms.compact_list_view import CompactListView
 from anivault.interfaces.gui.components.organisms.content_view import ContentView
@@ -24,17 +33,6 @@ from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
 from anivault.interfaces.gui.components.organisms.preview_pane import PreviewPane
 from anivault.interfaces.gui.components.organisms.tile_view import TileView
 from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel
-
-from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
-    VIEW_DETAILS,
-    VIEW_LIST,
-    VIEW_TILES,
-    VIEW_CONTENT,
-    VIEW_ICON_XL,
-    VIEW_ICON_L,
-    VIEW_ICON_M,
-    VIEW_ICON_S,
-)
 
 VIEW_TO_INDEX = {
     VIEW_DETAILS: 0,
@@ -187,7 +185,7 @@ class PipelineResultPanel(QFrame):
 
     def _make_card_clickable(self, card: PosterCard, index: int) -> None:
         card.setCursor(Qt.CursorShape.PointingHandCursor)
-        card.mousePressEvent = lambda e, idx=index: self._on_selection(idx)
+        card.mousePressEvent = lambda e, idx=index: self._on_selection(idx)  # type: ignore[method-assign,misc]
 
     def _sync_views_from_model(self) -> None:
         """Update list/tile/content/poster from model (called on modelReset)."""

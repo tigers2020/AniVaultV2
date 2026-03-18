@@ -2,10 +2,9 @@
 
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QToolButton, QHBoxLayout, QWidget, QMenu
+from PySide6.QtWidgets import QHBoxLayout, QMenu, QToolButton, QWidget
 
 from anivault.interfaces.gui import theme
-
 
 VIEW_DETAILS = "details"
 VIEW_LIST = "list"
@@ -49,7 +48,7 @@ class ViewToggleBar(QWidget):
     details_pane_changed = Signal(bool)
     preview_pane_changed = Signal(bool)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -71,43 +70,49 @@ class ViewToggleBar(QWidget):
         # Icon sizes group
         icon_group = menu.addAction("아이콘 크기")
         icon_group.setEnabled(False)
-        self._actions = {}
+        self._actions: dict[str, QAction] = {}
         for key in (VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S):
             a = menu.addAction(_view_label(key), lambda k=key: self._set_view(k))
-            a.setCheckable(True)
-            a.setData(key)
-            if key == self._current_view:
-                a.setChecked(True)
-            self._actions[key] = a
+            if a is not None:
+                a.setCheckable(True)
+                a.setData(key)
+                if key == self._current_view:
+                    a.setChecked(True)
+                self._actions[key] = a
 
         menu.addSeparator()
 
         # List/details group
         list_group = menu.addAction("목록 및 세부 정보")
-        list_group.setEnabled(False)
+        if list_group is not None:
+            list_group.setEnabled(False)
         for key in (VIEW_LIST, VIEW_DETAILS, VIEW_TILES, VIEW_CONTENT):
             a = menu.addAction(_view_label(key), lambda k=key: self._set_view(k))
-            a.setCheckable(True)
-            a.setData(key)
-            if key == self._current_view:
-                a.setChecked(True)
-            self._actions[key] = a
+            if a is not None:
+                a.setCheckable(True)
+                a.setData(key)
+                if key == self._current_view:
+                    a.setChecked(True)
+                self._actions[key] = a
 
         menu.addSeparator()
 
         # Pane toggles
         pane_group = menu.addAction("창 표시")
-        pane_group.setEnabled(False)
+        if pane_group is not None:
+            pane_group.setEnabled(False)
         details_action = menu.addAction("세부 정보 창", self._toggle_details_pane)
-        details_action.setCheckable(True)
-        details_action.setChecked(self._details_pane_checked)
         preview_action = menu.addAction("미리 보기 창", self._toggle_preview_pane)
-        preview_action.setCheckable(True)
-        preview_action.setChecked(self._preview_pane_checked)
+        if details_action is not None:
+            details_action.setCheckable(True)
+            details_action.setChecked(self._details_pane_checked)
+        if preview_action is not None:
+            preview_action.setCheckable(True)
+            preview_action.setChecked(self._preview_pane_checked)
 
         self._menu = menu
-        self._details_action = details_action
-        self._preview_action = preview_action
+        self._details_action: QAction | None = details_action
+        self._preview_action: QAction | None = preview_action
         self._btn.setMenu(menu)
 
     def _set_view(self, key: str) -> None:
@@ -117,20 +122,24 @@ class ViewToggleBar(QWidget):
         self.view_changed.emit(key)
 
     def _toggle_details_pane(self) -> None:
-        self._details_pane_checked = self._details_action.isChecked()
+        if self._details_action is not None:
+            self._details_pane_checked = self._details_action.isChecked()
         self.details_pane_changed.emit(self._details_pane_checked)
 
     def _toggle_preview_pane(self) -> None:
-        self._preview_pane_checked = self._preview_action.isChecked()
+        if self._preview_action is not None:
+            self._preview_pane_checked = self._preview_action.isChecked()
         self.preview_pane_changed.emit(self._preview_pane_checked)
 
     def set_details_pane_checked(self, checked: bool) -> None:
         self._details_pane_checked = checked
-        self._details_action.setChecked(checked)
+        if self._details_action is not None:
+            self._details_action.setChecked(checked)
 
     def set_preview_pane_checked(self, checked: bool) -> None:
         self._preview_pane_checked = checked
-        self._preview_action.setChecked(checked)
+        if self._preview_action is not None:
+            self._preview_action.setChecked(checked)
 
     def set_current_view(self, key: str) -> None:
         """Update UI to reflect current view. Does not emit signal."""

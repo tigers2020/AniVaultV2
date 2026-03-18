@@ -23,8 +23,10 @@ class OrganizerPage(QWidget):
     ):
         super().__init__(parent)
         self._model = model if model is not None else PipelineTableModel()
-        self._presenter = presenter if presenter is not None else OrganizerPresenter(
-            pipeline_model=self._model, parent=self
+        self._presenter = (
+            presenter
+            if presenter is not None
+            else OrganizerPresenter(pipeline_model=self._model, parent=self)
         )
         if presenter is not None:
             self._presenter.setParent(self)

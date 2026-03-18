@@ -1,122 +1,84 @@
 # AGENTS.md
 
-AI coding agents를 위한 AniVault V2 프로젝트 가이드.  
-[AGENTS.md](https://agents.md/) 표준 형식을 따릅니다.
+Cursor AI용 AniVault V2 프로젝트 가이드. [AGENTS.md](https://agents.md/) 표준.
+
+> **핵심**: `.cursor/rules/anivault-root.mdc`가 사전 지시서. 자기 검증·도메인 용어·@참조. 200줄 이하.
 
 ---
 
-## Project overview
+## 진행 방식: 캐릭터 대화형 (Persona Dialogue)
 
-**AniVault V2** — 애니메이션 라이브러리 **스캔·매칭·정리** 도구. V2는 그린필드 전략으로 재구성한다.
+**모든 코딩·진행은 `persona/` 캐릭터들의 대화 형식. 자연스러운 구어체로.**
 
-워크플로우: 스캔 → 매칭 → 정리 → (선택) 롤백
+### 대화 규칙
 
-- 전략·Phase: [documents/v2/README.md](documents/v2/README.md)
-- 알고리즘·규칙: [documents/v2/ALGORITHMS_AND_KNOWLEDGE.md](documents/v2/ALGORITHMS_AND_KNOWLEDGE.md)
+- **자연체**: 격식 있는 문어가 아니라, 팀원끼리 대화하듯 자연스러운 말투.
+- 시몬이 흐름을 잡고, 캐릭터들이 서로 말걸고 요청하고 답하고.
+- `[시몬]` `[도미닉]` 등으로 누가 말하는지만 구분.
 
----
+### 예시 (자연스러운 대화)
 
-## Architecture
+```
+[시몬] 매칭 스코어 넣으라는 요청 들어왔어. confidence 계산이 필요한데, 도미닉 이거 네 담당이지?
 
-```mermaid
-flowchart LR
-    GUI[GUI primary]
-    CLI[CLI legacy]
-    UC[Use Cases]
-    DOM[Domain]
-    ADPT[Adapters]
-    GUI --> UC
-    CLI --> UC
-    UC --> DOM
-    UC --> ADPT
+[도미닉] 응, domain/rules/에 ConfidenceThresholds 만들게. HIGH 0.8, MEDIUM 0.5, LOW 0.2로 둘까?
+
+[유리] 그럼 난 MatchUseCase에서 거기 호출하면 되겠네. 포트만 쓰고, TMDB 쪽 변환은 아다가 하잖아.
+
+[아다] 맞아, 우리는 응답 → DTO만. 스코어링은 안 건드릴게.
+
+[시몬] ㅇㅋ. 도미닉부터 하고 → 유리 → 아다 순으로 가자. 다 끝나면 pytest, ruff, mypy, black 돌려보고 알려줘.
 ```
 
-- **GUI (primary)**: 주 인터페이스. 버튼/뷰만. Presenter → Worker → Use Case.
-- **CLI (legacy)**: 부가 엔트리. 인자 파싱·출력 포맷만.
-- **한 명령 = 한 유스케이스**: scan, match, plan, apply, rollback. `run`은 오케스트레이션만.
-- **외부 연동**: 포트(Protocol) 정의 후 어댑터로 구현. MetadataProvider, FileRepository, OperationLogRepository, CacheRepository.
-- 참조: `.cursor/rules/anivault-architecture.mdc`, `protocols/architecture.md` (로컬에 있으면)
+---
+
+## 프로젝트 개요
+
+**AniVault V2** — 애니메이션 라이브러리 스캔·매칭·정리. GUI-only Qt.
+
+워크플로우: **스캔** → **타이틀 클리닝** → **매칭** → **정리(plan→apply)** → (선택) 롤백
 
 ---
 
-## Setup commands
+## 규칙 우선순위
 
-- Install: `pip install -e .`
-- Dev dependencies: `pip install -e ".[dev]"`
-- **GUI (primary)**: `python -m anivault` or `anivault`
-- CLI (legacy): `anivault-cli`
-
----
-
-## Test commands
-
-- Run tests: `pytest`
-- Verbose: `pytest -v`
-- Unit only: `pytest tests/unit/`
-- With coverage: `pytest --cov`
-- Test structure: `tests/unit/`, `tests/integration/`, `tests/golden/` (filenames, normalize_series_title)
-- Commit 전 반드시 `pytest` 통과 확인
+1. **@.cursor/rules/anivault-root.mdc** — 자기 검증 4단계, 도메인 용어, DO/DON'T
+2. **@.cursor/rules/anivault-architecture.mdc** — 레이어·포트
+3. **@.cursor/rules/anivault-qt-gui.mdc** 등 glob 규칙 — 파일/디렉터리별 적용
 
 ---
 
-## Code style
+## 빌드·명령
 
-- **Black**: line-length 100, target py312 — `black .`
-- **Ruff**: E, F, I, UP, B, C4, SIM, isort (known-first-party: anivault) — `ruff check .`
-- **MyPy**: strict mode — `mypy src`
-- Lint/type-check 후 커밋
+| 목적 | 명령 |
+|------|------|
+| 설치 | `pip install -e .` |
+| GUI | `python -m anivault` |
+| 테스트 | `pytest` |
+| 검증 | `ruff check .` → `mypy src` → `black .` |
 
----
-
-## Key conventions
-
-### DO
-
-- Use case는 **포트만** 주입받고, domain에 비즈니스 로직 위임
-- ParsingResult 스키마 준수 (`documents/v2/ALGORITHMS_AND_KNOWLEDGE.md` §1)
-- 새 로직은 domain 또는 application에 배치
-- Golden 테스트 자산 활용: `tests/golden/filenames/`, `tests/golden/normalize_series_title.txt`
-
-### DON'T
-
-- 인터페이스(CLI/GUI)에 파싱·경로·스코어·매칭 로직 넣기
-- V1 코드를 폴더째 복붙해서 시작하기
-- Use case가 CLI/GUI에 의존하게 하기 (의존 방향: interface → use case)
+Golden: `tests/golden/filenames/`, `tests/golden/normalize_series_title.txt`
 
 ---
 
-## Documentation & protocol
-
-- `protocols/`, `persona/` 폴더가 있으면 검토 후 절차에 따라 패르소나 형식으로 진행
-- `.cursor/rules/` 규칙 준수: anivault-architecture, anivault-parser, anivault-use-cases, anivault-interfaces
-
----
-
-## File structure
+## 파일 구조
 
 ```
 src/anivault/
-  domain/       # models, services, rules
-  application/  # use_cases, dto, ports
-  adapters/     # fs, metadata, cache, operation_log
-  interfaces/   # cli, gui (비즈니스 로직 없음)
-  bootstrap/    # container, settings
-tests/
-  unit/
-  integration/
-  golden/       # filenames, normalize_series_title
+  domain/       application/   adapters/   interfaces/gui/   bootstrap/
+tests/  unit/  integration/  golden/
 ```
 
 ---
 
-## Security
+## 문서
 
-- API 키(TMDB 등)는 `.env` 또는 설정에서 로드. 코드에 하드코딩 금지
-- `.env`는 `.gitignore`에 포함됨
+- `protocols/`, `persona/` — 패르소나 형식
+- `documents/QT_Architecture_Spec.md` — Qt GUI 상세
 
 ---
 
-## PR / Commit
+## 보안·커밋
 
-- 제목 형식: `[모듈] 요약` 예: `[parser] FallbackParser 추가`
-- `pytest`, `ruff check .`, `mypy src` 통과 후 커밋
+- API 키: `.env`, 코드 하드코딩 금지
+- 커밋: `[모듈] 요약`, 검증 4단계 통과 후

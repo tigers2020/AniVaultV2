@@ -1,10 +1,9 @@
 """Brand: Badge + title + subtitle (AniVault V2)."""
 
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui.components.atoms import Badge, Label
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import Badge, Label
 
 
 class Brand(QWidget):

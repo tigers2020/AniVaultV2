@@ -1,10 +1,10 @@
 """Parse and TMDB rules form."""
 
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
+from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
 
-from anivault.interfaces.gui.components.molecules import PanelHeader, FormField
-from anivault.interfaces.gui.components.atoms import ComboBox
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import ComboBox
+from anivault.interfaces.gui.components.molecules import FormField, PanelHeader
 
 
 class ParseTmdbForm(QFrame):
@@ -19,16 +19,20 @@ class ParseTmdbForm(QFrame):
         )
         body = QVBoxLayout()
         body.setContentsMargins(18, 18, 18, 18)
-        body.addWidget(FormField("Ignore tokens", "line", "1080p, 720p, x264, WEBRip, BluRay, AAC, HEVC"))
+        body.addWidget(
+            FormField("Ignore tokens", "line", "1080p, 720p, x264, WEBRip, BluRay, AAC, HEVC")
+        )
         body.addWidget(FormField("Video extensions", "line", ".mkv, .mp4, .avi"))
         lbl = QLabel("TMDB search mode")
         lbl.setStyleSheet(theme.form_label_muted())
         body.addWidget(lbl)
         self._tmdb_search = ComboBox()
-        self._tmdb_search.addItems([
-            "Prefer TV and Korean localized title",
-            "Prefer original title then localized fallback",
-        ])
+        self._tmdb_search.addItems(
+            [
+                "Prefer TV and Korean localized title",
+                "Prefer original title then localized fallback",
+            ]
+        )
         body.addWidget(self._tmdb_search)
         body.addWidget(FormField("Season folder format", "line", "Season{season:02}"))
         layout.addLayout(body)

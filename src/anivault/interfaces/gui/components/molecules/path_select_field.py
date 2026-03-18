@@ -1,7 +1,7 @@
 """Path select field: LineEdit + folder browse button."""
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QFileDialog
+from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QWidget
 
 from anivault.interfaces.gui.components.atoms import Button, LineEdit
 

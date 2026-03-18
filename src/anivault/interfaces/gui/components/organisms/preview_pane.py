@@ -2,7 +2,7 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
+from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.models import PipelineRow
@@ -40,7 +40,8 @@ class PreviewPane(QFrame):
         if pixmap is not None and not pixmap.isNull():
             self._img.setPixmap(
                 pixmap.scaled(
-                    200, 300,
+                    200,
+                    300,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )

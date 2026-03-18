@@ -2,8 +2,6 @@
 
 from threading import Event
 
-from anivault.application.dto.progress import ProgressEvent
-
 
 def execute(
     input_dto: object,

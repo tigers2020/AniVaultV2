@@ -3,18 +3,15 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
+    QHBoxLayout,
+    QLabel,
     QScrollArea,
     QVBoxLayout,
     QWidget,
-    QHBoxLayout,
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
 )
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Label
-from anivault.interfaces.gui.components.molecules import PosterCard
 from anivault.interfaces.gui.models import PipelineRow
 
 
@@ -88,7 +85,7 @@ class CompactListView(QFrame):
         for i, r in enumerate(self._rows):
             w = _ListItem(r)
             w.setCursor(Qt.CursorShape.PointingHandCursor)
-            w.mousePressEvent = lambda e, idx=i: self._on_click(idx)
+            w.mousePressEvent = lambda e, idx=i: self._on_click(idx)  # type: ignore[method-assign,misc]
             self._list_layout.addWidget(w)
             self._items.append(w)
 

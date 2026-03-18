@@ -1,7 +1,8 @@
 """Base worker: QObject + QThread. Runs use case in background, emits signals."""
 
+from collections.abc import Callable
 from threading import Event
-from typing import Any, Callable
+from typing import Any
 
 from PySide6.QtCore import QObject, QThread
 
@@ -39,6 +40,7 @@ class UseCaseWorker(QObject):
         """Entry point for worker thread. Called when QThread starts."""
         self._signals.started.emit()
         try:
+
             def progress_cb(event: ProgressEvent) -> None:
                 if self._cancel.is_set():
                     return

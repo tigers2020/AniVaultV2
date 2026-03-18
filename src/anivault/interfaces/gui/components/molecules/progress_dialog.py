@@ -1,7 +1,7 @@
 """Progress dialog: reusable modal for long-running operations."""
 
-from PySide6.QtCore import Signal, Qt
-from PySide6.QtWidgets import QProgressDialog
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QProgressDialog, QWidget
 
 from anivault.interfaces.gui import theme
 
@@ -11,7 +11,7 @@ class ProgressDialog(QProgressDialog):
 
     finished = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setStyleSheet(theme.progress_dialog())
         self.setMinimumDuration(0)
@@ -41,13 +41,13 @@ class ProgressDialog(QProgressDialog):
         self.raise_()
         self.activateWindow()
 
-    def update(
+    def update_progress(
         self,
         message: str | None = None,
         value: int | None = None,
         maximum: int = 100,
     ) -> None:
-        """Update message and/or progress value."""
+        """Update message and/or progress value. Named to avoid conflict with QWidget.update."""
         if message is not None:
             self.setLabelText(message)
         if value is not None:

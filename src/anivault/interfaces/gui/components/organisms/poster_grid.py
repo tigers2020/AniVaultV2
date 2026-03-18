@@ -1,10 +1,10 @@
 """Poster grid: QScrollArea + QGridLayout + PosterCards. Dynamic columns by width."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QScrollArea, QWidget, QGridLayout
+from PySide6.QtWidgets import QFrame, QGridLayout, QScrollArea, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui.components.molecules import PanelHeader, PosterCard
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.molecules import PanelHeader, PosterCard
 
 MIN_CARD_WIDTH = 140
 GRID_SPACING = 16

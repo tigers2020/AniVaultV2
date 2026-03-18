@@ -88,7 +88,9 @@ class PosterCard(QFrame):
         if layout and layout.count() >= 2:
             inner = layout.itemAt(1).layout()
             if inner and inner.count():
-                inner.itemAt(0).widget().setText(title)
+                w = inner.itemAt(0).widget()
+                if isinstance(w, QLabel):
+                    w.setText(title)
 
     def set_path(self, path: str) -> None:
         self._path_box.set_path(path)

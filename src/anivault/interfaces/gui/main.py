@@ -4,8 +4,8 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from anivault.interfaces.gui.theme import global_stylesheet
 from anivault.interfaces.gui.app import MainWindow
+from anivault.interfaces.gui.theme import global_stylesheet
 
 
 def run() -> None:

@@ -1,8 +1,8 @@
 """Brand logo badge (e.g. 'A' for AniVault)."""
 
-from PySide6.QtWidgets import QFrame, QLabel
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QLinearGradient, QBrush, QColor, QPainter, QPaintEvent
+from PySide6.QtGui import QBrush, QColor, QLinearGradient, QPainter, QPaintEvent
+from PySide6.QtWidgets import QFrame, QLabel
 
 from anivault.interfaces.gui import theme
 

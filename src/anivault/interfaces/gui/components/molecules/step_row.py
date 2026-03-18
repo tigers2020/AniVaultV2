@@ -1,10 +1,9 @@
 """Step row: StepIndex + description text."""
 
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
-from anivault.interfaces.gui.components.atoms import StepIndex
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import StepIndex
 
 
 class StepRow(QWidget):

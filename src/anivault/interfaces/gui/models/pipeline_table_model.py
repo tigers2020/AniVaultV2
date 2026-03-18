@@ -2,9 +2,11 @@
 
 from typing import Any
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, QPersistentModelIndex, Qt
 
 from anivault.interfaces.gui.models.ui_rows import PipelineRow
+
+_INVALID_INDEX: QModelIndex = QModelIndex()
 
 COLUMNS = [
     ("Original File", "original_file"),
@@ -21,19 +23,23 @@ COLUMNS = [
 class PipelineTableModel(QAbstractTableModel):
     """Model for pipeline table. Edit not required for now."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._rows: list[PipelineRow] = []
 
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex | QPersistentModelIndex = _INVALID_INDEX) -> int:
         if parent.isValid():
             return 0
         return len(self._rows)
 
-    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+    def columnCount(self, parent: QModelIndex | QPersistentModelIndex = _INVALID_INDEX) -> int:
         return len(COLUMNS)
 
-    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
+    def data(
+        self,
+        index: QModelIndex | QPersistentModelIndex,
+        role: int = Qt.ItemDataRole.DisplayRole,
+    ) -> Any:
         if not index.isValid() or index.row() >= len(self._rows):
             return None
         if role != Qt.ItemDataRole.DisplayRole:

@@ -1,6 +1,6 @@
 """Stats grid: 4 StatCards (Scanned Files, Parsed Titles, TMDB Matches, Planned Moves)."""
 
-from PySide6.QtWidgets import QWidget, QGridLayout
+from PySide6.QtWidgets import QGridLayout, QWidget
 
 from anivault.interfaces.gui.components.molecules import StatCard
 

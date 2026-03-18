@@ -1,12 +1,12 @@
 """Settings page: ScanBuildCard + PathRulesForm + ParseTmdbForm (organisms only)."""
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea
+from PySide6.QtWidgets import QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import (
-    ScanBuildCard,
-    PathRulesForm,
     ParseTmdbForm,
+    PathRulesForm,
+    ScanBuildCard,
 )
 from anivault.interfaces.gui.presenters import SettingsPresenter
 

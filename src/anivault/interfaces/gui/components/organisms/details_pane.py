@@ -1,7 +1,7 @@
 """Details pane: right-side panel showing selected row fields."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel, QScrollArea
+from PySide6.QtWidgets import QFrame, QLabel, QScrollArea, QVBoxLayout
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.models import PipelineRow

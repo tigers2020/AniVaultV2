@@ -4,10 +4,10 @@ Start simple; expand when DI container is needed.
 """
 
 from anivault.interfaces.gui.models import PipelineTableModel
-from anivault.interfaces.gui.pages import OrganizerPage, OperationsPage, SettingsPage
+from anivault.interfaces.gui.pages import OperationsPage, OrganizerPage, SettingsPage
 from anivault.interfaces.gui.presenters import (
-    OrganizerPresenter,
     OperationsPresenter,
+    OrganizerPresenter,
     SettingsPresenter,
 )
 

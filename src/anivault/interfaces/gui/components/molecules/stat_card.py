@@ -2,8 +2,8 @@
 
 from PySide6.QtWidgets import QFrame, QVBoxLayout
 
-from anivault.interfaces.gui.components.atoms import Label
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import Label
 
 
 class StatCard(QFrame):

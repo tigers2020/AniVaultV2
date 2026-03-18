@@ -3,9 +3,9 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout
 
+from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Button
 from anivault.interfaces.gui.components.molecules import PathSelectField
-from anivault.interfaces.gui import theme
 
 
 class FolderScanBar(QFrame):

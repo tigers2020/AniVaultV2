@@ -1,17 +1,16 @@
 """Sidebar: Brand + Nav + Pipeline card + Footer."""
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
     QFrame,
     QLabel,
-    QScrollArea,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Signal
 
-from anivault.interfaces.gui.components.molecules import Brand, NavItem, StepRow
-from anivault.interfaces.gui.components.atoms import Pill
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import Pill
+from anivault.interfaces.gui.components.molecules import Brand, NavItem, StepRow
 
 
 class Sidebar(QWidget):

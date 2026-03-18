@@ -36,6 +36,7 @@ def _c() -> dict[str, str]:
 # Global (app-level)
 # ---------------------------------------------------------------------------
 
+
 def global_stylesheet() -> str:
     """Build QSS string from COLORS and RADIUS. No box-shadow (use Effect)."""
     c = _c()
@@ -130,6 +131,7 @@ def global_stylesheet() -> str:
 # Layout / shell
 # ---------------------------------------------------------------------------
 
+
 def main_bg() -> str:
     return f"background-color: {_c()['bg']};"
 
@@ -141,6 +143,7 @@ def scroll_area_transparent() -> str:
 # ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
+
 
 def sidebar() -> str:
     c = _c()
@@ -200,9 +203,12 @@ def sidebar_footer_value() -> str:
 # Topbar
 # ---------------------------------------------------------------------------
 
+
 def topbar_title() -> str:
     c = _c()
-    return f"{FONT_LARGE_TITLE} margin: 0; color: {c['text']}; background: transparent; border: none;"
+    return (
+        f"{FONT_LARGE_TITLE} margin: 0; color: {c['text']}; background: transparent; border: none;"
+    )
 
 
 def topbar_desc() -> str:
@@ -213,6 +219,7 @@ def topbar_desc() -> str:
 # ---------------------------------------------------------------------------
 # Atoms
 # ---------------------------------------------------------------------------
+
 
 def label_muted() -> str:
     c = _c()
@@ -226,7 +233,9 @@ def label_stat() -> str:
 
 def label_title() -> str:
     c = _c()
-    return f"{FONT_TITLE} font-size: 1rem; color: {c['text']}; background: transparent; border: none;"
+    return (
+        f"{FONT_TITLE} font-size: 1rem; color: {c['text']}; background: transparent; border: none;"
+    )
 
 
 def line_edit() -> str:
@@ -281,6 +290,7 @@ def badge_label(size: int) -> str:
 # ---------------------------------------------------------------------------
 # Molecules
 # ---------------------------------------------------------------------------
+
 
 def nav_item() -> str:
     c = _c()
@@ -381,12 +391,15 @@ def poster_card_title() -> str:
 
 
 def poster_card_meta() -> str:
-    return f"{FONT_BODY} font-size: 0.88rem; line-height: 1.45; background: transparent; border: none;"
+    return (
+        f"{FONT_BODY} font-size: 0.88rem; line-height: 1.45; background: transparent; border: none;"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Organisms: cards and panels
 # ---------------------------------------------------------------------------
+
 
 def card_panel() -> str:
     c = _c()
@@ -428,6 +441,7 @@ def form_label_muted() -> str:
 # ---------------------------------------------------------------------------
 # View toggle bar
 # ---------------------------------------------------------------------------
+
 
 def view_toggle_button() -> str:
     c = _c()
@@ -481,6 +495,7 @@ def view_toggle_menu() -> str:
 # ---------------------------------------------------------------------------
 # Progress dialog
 # ---------------------------------------------------------------------------
+
 
 def progress_dialog() -> str:
     c = _c()

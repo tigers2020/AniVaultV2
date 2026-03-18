@@ -1,9 +1,9 @@
 """Panel header: title + description + optional Pill or right widget."""
 
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui.components.atoms import Label, Pill
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import Label, Pill
 
 
 class PanelHeader(QWidget):

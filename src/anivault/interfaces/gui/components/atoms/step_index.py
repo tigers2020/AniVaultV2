@@ -1,8 +1,8 @@
 """Circular step index (1–6)."""
 
-from PySide6.QtWidgets import QLabel
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPainter, QPaintEvent, QLinearGradient, QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QLinearGradient, QPainter, QPaintEvent
+from PySide6.QtWidgets import QLabel
 
 from anivault.interfaces.gui import theme
 

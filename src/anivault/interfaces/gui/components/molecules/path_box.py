@@ -1,7 +1,7 @@
 """Path display: monospace, selectable (QLabel)."""
 
-from PySide6.QtWidgets import QLabel
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLabel
 
 from anivault.interfaces.gui import theme
 

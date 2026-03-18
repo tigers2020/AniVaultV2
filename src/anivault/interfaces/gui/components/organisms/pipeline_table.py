@@ -1,11 +1,11 @@
 """Pipeline table: QTableView + PipelineTableModel."""
 
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QTableView, QHeaderView
-from PySide6.QtCore import Signal, QModelIndex
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QFrame, QHeaderView, QTableView, QVBoxLayout
 
-from anivault.interfaces.gui.components.molecules import PanelHeader
-from anivault.interfaces.gui.models import PipelineTableModel, PipelineRow
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.molecules import PanelHeader
+from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel
 
 
 class PipelineTable(QFrame):

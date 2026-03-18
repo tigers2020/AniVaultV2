@@ -1,10 +1,10 @@
 """Main shell: Sidebar + Topbar + QStackedWidget(pages area)."""
 
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget, QFrame
 from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QStackedWidget, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui.components.organisms import Sidebar, Topbar
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.organisms import Sidebar, Topbar
 
 
 class MainShell(QWidget):

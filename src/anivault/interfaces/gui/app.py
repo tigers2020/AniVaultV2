@@ -2,9 +2,9 @@
 
 from PySide6.QtWidgets import QMainWindow
 
-from anivault.interfaces.gui.theme import global_stylesheet
-from anivault.interfaces.gui.templates import MainShell
 from anivault.interfaces.gui.components.organisms import LogList
+from anivault.interfaces.gui.templates import MainShell
+from anivault.interfaces.gui.theme import global_stylesheet
 
 PAGE_META = {
     "organizer": (
@@ -34,8 +34,8 @@ class MainWindow(QMainWindow):
         self._shell = MainShell()
         self.setCentralWidget(self._shell)
         from anivault.interfaces.gui.composition import (
-            create_organizer_page,
             create_operations_page,
+            create_organizer_page,
             create_settings_page,
         )
 
@@ -72,6 +72,7 @@ class MainWindow(QMainWindow):
 
     def _on_simulate_clicked(self) -> None:
         from datetime import datetime
+
         now = datetime.now()
         time_str = now.strftime("[%H:%M:%S]")
         msg = "Simulated pipeline advanced through parse and TMDB grouping"

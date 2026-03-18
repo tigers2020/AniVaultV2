@@ -1,7 +1,5 @@
 """Worker signals bundle. UseCaseWorker emits these from worker thread."""
 
-from typing import Any
-
 from PySide6.QtCore import QObject, Signal
 
 

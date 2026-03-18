@@ -3,12 +3,11 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
-    QScrollArea,
-    QVBoxLayout,
-    QHBoxLayout,
-    QWidget,
     QLabel,
+    QScrollArea,
     QSplitter,
+    QVBoxLayout,
+    QWidget,
 )
 
 from anivault.interfaces.gui import theme
@@ -93,7 +92,7 @@ class ContentView(QFrame):
             card.setFixedHeight(80)
             card.setMinimumWidth(180)
             card.setCursor(Qt.CursorShape.PointingHandCursor)
-            card.mousePressEvent = lambda e, idx=i: self._on_select(idx)
+            card.mousePressEvent = lambda e, idx=i: self._on_select(idx)  # type: ignore[method-assign,misc]
             self._list_layout.addWidget(card)
             self._cards.append(card)
         self._selected_index = -1

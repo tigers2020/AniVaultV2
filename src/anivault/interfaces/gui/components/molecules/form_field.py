@@ -1,6 +1,6 @@
 """Form field: Label + LineEdit or ComboBox."""
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from anivault.interfaces.gui.components.atoms import ComboBox, Label, LineEdit
 
@@ -8,27 +8,31 @@ from anivault.interfaces.gui.components.atoms import ComboBox, Label, LineEdit
 class FormField(QWidget):
     """Label on top, input below. kind='line' | 'combo'."""
 
+    _input: ComboBox | LineEdit
+
     def __init__(
         self,
         label_text: str,
         kind: str = "line",
         initial: str = "",
-        parent=None,
-    ):
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(Label(label_text, "muted"))
         if kind == "combo":
-            self._input = ComboBox(self)
+            combo = ComboBox(self)
             if initial:
-                self._input.addItem(initial)
-            layout.addWidget(self._input)
+                combo.addItem(initial)
+            layout.addWidget(combo)
+            self._input = combo
         else:
-            self._input = LineEdit(initial, self)
+            line = LineEdit(initial, self)
             if initial:
-                self._input.setText(initial)
-            layout.addWidget(self._input)
+                line.setText(initial)
+            layout.addWidget(line)
+            self._input = line
 
     def value(self) -> str:
         if isinstance(self._input, LineEdit):

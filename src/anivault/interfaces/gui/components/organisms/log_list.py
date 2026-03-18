@@ -1,9 +1,9 @@
 """Log list: Recent Activity (time + message)."""
 
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QScrollArea, QWidget, QLabel
+from PySide6.QtWidgets import QFrame, QLabel, QScrollArea, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui.components.molecules import PanelHeader
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.molecules import PanelHeader
 
 
 class LogList(QFrame):
