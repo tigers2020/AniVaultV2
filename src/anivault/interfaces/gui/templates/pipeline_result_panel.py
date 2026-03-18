@@ -1,4 +1,4 @@
-"""Pipeline result panel: integrated table + poster grid with view toggle."""
+"""Pipeline result template: integrates organisms with view toggle."""
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -67,11 +67,11 @@ class PipelineResultPanel(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        view_bar = ViewToggleBar()
+        self._view_bar = ViewToggleBar()
         header = PanelHeader(
             "Pipeline Result",
             "테이블 또는 포스터 그리드로 결과 보기. 보기 메뉴에서 레이아웃을 선택하세요.",
-            right_widget=view_bar,
+            right_widget=self._view_bar,
         )
         layout.addWidget(header)
 
@@ -130,9 +130,9 @@ class PipelineResultPanel(QFrame):
         layout.addWidget(main_splitter)
         self.setStyleSheet(theme.card_panel())
 
-        view_bar.view_changed.connect(self._on_view_changed)
-        view_bar.details_pane_changed.connect(self._on_details_pane)
-        view_bar.preview_pane_changed.connect(self._on_preview_pane)
+        self._view_bar.view_changed.connect(self._on_view_changed)
+        self._view_bar.details_pane_changed.connect(self._on_details_pane)
+        self._view_bar.preview_pane_changed.connect(self._on_preview_pane)
 
         # Sync list/tile/content/poster when model changes
         self._model.modelReset.connect(self._sync_views_from_model)
@@ -140,9 +140,7 @@ class PipelineResultPanel(QFrame):
     def _on_view_changed(self, key: str) -> None:
         if key in VIEW_TO_INDEX:
             self._stack.setCurrentIndex(VIEW_TO_INDEX[key])
-        view_bar = self.findChild(ViewToggleBar)
-        if view_bar:
-            view_bar.set_current_view(key)
+        self._view_bar.set_current_view(key)
 
     def _on_selection(self, index: int) -> None:
         self._selected_index = index
@@ -154,9 +152,7 @@ class PipelineResultPanel(QFrame):
     def _on_details_pane(self, checked: bool) -> None:
         if checked:
             self._pane_mode = "details"
-            vtb = self.findChild(ViewToggleBar)
-            if vtb:
-                vtb.set_preview_pane_checked(False)
+            self._view_bar.set_preview_pane_checked(False)
             self._pane_stack.setCurrentIndex(1)
             w = self._main_splitter.width()
             self._main_splitter.setSizes([max(200, w - self._pane_width), self._pane_width])
@@ -170,9 +166,7 @@ class PipelineResultPanel(QFrame):
     def _on_preview_pane(self, checked: bool) -> None:
         if checked:
             self._pane_mode = "preview"
-            vtb = self.findChild(ViewToggleBar)
-            if vtb:
-                vtb.set_details_pane_checked(False)
+            self._view_bar.set_details_pane_checked(False)
             self._pane_stack.setCurrentIndex(2)
             w = self._main_splitter.width()
             self._main_splitter.setSizes([max(200, w - self._pane_width), self._pane_width])
