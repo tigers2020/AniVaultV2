@@ -43,6 +43,7 @@ __all__ = [
     "step_index_label",
     "badge_label",
     "nav_item",
+    "step_row_title",
     "step_row_text",
     "brand_title",
     "brand_subtitle",
@@ -154,6 +155,10 @@ def badge_label(size: int) -> str:
 
 def nav_item() -> str:
     return _t().nav_item()
+
+
+def step_row_title() -> str:
+    return _t().step_row_title()
 
 
 def step_row_text() -> str:

@@ -15,6 +15,9 @@ class StepIndex(QLabel):
         self.setFixedSize(size, size)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet(theme.step_index_label())
+        palette = self.palette()
+        palette.setColor(palette.ColorRole.WindowText, QColor("#ffffff"))
+        self.setPalette(palette)
 
     def paintEvent(self, event: QPaintEvent) -> None:
         painter = QPainter(self)

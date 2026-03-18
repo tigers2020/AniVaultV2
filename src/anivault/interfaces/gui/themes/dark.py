@@ -127,6 +127,11 @@ class DarkTheme:
             font-size: 0.86rem;
             font-weight: 600;
         }}
+        QFrame#sidebar_pipeline_card QLabel {{
+            color: {c["text"]};
+            background: transparent;
+            border: none;
+        }}
     """
 
     def main_bg(self) -> str:
@@ -138,7 +143,7 @@ class DarkTheme:
     def sidebar(self) -> str:
         c = self._c()
         return f"""
-        QWidget {{
+        QWidget#sidebar {{
             background-color: {c["sidebar_bg"]};
             border-right: 1px solid {c["border"]};
         }}
@@ -242,7 +247,7 @@ class DarkTheme:
         return f"padding: 6px 10px; border-radius: 999px; font-size: 0.78rem; {base}"
 
     def step_index_label(self) -> str:
-        return "color: #091120; font-size: 0.78rem; font-weight: 700; background: transparent;"
+        return "color: #ffffff; font-size: 0.78rem; font-weight: 700; background: transparent;"
 
     def badge_label(self, size: int) -> str:
         return f"color: #08101f; font-weight: 800; font-size: {max(14, size // 2)}px; background: transparent; border: none;"
@@ -268,9 +273,13 @@ class DarkTheme:
         }}
     """
 
+    def step_row_title(self) -> str:
+        c = self._c()
+        return f"color: {c['text']}; {FONT_TITLE} font-size: 0.9rem; background: transparent; border: none;"
+
     def step_row_text(self) -> str:
         c = self._c()
-        return f"color: {c['muted']}; {FONT_BODY} font-size: 0.84rem; background: transparent; border: none;"
+        return f"color: {c['text']}; {FONT_BODY} font-size: 0.84rem; background: transparent; border: none;"
 
     def brand_title(self) -> str:
         return f"{FONT_TITLE} font-size: 1.02rem; margin: 0; background: transparent; border: none;"

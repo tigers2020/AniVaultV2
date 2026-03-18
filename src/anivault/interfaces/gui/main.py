@@ -31,5 +31,6 @@ def run() -> None:
 
     on_theme_changed(reapply_stylesheet)
     app.setStyleSheet(global_stylesheet())
+    _clear_widget_stylesheets(window)
     window.show()
     sys.exit(app.exec())

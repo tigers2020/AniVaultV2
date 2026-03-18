@@ -20,6 +20,7 @@ class Sidebar(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("sidebar")
         self.setFixedWidth(theme.SIDEBAR_WIDTH_PX)
         self.setStyleSheet(theme.sidebar())
         layout = QVBoxLayout(self)
@@ -37,6 +38,7 @@ class Sidebar(QWidget):
             btn.tab_clicked.connect(self.tab_clicked.emit)
             layout.addWidget(btn)
         card = QFrame()
+        card.setObjectName("sidebar_pipeline_card")
         card.setStyleSheet(theme.sidebar_card())
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(14, 14, 14, 14)
