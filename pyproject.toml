@@ -73,6 +73,7 @@ module = ["anivault.interfaces.gui.*"]
 disallow_untyped_defs = false
 disallow_untyped_calls = false
 disallow_incomplete_defs = false
+warn_return_any = false
 
 [tool.black]
 line-length = 100

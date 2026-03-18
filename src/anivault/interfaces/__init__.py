@@ -1,1 +1,1 @@
-"""Interfaces: CLI and GUI (no business logic)."""
+"""Interfaces: GUI only (no business logic)."""

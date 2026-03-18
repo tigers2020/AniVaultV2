@@ -1,15 +1,12 @@
-"""Organizer page: StatsGrid + PipelineResultPanel (organisms only)."""
+"""Organizer page: StatsGrid + PipelineResultPanel (organisms + templates)."""
 
 from PySide6.QtWidgets import QScrollArea, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui import theme
-from anivault.interfaces.gui.components.organisms import (
-    FolderScanBar,
-    PipelineResultPanel,
-    StatsGrid,
-)
+from anivault.interfaces.gui.components.organisms import FolderScanBar, StatsGrid
 from anivault.interfaces.gui.models import PipelineTableModel
 from anivault.interfaces.gui.presenters import OrganizerPresenter
+from anivault.interfaces.gui.templates import PipelineResultPanel
 
 
 class OrganizerPage(QWidget):
