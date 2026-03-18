@@ -1,0 +1,59 @@
+"""Theme base: ColorPalette and BaseTheme for QSS generation."""
+
+from dataclasses import dataclass
+
+
+@dataclass
+class ColorPalette:
+    """Color palette for a theme."""
+
+    bg: str
+    panel: str
+    panel2: str
+    border: str
+    border_subtle: str
+    text: str
+    muted: str
+    accent: str
+    accent2: str
+    warn: str
+    danger: str
+    ok: str
+    input_bg: str
+    table_bg: str
+    header_bg: str
+    sidebar_bg: str
+    card_bg: str
+
+    def to_dict(self) -> dict[str, str]:
+        d = {
+            "bg": self.bg,
+            "panel": self.panel,
+            "panel2": self.panel2,
+            "border": self.border,
+            "border_subtle": self.border_subtle,
+            "text": self.text,
+            "muted": self.muted,
+            "accent": self.accent,
+            "accent2": self.accent2,
+            "warn": self.warn,
+            "danger": self.danger,
+            "ok": self.ok,
+            "input_bg": self.input_bg,
+            "table_bg": self.table_bg,
+            "header_bg": self.header_bg,
+            "sidebar_bg": self.sidebar_bg,
+            "card_bg": self.card_bg,
+        }
+        return d
+
+
+FONT_FAMILY = "Segoe UI, Malgun Gothic, Apple SD Gothic Neo, sans-serif"
+FONT_TITLE = f"font-family: {FONT_FAMILY}; font-size: 1.12rem; font-weight: 700;"
+FONT_SUBTITLE = f"font-family: {FONT_FAMILY}; font-size: 0.9rem; font-weight: 500;"
+FONT_BODY = f"font-family: {FONT_FAMILY}; font-size: 0.92rem; font-weight: 400;"
+FONT_CAPTION = f"font-family: {FONT_FAMILY}; font-size: 0.82rem; font-weight: 400;"
+FONT_LARGE_TITLE = f"font-family: {FONT_FAMILY}; font-size: 1.5rem; font-weight: 700;"
+FONT_STAT = f"font-family: {FONT_FAMILY}; font-size: 0.86rem; font-weight: 500;"
+RADIUS_PX = 18
+SIDEBAR_WIDTH_PX = 260
