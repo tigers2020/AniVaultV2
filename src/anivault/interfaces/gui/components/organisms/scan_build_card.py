@@ -1,10 +1,10 @@
 """Scan/Build card: Source/Target inputs + TMDB/Unknown selects + Scan·Build buttons."""
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout
 
 from anivault.interfaces.gui import theme
-from anivault.interfaces.gui.components.atoms import Button, ComboBox, LineEdit
+from anivault.interfaces.gui.components.atoms import Button, ComboBox
 from anivault.interfaces.gui.components.molecules import PanelHeader, PathSelectField
 
 
@@ -12,6 +12,7 @@ class ScanBuildCard(QFrame):
     """Pipeline controls: inputs and step buttons. Buttons only collect input + emit; no step logic."""
 
     scan_clicked = Signal(str)
+    settings_changed = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -27,21 +28,27 @@ class ScanBuildCard(QFrame):
         )
         body = QVBoxLayout()
         body.setContentsMargins(18, 18, 18, 18)
-        toolbar = QWidget()
-        toolbar_layout = QHBoxLayout(toolbar)
-        toolbar_layout.setSpacing(10)
+        row1 = QHBoxLayout()
+        row1.setSpacing(10)
         self._source = PathSelectField(placeholder="Source: G:/Animations; D:/Incoming_Downloads")
-        toolbar_layout.addWidget(self._source)
-        self._target = LineEdit()
-        self._target.setPlaceholderText("Target Root: G:/AniSorted")
-        toolbar_layout.addWidget(self._target)
+        row1.addWidget(self._source, 1)
+        self._target = PathSelectField(placeholder="Target Root: G:/AniSorted")
+        row1.addWidget(self._target, 1)
+        body.addLayout(row1)
+        row2 = QHBoxLayout()
+        row2.setSpacing(10)
         self._tmdb_mode = ComboBox()
         self._tmdb_mode.addItems(["TMDB TV Search", "TMDB Multi Search"])
-        toolbar_layout.addWidget(self._tmdb_mode)
+        row2.addWidget(self._tmdb_mode)
         self._unknown_mode = ComboBox()
         self._unknown_mode.addItems(["Unknown to Needs_Review", "Leave unknown in source"])
-        toolbar_layout.addWidget(self._unknown_mode)
-        body.addWidget(toolbar)
+        row2.addWidget(self._unknown_mode)
+        row2.addStretch()
+        body.addLayout(row2)
+        self._source.path_changed.connect(lambda: self.settings_changed.emit())
+        self._target.path_changed.connect(lambda: self.settings_changed.emit())
+        self._tmdb_mode.currentIndexChanged.connect(lambda: self.settings_changed.emit())
+        self._unknown_mode.currentIndexChanged.connect(lambda: self.settings_changed.emit())
         action_row = QHBoxLayout()
         action_row.setSpacing(10)
         scan_btn = Button("1. Scan Folder", "primary")
@@ -57,3 +64,29 @@ class ScanBuildCard(QFrame):
     def _on_scan(self) -> None:
         path = self._source.path()
         self.scan_clicked.emit(path)
+
+    def get_values(self) -> dict[str, str]:
+        return {
+            "source_path": self._source.path(),
+            "target_path": self._target.path(),
+            "tmdb_mode": self._tmdb_mode.currentText(),
+            "unknown_mode": self._unknown_mode.currentText(),
+        }
+
+    def set_values(self, data: dict[str, str]) -> None:
+        self.blockSignals(True)
+        try:
+            if "source_path" in data:
+                self._source.set_path(data["source_path"])
+            if "target_path" in data:
+                self._target.set_path(data["target_path"])
+            if "tmdb_mode" in data:
+                idx = self._tmdb_mode.findText(data["tmdb_mode"])
+                if idx >= 0:
+                    self._tmdb_mode.setCurrentIndex(idx)
+            if "unknown_mode" in data:
+                idx = self._unknown_mode.findText(data["unknown_mode"])
+                if idx >= 0:
+                    self._unknown_mode.setCurrentIndex(idx)
+        finally:
+            self.blockSignals(False)

@@ -22,6 +22,7 @@ class PathSelectField(QWidget):
         browse = Button("폴더 선택")
         browse.clicked.connect(self._on_browse)
         layout.addWidget(browse)
+        self._edit.editingFinished.connect(lambda: self.path_changed.emit(self.path()))
 
     def _on_browse(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "폴더 선택")

@@ -8,6 +8,7 @@ from anivault.interfaces.gui.components.molecules.path_box import PathBox
 from anivault.interfaces.gui.components.molecules.path_select_field import PathSelectField
 from anivault.interfaces.gui.components.molecules.poster_card import PosterCard
 from anivault.interfaces.gui.components.molecules.progress_dialog import ProgressDialog
+from anivault.interfaces.gui.components.molecules.settings_action_bar import SettingsActionBar
 from anivault.interfaces.gui.components.molecules.stat_card import StatCard
 from anivault.interfaces.gui.components.molecules.step_row import StepRow
 from anivault.interfaces.gui.components.molecules.view_toggle_bar import ViewToggleBar
@@ -17,6 +18,7 @@ __all__ = [
     "FormField",
     "NavItem",
     "PanelHeader",
+    "SettingsActionBar",
     "PathBox",
     "PathSelectField",
     "PosterCard",
