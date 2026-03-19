@@ -1,6 +1,6 @@
-"""Settings page: AppearanceCard + ScanBuildCard + PathRulesForm + ParseTmdbForm."""
+"""Settings page with balanced, two-column card distribution."""
 
-from PySide6.QtWidgets import QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QGridLayout, QScrollArea, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui.components.organisms import (
     AppearanceCard,
@@ -34,18 +34,25 @@ class SettingsPage(QWidget):
         scroll.setWidgetResizable(True)
         content = QWidget()
         content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(14)
         actions_card = SettingsActionsCard()
         bar = actions_card.action_bar()
         bar.save_clicked.connect(self._presenter.on_save_clicked)
         bar.reset_clicked.connect(self._presenter.on_reset_clicked)
         bar.load_clicked.connect(self._presenter.on_load_clicked)
-        content_layout.addWidget(actions_card)
-        content_layout.addWidget(appearance_card)
-        content_layout.addWidget(scan_card)
-        settings_layout = QHBoxLayout()
-        settings_layout.setSpacing(18)
-        settings_layout.addWidget(path_rules_form, 12)
-        settings_layout.addWidget(parse_tmdb_form, 8)
-        content_layout.addLayout(settings_layout)
+        settings_grid = QGridLayout()
+        settings_grid.setContentsMargins(0, 0, 0, 0)
+        settings_grid.setHorizontalSpacing(14)
+        settings_grid.setVerticalSpacing(14)
+        settings_grid.setColumnStretch(0, 11)
+        settings_grid.setColumnStretch(1, 9)
+        settings_grid.addWidget(actions_card, 0, 0)
+        settings_grid.addWidget(appearance_card, 0, 1)
+        settings_grid.addWidget(scan_card, 1, 0, 1, 2)
+        settings_grid.addWidget(path_rules_form, 2, 0)
+        settings_grid.addWidget(parse_tmdb_form, 2, 1)
+        content_layout.addLayout(settings_grid)
+        content_layout.addStretch(1)
         scroll.setWidget(content)
         layout.addWidget(scroll)
