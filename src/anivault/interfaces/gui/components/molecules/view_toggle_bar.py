@@ -147,3 +147,15 @@ class ViewToggleBar(QWidget):
         if key in self._actions:
             for k, a in self._actions.items():
                 a.setChecked(k == key)
+
+    def current_view(self) -> str:
+        """Return current selected view key."""
+        return self._current_view
+
+    def details_pane_checked(self) -> bool:
+        """Return whether details pane toggle is on."""
+        return self._details_pane_checked
+
+    def preview_pane_checked(self) -> bool:
+        """Return whether preview pane toggle is on."""
+        return self._preview_pane_checked
