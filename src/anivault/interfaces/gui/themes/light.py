@@ -7,8 +7,8 @@ from anivault.interfaces.gui.themes.dark import DarkTheme
 class LightTheme(DarkTheme):
     """Light theme with white/light gray palette."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *, scale: float = 1.0) -> None:
+        super().__init__(scale=scale)
         self.palette = ColorPalette(
             bg="#f5f6fa",
             panel="#ffffff",

@@ -16,7 +16,21 @@ from anivault.interfaces.gui.themes.base import (
 class DarkTheme:
     """Dark theme with navy/blue palette."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, scale: float = 1.0) -> None:
+        # `scale` is derived from responsive density.
+        # It affects typography density (via root font-size) and metric values
+        # (radius, spacing in QSS strings that use pixel-based radii).
+        self._scale = float(scale)
+        self._root_font_size_px = max(10, int(round(16 * self._scale)))
+        self._radius_px = max(8, int(round(RADIUS_PX * self._scale)))
+        self._button_radius_px = max(8, int(round(14 * self._scale)))
+        self._input_radius_px = max(8, int(round(12 * self._scale)))
+        self._frame_radius_px = max(8, int(round(16 * self._scale)))
+        self._menu_outer_radius_px = max(8, int(round(12 * self._scale)))
+        self._menu_item_radius_px = max(6, int(round(8 * self._scale)))
+        self._progressbar_radius_px = max(6, int(round(10 * self._scale)))
+        self._progressbar_chunk_radius_px = max(4, int(round(9 * self._scale)))
+
         self.palette = ColorPalette(
             bg="#0b1020",
             panel="#121933",
@@ -48,6 +62,7 @@ class DarkTheme:
             background-color: {c["bg"]};
             color: {c["text"]};
             font-family: {FONT_FAMILY};
+            font-size: {self._root_font_size_px}px;
         }}
         QMainWindow {{
             background-color: {c["bg"]};
@@ -55,7 +70,7 @@ class DarkTheme:
         QFrame {{
             background-color: {c["panel"]};
             border: 1px solid {c["border"]};
-            border-radius: {RADIUS_PX}px;
+            border-radius: {self._radius_px}px;
             color: {c["text"]};
         }}
         QLabel {{
@@ -72,7 +87,7 @@ class DarkTheme:
             border-left-color: rgba(43, 55, 102, 0.45);
             border-bottom-color: rgba(20, 28, 55, 0.95);
             border-right-color: rgba(20, 28, 55, 0.95);
-            border-radius: 14px;
+            border-radius: {self._button_radius_px}px;
             color: {c["text"]};
             padding: 11px 14px;
             font-weight: 600;
@@ -148,7 +163,7 @@ class DarkTheme:
             border-left-color: rgba(43, 55, 102, 0.45);
             border-bottom-color: rgba(20, 28, 55, 0.95);
             border-right-color: rgba(20, 28, 55, 0.95);
-            border-radius: 14px;
+            border-radius: {self._button_radius_px}px;
             color: {c["text"]};
             padding: 11px 14px;
             font-weight: 600;
@@ -177,7 +192,7 @@ class DarkTheme:
         QLineEdit, QComboBox, QPlainTextEdit {{
             background-color: {c["input_bg"]};
             border: 1px solid {c["border"]};
-            border-radius: 12px;
+            border-radius: {self._input_radius_px}px;
             color: {c["text"]};
             padding: 11px 12px;
             font-family: {FONT_FAMILY};
@@ -241,7 +256,7 @@ class DarkTheme:
             margin-top: 18px;
             padding: 14px;
             border: 1px solid {c["border"]};
-            border-radius: 16px;
+            border-radius: {self._frame_radius_px}px;
             background-color: {c["card_bg"]};
         }}
     """
@@ -256,7 +271,7 @@ class DarkTheme:
         QFrame {{
             padding: 14px;
             border: 1px solid {c["border"]};
-            border-radius: 16px;
+            border-radius: {self._frame_radius_px}px;
             background-color: {c["card_bg"]};
         }}
     """
@@ -291,7 +306,7 @@ class DarkTheme:
         QLineEdit {{
             background-color: {c["input_bg"]};
             border: 1px solid {c["border"]};
-            border-radius: 12px;
+            border-radius: {self._input_radius_px}px;
             color: {c["text"]};
             padding: 11px 12px;
         }}
@@ -303,7 +318,7 @@ class DarkTheme:
         QComboBox {{
             background-color: {c["input_bg"]};
             border: 1px solid {c["border"]};
-            border-radius: 12px;
+            border-radius: {self._input_radius_px}px;
             color: {c["text"]};
             padding: 11px 12px;
             min-height: 20px;
@@ -336,7 +351,7 @@ class DarkTheme:
             width: 100%;
             text-align: left;
             padding: 13px 14px;
-            border-radius: 14px;
+            border-radius: {self._button_radius_px}px;
             background: transparent;
             border: 1px solid transparent;
             color: {c["text"]};
@@ -370,7 +385,7 @@ class DarkTheme:
         QFrame#stat_card {{
             background-color: {c["card_bg"]};
             border: 1px solid {c["border"]};
-            border-radius: {RADIUS_PX}px;
+            border-radius: {self._radius_px}px;
         }}
         QFrame#stat_card QLabel {{
             background: transparent;
@@ -394,7 +409,7 @@ class DarkTheme:
         QLabel {{
             background-color: {c["input_bg"]};
             border: 1px solid {c["border"]};
-            border-radius: 12px;
+            border-radius: {self._input_radius_px}px;
             padding: 10px;
             font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
             color: {c["text"]};
@@ -408,7 +423,7 @@ class DarkTheme:
         QFrame {{
             background-color: {c["panel2"]};
             border: 1px solid {c["border"]};
-            border-radius: 16px;
+            border-radius: {self._frame_radius_px}px;
         }}
     """
 
@@ -428,7 +443,7 @@ class DarkTheme:
         QFrame {{
             background-color: {c["card_bg"]};
             border: 1px solid {c["border"]};
-            border-radius: {RADIUS_PX}px;
+            border-radius: {self._radius_px}px;
         }}
     """
 
@@ -438,7 +453,7 @@ class DarkTheme:
         QWidget {{
             background-color: {c["panel2"]};
             border: 1px solid {c["border"]};
-            border-radius: 14px;
+            border-radius: {self._button_radius_px}px;
         }}
     """
 
@@ -463,7 +478,7 @@ class DarkTheme:
             border-left-color: rgba(43, 55, 102, 0.45);
             border-bottom-color: rgba(20, 28, 55, 0.95);
             border-right-color: rgba(20, 28, 55, 0.95);
-            border-radius: 14px;
+            border-radius: {self._button_radius_px}px;
             color: {c["text"]};
             padding: 11px 14px;
             font-weight: 600;
@@ -493,12 +508,12 @@ class DarkTheme:
         QMenu {{
             background-color: {c["panel"]};
             border: 1px solid {c["border"]};
-            border-radius: 12px;
+            border-radius: {self._menu_outer_radius_px}px;
             padding: 6px;
         }}
         QMenu::item {{
             padding: 10px 24px;
-            border-radius: 8px;
+            border-radius: {self._menu_item_radius_px}px;
             color: {c["text"]};
         }}
         QMenu::item:selected {{
@@ -520,7 +535,7 @@ class DarkTheme:
         QProgressDialog {{
             background-color: {c["panel"]};
             border: 1px solid {c["border"]};
-            border-radius: {RADIUS_PX}px;
+            border-radius: {self._radius_px}px;
             color: {c["text"]};
         }}
         QProgressDialog QLabel {{
@@ -529,13 +544,13 @@ class DarkTheme:
         }}
         QProgressBar {{
             border: 1px solid {c["border"]};
-            border-radius: 10px;
+            border-radius: {self._progressbar_radius_px}px;
             text-align: center;
             background-color: {c["input_bg"]};
         }}
         QProgressBar::chunk {{
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                 stop:0 {c["accent"]}, stop:1 #8e8cff);
-            border-radius: 9px;
+            border-radius: {self._progressbar_chunk_radius_px}px;
         }}
     """

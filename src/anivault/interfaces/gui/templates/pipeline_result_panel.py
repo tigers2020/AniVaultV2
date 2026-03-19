@@ -1,6 +1,6 @@
 """Pipeline result template: integrates organisms with view toggle."""
 
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -149,8 +149,9 @@ class PipelineResultPanel(QFrame):
         self._pane_stack.addWidget(self._preview_pane)
         main_splitter.addWidget(self._pane_stack)
         self._main_splitter = main_splitter
-        self._pane_width = 260
-        main_splitter.setSizes([800, 0])
+        self._pane_width = 340
+        self._main_min_width = 320
+        main_splitter.setSizes([960, 0])
         main_splitter.setStretchFactor(0, 1)
         main_splitter.setStretchFactor(1, 0)
 
@@ -187,7 +188,9 @@ class PipelineResultPanel(QFrame):
             self._pane_mode = "details"
             self._pane_stack.setCurrentIndex(1)
             w = self._main_splitter.width()
-            self._main_splitter.setSizes([max(200, w - self._pane_width), self._pane_width])
+            self._main_splitter.setSizes(
+                [max(self._main_min_width, w - self._pane_width), self._pane_width]
+            )
         else:
             # If both toggles are on, turning off the inactive one should not hide the
             # currently displayed pane.
@@ -196,7 +199,9 @@ class PipelineResultPanel(QFrame):
                     self._pane_mode = "preview"
                     self._pane_stack.setCurrentIndex(2)
                     w = self._main_splitter.width()
-                    self._main_splitter.setSizes([max(200, w - self._pane_width), self._pane_width])
+                    self._main_splitter.setSizes(
+                        [max(self._main_min_width, w - self._pane_width), self._pane_width]
+                    )
                 else:
                     self._pane_mode = None
                     self._pane_stack.setCurrentIndex(0)
@@ -209,14 +214,18 @@ class PipelineResultPanel(QFrame):
             self._pane_mode = "preview"
             self._pane_stack.setCurrentIndex(2)
             w = self._main_splitter.width()
-            self._main_splitter.setSizes([max(200, w - self._pane_width), self._pane_width])
+            self._main_splitter.setSizes(
+                [max(self._main_min_width, w - self._pane_width), self._pane_width]
+            )
         else:
             if self._pane_mode == "preview":
                 if self._view_bar.details_pane_checked():
                     self._pane_mode = "details"
                     self._pane_stack.setCurrentIndex(1)
                     w = self._main_splitter.width()
-                    self._main_splitter.setSizes([max(200, w - self._pane_width), self._pane_width])
+                    self._main_splitter.setSizes(
+                        [max(self._main_min_width, w - self._pane_width), self._pane_width]
+                    )
                 else:
                     self._pane_mode = None
                     self._pane_stack.setCurrentIndex(0)
@@ -233,25 +242,26 @@ class PipelineResultPanel(QFrame):
         rows = self._model.rows()
         self._rows = list(rows)
 
-        def _make_cards() -> list[PosterCard]:
+        def _make_cards(variant: Literal["poster", "compact"]) -> list[PosterCard]:
             return [
                 PosterCard(
                     title=r.tmdb_korean_title_group,
                     meta=f"Parsed: {r.parsed_title}\nYear: {r.year} • {r.season} • {r.resolution}",
                     path=r.target_path,
                     image_url=r.poster_url,
+                    variant=variant,
                 )
                 for r in rows
             ]
 
-        tiles_cards = _make_cards()
+        tiles_cards = _make_cards("poster")
         for i, card in enumerate(tiles_cards):
             self._make_card_clickable(card, i)
         self._list_view.set_rows(rows)
         self._tile_view.set_cards(tiles_cards)
         self._content_view.set_rows(rows)
         for grid in self._poster_grids.values():
-            grid_cards = _make_cards()
+            grid_cards = _make_cards("compact")
             for i, card in enumerate(grid_cards):
                 self._make_card_clickable(card, i)
             grid.set_cards(grid_cards)

@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QFrame, QGridLayout, QScrollArea, QSizePolicy, QVB
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import PosterCard
+from anivault.interfaces.gui.themes import get_current_density_key, on_density_changed
 
 TILE_MIN_WIDTH = 200
 
@@ -23,8 +24,8 @@ GRID_SPACING = 14
 POSTER_ASPECT = 3 / 2
 
 
-def _tile_column_count(width: int) -> int:
-    return max(1, (width + GRID_SPACING) // (TILE_MIN_WIDTH + GRID_SPACING))
+def _tile_column_count(width: int, *, min_card_width: int, grid_spacing: int) -> int:
+    return max(1, (width + grid_spacing) // (min_card_width + grid_spacing))
 
 
 class _TileContainer(QWidget):
@@ -38,12 +39,14 @@ class _TileContainer(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
         self._grid = QGridLayout()
-        self._grid.setSpacing(GRID_SPACING)
+        self._grid.setSpacing(theme.tile_grid_spacing_px())
         self._grid.setContentsMargins(0, 0, 0, 0)
         outer.addLayout(self._grid)
         outer.addStretch(1)
         self._cards: list[PosterCard] = []
         self._last_width = 0
+        self._last_density_key = get_current_density_key()
+        on_density_changed(self._apply_responsive_metrics)
 
     def set_cards(self, cards: list[PosterCard]) -> None:
         self._cards = list(cards)
@@ -57,11 +60,16 @@ class _TileContainer(QWidget):
                 item.widget().setParent(None)
         if not self._cards:
             return
+
+        min_card_width = theme.tile_min_width_px()
+        grid_spacing = theme.tile_grid_spacing_px()
+        self._grid.setSpacing(grid_spacing)
+
         w = self.width()
         if w <= 0:
-            w = TILE_MIN_WIDTH * 2 + GRID_SPACING
-        cols = _tile_column_count(w)
-        card_w = max(TILE_MIN_WIDTH, (w - (cols - 1) * GRID_SPACING) // cols)
+            w = min_card_width * 2 + grid_spacing
+        cols = _tile_column_count(w, min_card_width=min_card_width, grid_spacing=grid_spacing)
+        card_w = max(min_card_width, (w - (cols - 1) * grid_spacing) // cols)
         card_h = int(card_w * POSTER_ASPECT)
         align = Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
         for i, card in enumerate(self._cards):
@@ -70,12 +78,27 @@ class _TileContainer(QWidget):
             row, col = divmod(i, cols)
             self._grid.addWidget(card, row, col, align)
         rows = (len(self._cards) + cols - 1) // cols
-        self.setMinimumHeight(rows * card_h + (rows - 1) * GRID_SPACING)
+        grid_m = self._grid.contentsMargins()
+        outer_m = self.layout().contentsMargins() if self.layout() is not None else None
+        extra_h = grid_m.top() + grid_m.bottom()
+        if outer_m is not None:
+            extra_h += outer_m.top() + outer_m.bottom()
+        self.setMinimumHeight(rows * card_h + (rows - 1) * grid_spacing + extra_h)
         self._last_width = w
+        self._last_density_key = get_current_density_key()
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        if self.width() != self._last_width and self._cards:
+        density_key = get_current_density_key()
+        if (
+            self.width() != self._last_width or density_key != self._last_density_key
+        ) and self._cards:
+            self._relayout()
+
+    def _apply_responsive_metrics(self) -> None:
+        # density changes (height-only resize) do not necessarily trigger a
+        # width-driven relayout, so we listen to theme-density change.
+        if self._cards:
             self._relayout()
 
 

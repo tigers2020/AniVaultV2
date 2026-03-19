@@ -31,8 +31,8 @@ class ContentView(QFrame):
 
         # Left: compact list
         left = QFrame()
-        left.setMinimumWidth(200)
-        left.setMaximumWidth(320)
+        left.setMinimumWidth(260)
+        left.setMaximumWidth(420)
         left.setStyleSheet(theme.card_panel())
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -55,7 +55,7 @@ class ContentView(QFrame):
 
         self._preview_label = QLabel()
         self._preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._preview_label.setMinimumHeight(240)
+        self._preview_label.setMinimumHeight(300)
         self._preview_label.setStyleSheet(theme.poster_card_image())
         self._preview_label.setText("항목을 선택하세요")
         self._preview_label.setScaledContents(False)
@@ -67,7 +67,7 @@ class ContentView(QFrame):
         right_layout.addWidget(self._meta_label)
         splitter.addWidget(right)
 
-        splitter.setSizes([220, 400])
+        splitter.setSizes([320, 900])
         layout.addWidget(splitter)
         self.setStyleSheet(theme.card_panel())
 
@@ -88,9 +88,10 @@ class ContentView(QFrame):
                 meta=f"{r.year} • {r.season}",
                 path="",
                 image_url=r.poster_url,
+                variant="compact",
             )
-            card.setFixedHeight(80)
-            card.setMinimumWidth(180)
+            card.setFixedHeight(92)
+            card.setMinimumWidth(220)
             card.setCursor(Qt.CursorShape.PointingHandCursor)
             card.mousePressEvent = lambda e, idx=i: self._on_select(idx)  # type: ignore[method-assign,misc]
             self._list_layout.addWidget(card)

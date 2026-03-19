@@ -12,8 +12,8 @@ class DetailsPane(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumWidth(240)
-        self.setMaximumWidth(360)
+        self.setMinimumWidth(300)
+        self.setMaximumWidth(480)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 14)
 

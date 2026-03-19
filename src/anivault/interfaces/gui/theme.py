@@ -1,6 +1,10 @@
-"""Theme facade: delegates to themes package. Keeps existing import paths."""
+"""Theme facade: delegates to themes package.
 
-from anivault.interfaces.gui.themes import get_current_theme
+Besides QSS string generation, this module also provides a few responsive
+layout metric helpers that depend on the current density profile.
+"""
+
+from anivault.interfaces.gui.themes import get_current_density_key, get_current_theme
 from anivault.interfaces.gui.themes.base import (
     FONT_BODY,
     FONT_CAPTION,
@@ -12,6 +16,7 @@ from anivault.interfaces.gui.themes.base import (
     RADIUS_PX,
     SIDEBAR_WIDTH_PX,
 )  # noqa: F401 — re-exported for consumers
+from anivault.interfaces.gui.themes.responsive import DensityProfile, get_profile, scaled_int
 
 __all__ = [
     "FONT_BODY",
@@ -64,6 +69,12 @@ __all__ = [
     "view_toggle_button",
     "view_toggle_menu",
     "progress_dialog",
+    # responsive metrics
+    "sidebar_width_px",
+    "tile_min_width_px",
+    "tile_grid_spacing_px",
+    "poster_min_card_width_px",
+    "poster_grid_spacing_px",
 ]
 
 
@@ -239,3 +250,66 @@ def view_toggle_menu() -> str:
 
 def progress_dialog() -> str:
     return _t().progress_dialog()
+
+
+# ---- Responsive layout metrics ----
+# Base metrics are aligned with the previous hard-coded px constants.
+_TILE_MIN_WIDTH_BASE_PX = 220
+_TILE_GRID_SPACING_BASE_PX = 16
+_POSTER_MIN_CARD_WIDTH_BASE_PX = 150
+_POSTER_GRID_SPACING_BASE_PX = 13
+
+
+def _p() -> DensityProfile:
+    # Internal helper: returns current density profile.
+    return get_profile(get_current_density_key())
+
+
+def sidebar_width_px() -> int:
+    p = _p()
+    return scaled_int(
+        SIDEBAR_WIDTH_PX,
+        p.sidebar_width_scale,
+        minimum=240,
+        maximum=380,
+    )
+
+
+def tile_min_width_px() -> int:
+    p = _p()
+    return scaled_int(
+        _TILE_MIN_WIDTH_BASE_PX,
+        p.card_min_width_scale,
+        minimum=170,
+        maximum=340,
+    )
+
+
+def tile_grid_spacing_px() -> int:
+    p = _p()
+    return scaled_int(
+        _TILE_GRID_SPACING_BASE_PX,
+        p.grid_spacing_scale,
+        minimum=10,
+        maximum=28,
+    )
+
+
+def poster_min_card_width_px() -> int:
+    p = _p()
+    return scaled_int(
+        _POSTER_MIN_CARD_WIDTH_BASE_PX,
+        p.card_min_width_scale,
+        minimum=110,
+        maximum=280,
+    )
+
+
+def poster_grid_spacing_px() -> int:
+    p = _p()
+    return scaled_int(
+        _POSTER_GRID_SPACING_BASE_PX,
+        p.grid_spacing_scale,
+        minimum=7,
+        maximum=22,
+    )

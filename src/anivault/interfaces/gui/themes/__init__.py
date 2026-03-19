@@ -1,4 +1,8 @@
-"""Theme registry: get/set current theme, persistence, change callback."""
+"""Theme registry: get/set current theme, persistence, change callback.
+
+This registry also tracks a responsive "density" variant derived from the
+current window size. Density changes require re-applying QSS.
+"""
 
 import json
 from collections.abc import Callable
@@ -7,6 +11,7 @@ from pathlib import Path
 
 from anivault.interfaces.gui.themes.dark import DarkTheme
 from anivault.interfaces.gui.themes.light import LightTheme
+from anivault.interfaces.gui.themes.responsive import DensityKey, choose_density_key, get_profile
 
 _THEMES: dict[str, type] = {
     "dark": DarkTheme,
@@ -14,7 +19,10 @@ _THEMES: dict[str, type] = {
 }
 _current_theme_name = "dark"
 _current: DarkTheme | LightTheme | None = None
-_on_theme_changed: list[Callable[[], None]] = []
+_on_color_theme_changed: list[Callable[[], None]] = []
+_on_density_changed: list[Callable[[], None]] = []
+
+_current_density_key: DensityKey = "standard"
 
 CONFIG_DIR = Path.home() / ".anivault"
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -23,7 +31,9 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 def _ensure_current() -> DarkTheme | LightTheme:
     global _current
     if _current is None:
-        _current = _THEMES[_current_theme_name]()
+        profile = get_profile(_current_density_key)
+        # scale impacts typography density and metric values (radius, spacing, etc).
+        _current = _THEMES[_current_theme_name](scale=profile.scale)
     return _current
 
 
@@ -35,7 +45,8 @@ def list_themes() -> list[str]:
 def get_theme(name: str) -> DarkTheme | LightTheme:
     """Get theme instance by name."""
     cls = _THEMES.get(name) or DarkTheme
-    return cls()
+    profile = get_profile(_current_density_key)
+    return cls(scale=profile.scale)
 
 
 def get_current_theme() -> DarkTheme | LightTheme:
@@ -49,10 +60,37 @@ def set_current_theme(name: str, notify: bool = True) -> None:
     if name not in _THEMES:
         return
     _current_theme_name = name
-    _current = _THEMES[name]()
+    profile = get_profile(_current_density_key)
+    _current = _THEMES[name](scale=profile.scale)
     if notify:
-        for cb in _on_theme_changed:
+        for cb in _on_color_theme_changed:
             cb()
+
+
+def get_current_density_key() -> DensityKey:
+    """Return current responsive density key."""
+    return _current_density_key
+
+
+def set_responsive_density_key(key: DensityKey, notify: bool = True) -> None:
+    """Update responsive density and optionally notify listeners."""
+    global _current_density_key, _current
+    if key == _current_density_key:
+        return
+
+    _current_density_key = key
+    # Force re-creation so theme instances can embed density-specific QSS metrics.
+    _current = None
+    if notify:
+        for cb in _on_density_changed:
+            cb()
+
+
+def set_responsive_density_for_size(*, width: int, height: int, notify: bool = True) -> DensityKey:
+    """Compute density by (width, height) and apply it."""
+    key = choose_density_key(width=width, height=height)
+    set_responsive_density_key(key, notify=notify)
+    return key
 
 
 def get_current_theme_name() -> str:
@@ -61,8 +99,13 @@ def get_current_theme_name() -> str:
 
 
 def on_theme_changed(callback: Callable[[], None]) -> None:
-    """Register callback to run when theme changes."""
-    _on_theme_changed.append(callback)
+    """Register callback to run when light/dark theme changes."""
+    _on_color_theme_changed.append(callback)
+
+
+def on_density_changed(callback: Callable[[], None]) -> None:
+    """Register callback to run when responsive density key changes."""
+    _on_density_changed.append(callback)
 
 
 def load_saved_theme() -> None:

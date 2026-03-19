@@ -49,11 +49,13 @@ class ColorPalette:
 
 
 FONT_FAMILY = "Segoe UI, Malgun Gothic, Apple SD Gothic Neo, sans-serif"
-FONT_TITLE = f"font-family: {FONT_FAMILY}; font-size: 1.12rem; font-weight: 700;"
-FONT_SUBTITLE = f"font-family: {FONT_FAMILY}; font-size: 0.9rem; font-weight: 500;"
-FONT_BODY = f"font-family: {FONT_FAMILY}; font-size: 0.92rem; font-weight: 400;"
-FONT_CAPTION = f"font-family: {FONT_FAMILY}; font-size: 0.82rem; font-weight: 400;"
-FONT_LARGE_TITLE = f"font-family: {FONT_FAMILY}; font-size: 1.5rem; font-weight: 700;"
-FONT_STAT = f"font-family: {FONT_FAMILY}; font-size: 0.86rem; font-weight: 500;"
+# Qt stylesheet does not reliably support CSS rem units.
+# Use explicit px font sizes to avoid runtime QFont warnings.
+FONT_TITLE = f"font-family: {FONT_FAMILY}; font-size: 18px; font-weight: 700;"
+FONT_SUBTITLE = f"font-family: {FONT_FAMILY}; font-size: 14px; font-weight: 500;"
+FONT_BODY = f"font-family: {FONT_FAMILY}; font-size: 15px; font-weight: 400;"
+FONT_CAPTION = f"font-family: {FONT_FAMILY}; font-size: 13px; font-weight: 400;"
+FONT_LARGE_TITLE = f"font-family: {FONT_FAMILY}; font-size: 24px; font-weight: 700;"
+FONT_STAT = f"font-family: {FONT_FAMILY}; font-size: 14px; font-weight: 500;"
 RADIUS_PX = 18
 SIDEBAR_WIDTH_PX = 260

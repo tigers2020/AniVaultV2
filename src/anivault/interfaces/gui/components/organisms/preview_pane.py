@@ -13,14 +13,14 @@ class PreviewPane(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumWidth(200)
-        self.setMaximumWidth(320)
+        self.setMinimumWidth(280)
+        self.setMaximumWidth(460)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 14)
 
         self._img = QLabel()
         self._img.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._img.setMinimumHeight(300)
+        self._img.setMinimumHeight(360)
         self._img.setStyleSheet(theme.poster_card_image())
         self._img.setText("항목을 선택하세요")
         self._img.setScaledContents(False)
@@ -40,8 +40,8 @@ class PreviewPane(QFrame):
         if pixmap is not None and not pixmap.isNull():
             self._img.setPixmap(
                 pixmap.scaled(
-                    200,
-                    300,
+                    240,
+                    360,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )

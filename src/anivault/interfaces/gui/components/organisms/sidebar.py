@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Pill
 from anivault.interfaces.gui.components.molecules import Brand, NavItem, StepRow
+from anivault.interfaces.gui.themes import on_density_changed
 
 
 class Sidebar(QWidget):
@@ -21,7 +22,7 @@ class Sidebar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("sidebar")
-        self.setFixedWidth(theme.SIDEBAR_WIDTH_PX)
+        self._apply_responsive_metrics()
         self.setStyleSheet(theme.sidebar())
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 24, 18, 24)
@@ -75,7 +76,12 @@ class Sidebar(QWidget):
         footer_layout.addWidget(pills)
         layout.addWidget(footer)
 
+        on_density_changed(self._apply_responsive_metrics)
+
     def set_active_tab(self, tab_id: str) -> None:
         self._organizer_btn.setChecked(tab_id == "organizer")
         self._operations_btn.setChecked(tab_id == "operations")
         self._settings_btn.setChecked(tab_id == "settings")
+
+    def _apply_responsive_metrics(self) -> None:
+        self.setFixedWidth(theme.sidebar_width_px())

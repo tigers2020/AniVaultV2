@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import PanelHeader, PosterCard
+from anivault.interfaces.gui.themes import get_current_density_key, on_density_changed
 
 MIN_CARD_WIDTH = 140
 GRID_SPACING = 12
@@ -20,14 +21,14 @@ GRID_MARGINS = (0, 0, 0, 0)
 POSTER_ASPECT = 3 / 2
 
 
-def _column_count(width: int, min_card: int) -> int:
-    return max(1, (width + GRID_SPACING) // (min_card + GRID_SPACING))
+def _column_count(width: int, *, min_card: int, grid_spacing: int) -> int:
+    return max(1, (width + grid_spacing) // (min_card + grid_spacing))
 
 
 class _GridContainer(QWidget):
     """Container that relayouts grid when width changes."""
 
-    def __init__(self, min_card_width: int = MIN_CARD_WIDTH, parent=None):
+    def __init__(self, min_card_width: int | None = MIN_CARD_WIDTH, parent=None):
         super().__init__(parent)
         self._min_card_width = min_card_width
         # Outer column: grid (intrinsic height) + stretch below. Without this,
@@ -37,13 +38,15 @@ class _GridContainer(QWidget):
         outer.setContentsMargins(*GRID_MARGINS)
         outer.setSpacing(0)
         self._grid = QGridLayout()
-        self._grid.setSpacing(GRID_SPACING)
+        self._grid.setSpacing(theme.poster_grid_spacing_px())
         self._grid.setContentsMargins(0, 0, 0, 0)
         outer.addLayout(self._grid)
         outer.addStretch(1)
         self._cards: list[PosterCard] = []
         self._last_cols = 0
         self._last_width = 0
+        self._last_density_key = get_current_density_key()
+        on_density_changed(self._apply_responsive_metrics)
 
     def set_cards(self, cards: list[PosterCard]) -> None:
         self._cards = list(cards)
@@ -58,15 +61,23 @@ class _GridContainer(QWidget):
                 item.widget().setParent(None)
         if not self._cards:
             return
+
+        grid_spacing = theme.poster_grid_spacing_px()
+        self._grid.setSpacing(grid_spacing)
+
+        mc = (
+            self._min_card_width
+            if self._min_card_width is not None
+            else theme.poster_min_card_width_px()
+        )
         w = self.width()
-        mc = self._min_card_width
         if w <= 0:
-            w = mc * 2 + GRID_SPACING
-        cols = _column_count(w, mc)
+            w = mc * 2 + grid_spacing
+        cols = _column_count(w, min_card=mc, grid_spacing=grid_spacing)
         self._last_cols = cols
         self._last_width = w
         # One size for all cards so height never "shrinks" by column
-        card_w = max(mc, (w - (cols - 1) * GRID_SPACING) // cols)
+        card_w = max(mc, (w - (cols - 1) * grid_spacing) // cols)
         card_h = int(card_w * POSTER_ASPECT)
         for c in range(cols):
             self._grid.setColumnStretch(c, 1)
@@ -77,15 +88,28 @@ class _GridContainer(QWidget):
             row, col = divmod(i, cols)
             self._grid.addWidget(card, row, col, align)
         rows = (len(self._cards) + cols - 1) // cols
-        self.setMinimumHeight(rows * card_h + (rows - 1) * GRID_SPACING)
+        grid_m = self._grid.contentsMargins()
+        outer_m = self.layout().contentsMargins() if self.layout() is not None else None
+        extra_h = grid_m.top() + grid_m.bottom()
+        if outer_m is not None:
+            extra_h += outer_m.top() + outer_m.bottom()
+        self.setMinimumHeight(rows * card_h + (rows - 1) * grid_spacing + extra_h)
+        self._last_density_key = get_current_density_key()
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         w = self.width()
         if w <= 0:
             return
-        if w != self._last_width:
+
+        density_key = get_current_density_key()
+        if w != self._last_width or density_key != self._last_density_key:
             self._last_width = w
+            self._last_density_key = density_key
+            self._relayout()
+
+    def _apply_responsive_metrics(self) -> None:
+        if self._cards:
             self._relayout()
 
 
@@ -94,7 +118,7 @@ class PosterGrid(QFrame):
 
     def __init__(
         self,
-        min_card_width: int = MIN_CARD_WIDTH,
+        min_card_width: int | None = None,
         show_header: bool = True,
         parent=None,
     ):

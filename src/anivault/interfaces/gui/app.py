@@ -1,11 +1,13 @@
 """MainWindow: assembles MainShell, wires tab switch and page meta."""
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QMainWindow
 
 from anivault.interfaces.gui.components.molecules import ProgressDialog
 from anivault.interfaces.gui.components.organisms import LogList
 from anivault.interfaces.gui.templates import MainShell
 from anivault.interfaces.gui.theme import global_stylesheet
+from anivault.interfaces.gui.themes import set_responsive_density_for_size
 
 PAGE_META = {
     "organizer": (
@@ -29,8 +31,8 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("AniVault V2")
-        self.setMinimumSize(1000, 700)
-        self.resize(1200, 800)
+        self.setMinimumSize(1280, 768)
+        self.resize(1280, 768)
         self.setStyleSheet(global_stylesheet())
         self._shell = MainShell()
         self.setCentralWidget(self._shell)
@@ -57,6 +59,11 @@ class MainWindow(QMainWindow):
         self._find_log_list()
         self._shell.topbar().simulate_clicked.connect(self._on_simulate_clicked)
 
+        self._responsive_timer = QTimer(self)
+        self._responsive_timer.setSingleShot(True)
+        self._responsive_timer.timeout.connect(self._apply_responsive_density)
+        self._apply_responsive_density()
+
     def _find_log_list(self) -> None:
         stack = self._shell._stack
         for i in range(stack.count()):
@@ -82,3 +89,12 @@ class MainWindow(QMainWindow):
             self._find_log_list()
         if self._log_list is not None:
             self._log_list.append_entry(time_str, msg)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        # Debounce: density computation triggers QSS re-apply (expensive).
+        self._responsive_timer.start(300)
+
+    def _apply_responsive_density(self) -> None:
+        size = self.size()
+        set_responsive_density_for_size(width=size.width(), height=size.height())
