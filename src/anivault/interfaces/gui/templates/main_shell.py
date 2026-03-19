@@ -3,7 +3,6 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QStackedWidget, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import Sidebar, Topbar
 
 
@@ -21,7 +20,6 @@ class MainShell(QWidget):
         self._sidebar.tab_clicked.connect(self._on_tab_clicked)
         layout.addWidget(self._sidebar)
         main = QFrame()
-        main.setStyleSheet(theme.main_bg())
         main_layout = QVBoxLayout(main)
         main_layout.setContentsMargins(26, 26, 26, 26)
         self._topbar = Topbar()

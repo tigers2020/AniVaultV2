@@ -2,7 +2,7 @@
 
 from typing import Literal, TypedDict
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
     QSizePolicy,
@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import (
     PanelHeader,
     PosterCard,
@@ -90,22 +89,26 @@ class PipelineResultPanel(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self._view_bar = ViewToggleBar()
-        header = PanelHeader(
+        self._header = PanelHeader(
             "Pipeline Result",
             "테이블 또는 포스터 그리드로 결과 보기. 보기 메뉴에서 레이아웃을 선택하세요.",
             right_widget=self._view_bar,
         )
-        layout.addWidget(header)
+        layout.addWidget(self._header)
         # Keep the header ("label") height stable; let the table/content consume remaining space.
-        header.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed))
-        header_h = int(header.sizeHint().height())
-        if header_h > 0:
-            header.setFixedHeight(header_h)
+        self._header.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        )
+        self._sync_header_height()
 
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # Main content: stacked views
         self._stack = QStackedWidget()
+        self._stack.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        )
+        self._stack.setMinimumHeight(0)
 
         # 0: Details (table) — use shared model when provided
         table = PipelineTable(show_header=False, model=self._model)
@@ -142,6 +145,10 @@ class PipelineResultPanel(QFrame):
 
         # Right pane placeholder (DetailsPane or PreviewPane)
         self._pane_stack = QStackedWidget()
+        self._pane_stack.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        )
+        self._pane_stack.setMinimumHeight(0)
         self._pane_stack.addWidget(QWidget())  # empty
         self._details_pane = DetailsPane()
         self._preview_pane = PreviewPane()
@@ -149,6 +156,10 @@ class PipelineResultPanel(QFrame):
         self._pane_stack.addWidget(self._preview_pane)
         main_splitter.addWidget(self._pane_stack)
         self._main_splitter = main_splitter
+        self._main_splitter.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        )
+        self._main_splitter.setMinimumHeight(0)
         self._pane_width = 340
         self._main_min_width = 320
         main_splitter.setSizes([960, 0])
@@ -157,9 +168,10 @@ class PipelineResultPanel(QFrame):
 
         layout.addWidget(main_splitter)
         # Vertical stretch: header(0) is fixed, splitter(1) fills remaining space.
-        layout.setStretchFactor(header, 0)
+        layout.setStretchFactor(self._header, 0)
         layout.setStretchFactor(main_splitter, 1)
-        self.setStyleSheet(theme.card_panel())
+        self.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding))
+        self.setMinimumHeight(0)
 
         self._view_bar.view_changed.connect(self._on_view_changed)
         self._view_bar.details_pane_changed.connect(self._on_details_pane)
@@ -345,3 +357,19 @@ class PipelineResultPanel(QFrame):
     def set_rows(self, rows: list[PipelineRow]) -> None:
         """Set rows. Updates model (triggers _sync_views_from_model for list/tile/content/poster)."""
         self._model.set_rows(rows)
+
+    def _sync_header_height(self) -> None:
+        """Recompute header fixed height after style/font updates."""
+        header_h = int(self._header.sizeHint().height())
+        if header_h > 0:
+            self._header.setFixedHeight(header_h)
+
+    def changeEvent(self, event: QEvent) -> None:
+        super().changeEvent(event)
+        if event.type() in {
+            QEvent.Type.FontChange,
+            QEvent.Type.StyleChange,
+            QEvent.Type.Polish,
+            QEvent.Type.LayoutRequest,
+        }:
+            self._sync_header_height()

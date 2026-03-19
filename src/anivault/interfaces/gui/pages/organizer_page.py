@@ -1,10 +1,9 @@
 """Organizer page: StatsGrid + PipelineResultPanel (organisms + templates)."""
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QShowEvent
-from PySide6.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import FolderScanBar, StatsGrid
 from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel
 from anivault.interfaces.gui.presenters import OrganizerPresenter
@@ -38,12 +37,9 @@ class OrganizerPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(theme.scroll_area_transparent())
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        content_layout = QVBoxLayout()
+        content_layout.setSpacing(0)
+        content_layout.setContentsMargins(0, 0, 0, 0)
         self._scan_bar = FolderScanBar()
         source_path = load_all().get("scan_build", {}).get("source_path", "") or ""
         self._scan_bar.set_path(source_path)
@@ -57,8 +53,7 @@ class OrganizerPage(QWidget):
         content_layout.setStretchFactor(self._result_panel, 1)
         self._model.modelReset.connect(self._update_stats)
         self._update_stats()
-        scroll.setWidget(content)
-        layout.addWidget(scroll)
+        layout.addLayout(content_layout, 1)
 
     def _on_scan_path_changed(self, path: str) -> None:
         """Persist source_path to settings when user changes Organizer scan path."""

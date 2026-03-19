@@ -6,7 +6,6 @@ from PySide6.QtWidgets import QMainWindow
 from anivault.interfaces.gui.components.molecules import ProgressDialog
 from anivault.interfaces.gui.components.organisms import LogList
 from anivault.interfaces.gui.templates import MainShell
-from anivault.interfaces.gui.theme import global_stylesheet
 from anivault.interfaces.gui.themes import set_responsive_density_for_size
 
 PAGE_META = {
@@ -33,7 +32,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("AniVault V2")
         self.setMinimumSize(1280, 768)
         self.resize(1280, 768)
-        self.setStyleSheet(global_stylesheet())
         self._shell = MainShell()
         self.setCentralWidget(self._shell)
         from anivault.interfaces.gui.composition import (

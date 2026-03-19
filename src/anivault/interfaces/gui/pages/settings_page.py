@@ -2,7 +2,6 @@
 
 from PySide6.QtWidgets import QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 
-from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import (
     AppearanceCard,
     ParseTmdbForm,
@@ -33,7 +32,6 @@ class SettingsPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(theme.scroll_area_transparent())
         content = QWidget()
         content_layout = QVBoxLayout(content)
         actions_card = SettingsActionsCard()
