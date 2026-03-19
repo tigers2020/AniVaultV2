@@ -21,7 +21,7 @@ class DarkTheme:
         # It affects typography density (via root font-size) and metric values
         # (radius, spacing in QSS strings that use pixel-based radii).
         self._scale = float(scale)
-        self._root_font_size_px = max(10, int(round(16 * self._scale)))
+        self._root_font_size_pt = max(8, int(round(12 * self._scale)))
         self._radius_px = max(8, int(round(RADIUS_PX * self._scale)))
         self._button_radius_px = max(8, int(round(14 * self._scale)))
         self._input_radius_px = max(8, int(round(12 * self._scale)))
@@ -62,7 +62,7 @@ class DarkTheme:
             background-color: {c["bg"]};
             color: {c["text"]};
             font-family: {FONT_FAMILY};
-            font-size: {self._root_font_size_px}px;
+            font-size: {self._root_font_size_pt}pt;
         }}
         QMainWindow {{
             background-color: {c["bg"]};
@@ -78,7 +78,7 @@ class DarkTheme:
             border: none;
             background: transparent;
             font-family: {FONT_FAMILY};
-            font-size: 0.92rem;
+            font-size: 11pt;
         }}
         QPushButton {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c["panel2"]}, stop:1 {c["panel"]});
@@ -196,7 +196,7 @@ class DarkTheme:
             color: {c["text"]};
             padding: 11px 12px;
             font-family: {FONT_FAMILY};
-            font-size: 0.92rem;
+            font-size: 11pt;
         }}
         QComboBox::drop-down {{
             border: none;
@@ -216,7 +216,7 @@ class DarkTheme:
             color: {c["muted"]};
             padding: 12px 14px;
             font-family: {FONT_FAMILY};
-            font-size: 0.86rem;
+            font-size: 10pt;
             font-weight: 600;
         }}
         QFrame#sidebar_pipeline_card QLabel {{
@@ -244,7 +244,7 @@ class DarkTheme:
     def sidebar_nav_title(self) -> str:
         c = self._c()
         return (
-            f"color: {c['muted']}; font-family: {FONT_FAMILY}; font-size: 0.76rem; font-weight: 600; "
+            f"color: {c['muted']}; font-family: {FONT_FAMILY}; font-size: 9pt; font-weight: 600; "
             "text-transform: uppercase; letter-spacing: 0.08em; margin: 18px 10px 10px; "
             "background: transparent; border: none;"
         )
@@ -263,7 +263,7 @@ class DarkTheme:
 
     def sidebar_card_title(self) -> str:
         c = self._c()
-        return f"{FONT_TITLE} font-size: 0.95rem; margin: 0 0 8px; color: {c['text']}; background: transparent; border: none;"
+        return f"{FONT_TITLE} font-size: 11pt; margin: 0 0 8px; color: {c['text']}; background: transparent; border: none;"
 
     def sidebar_footer(self) -> str:
         c = self._c()
@@ -278,7 +278,7 @@ class DarkTheme:
 
     def sidebar_footer_value(self) -> str:
         c = self._c()
-        return f"margin-top: 6px; font-family: {FONT_FAMILY}; font-size: 0.92rem; font-weight: 700; color: {c['text']}; background: transparent; border: none;"
+        return f"margin-top: 6px; font-family: {FONT_FAMILY}; font-size: 11pt; font-weight: 700; color: {c['text']}; background: transparent; border: none;"
 
     def topbar_title(self) -> str:
         c = self._c()
@@ -290,7 +290,7 @@ class DarkTheme:
 
     def label_muted(self) -> str:
         c = self._c()
-        return f"color: {c['muted']}; {FONT_BODY} font-size: 0.84rem; background: transparent; border: none;"
+        return f"color: {c['muted']}; {FONT_BODY} font-size: 10pt; background: transparent; border: none;"
 
     def label_stat(self) -> str:
         c = self._c()
@@ -298,7 +298,7 @@ class DarkTheme:
 
     def label_title(self) -> str:
         c = self._c()
-        return f"{FONT_TITLE} font-size: 1rem; color: {c['text']}; background: transparent; border: none;"
+        return f"{FONT_TITLE} font-size: 12pt; color: {c['text']}; background: transparent; border: none;"
 
     def line_edit(self) -> str:
         c = self._c()
@@ -336,13 +336,13 @@ class DarkTheme:
             "red": "background: rgba(255, 107, 129, 0.14); color: #ffc0cb; border: 1px solid rgba(255, 107, 129, 0.25);",
         }
         base = styles.get(color, styles["blue"])
-        return f"padding: 6px 10px; border-radius: 999px; font-size: 0.78rem; {base}"
+        return f"padding: 6px 10px; border-radius: 999px; font-size: 9pt; {base}"
 
     def step_index_label(self) -> str:
-        return "color: #ffffff; font-size: 0.78rem; font-weight: 700; background: transparent;"
+        return "color: #ffffff; font-size: 9pt; font-weight: 700; background: transparent;"
 
     def badge_label(self, size: int) -> str:
-        return f"color: #08101f; font-weight: 800; font-size: {max(14, size // 2)}px; background: transparent; border: none;"
+        return f"color: #08101f; font-weight: 800; font-size: {max(10, int(round(max(14, size // 2) * 0.75)))}pt; background: transparent; border: none;"
 
     def nav_item(self) -> str:
         c = self._c()
@@ -356,7 +356,7 @@ class DarkTheme:
             border: 1px solid transparent;
             color: {c["text"]};
             font-family: {FONT_FAMILY};
-            font-size: 0.95rem;
+            font-size: 11pt;
             font-weight: 500;
         }}
         QPushButton:hover, QPushButton:checked {{
@@ -367,17 +367,17 @@ class DarkTheme:
 
     def step_row_title(self) -> str:
         c = self._c()
-        return f"color: {c['text']}; {FONT_TITLE} font-size: 0.9rem; background: transparent; border: none;"
+        return f"color: {c['text']}; {FONT_TITLE} font-size: 10pt; background: transparent; border: none;"
 
     def step_row_text(self) -> str:
         c = self._c()
-        return f"color: {c['text']}; {FONT_BODY} font-size: 0.84rem; background: transparent; border: none;"
+        return f"color: {c['text']}; {FONT_BODY} font-size: 10pt; background: transparent; border: none;"
 
     def brand_title(self) -> str:
-        return f"{FONT_TITLE} font-size: 1.02rem; margin: 0; background: transparent; border: none;"
+        return f"{FONT_TITLE} font-size: 12pt; margin: 0; background: transparent; border: none;"
 
     def brand_subtitle(self) -> str:
-        return f"{FONT_SUBTITLE} font-size: 0.84rem; margin-top: 4px; background: transparent; border: none;"
+        return f"{FONT_SUBTITLE} font-size: 10pt; margin-top: 4px; background: transparent; border: none;"
 
     def stat_card(self) -> str:
         c = self._c()
@@ -395,10 +395,10 @@ class DarkTheme:
 
     def stat_card_value(self) -> str:
         c = self._c()
-        return f"font-family: {FONT_FAMILY}; font-size: 1.6rem; font-weight: 800; color: {c['text']}; background: transparent; border: none; margin: 0;"
+        return f"font-family: {FONT_FAMILY}; font-size: 20pt; font-weight: 800; color: {c['text']}; background: transparent; border: none; margin: 0;"
 
     def panel_header_title(self) -> str:
-        return f"{FONT_TITLE} font-size: 1.05rem; margin: 0; background: transparent; border: none;"
+        return f"{FONT_TITLE} font-size: 13pt; margin: 0; background: transparent; border: none;"
 
     def panel_header_desc(self) -> str:
         return f"{FONT_SUBTITLE} margin-top: 6px; background: transparent; border: none;"
@@ -413,7 +413,7 @@ class DarkTheme:
             padding: 10px;
             font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
             color: {c["text"]};
-            font-size: 0.82rem;
+            font-size: 10pt;
         }}
     """
 
@@ -432,10 +432,10 @@ class DarkTheme:
         return f"background-color: {c['input_bg']}; color: {c['muted']};"
 
     def poster_card_title(self) -> str:
-        return f"{FONT_TITLE} font-size: 1rem; margin: 0; background: transparent; border: none;"
+        return f"{FONT_TITLE} font-size: 12pt; margin: 0; background: transparent; border: none;"
 
     def poster_card_meta(self) -> str:
-        return f"{FONT_BODY} font-size: 0.88rem; line-height: 1.45; background: transparent; border: none;"
+        return f"{FONT_BODY} font-size: 10pt; line-height: 1.45; background: transparent; border: none;"
 
     def card_panel(self) -> str:
         c = self._c()
@@ -459,7 +459,7 @@ class DarkTheme:
 
     def list_item_strong(self) -> str:
         c = self._c()
-        return f"{FONT_TITLE} font-size: 0.96rem; margin-bottom: 6px; color: {c['text']}; background: transparent; border: none;"
+        return f"{FONT_TITLE} font-size: 11pt; margin-bottom: 6px; color: {c['text']}; background: transparent; border: none;"
 
     def list_item_muted(self) -> str:
         return f"{FONT_BODY} color: {self._c()['muted']}; background: transparent; border: none;"
@@ -482,7 +482,7 @@ class DarkTheme:
             color: {c["text"]};
             padding: 11px 14px;
             font-weight: 600;
-            font-size: 0.88rem;
+            font-size: 10pt;
         }}
         QToolButton:hover {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(122, 162, 255, 0.18), stop:1 rgba(122, 162, 255, 0.08));
@@ -540,7 +540,7 @@ class DarkTheme:
         }}
         QProgressDialog QLabel {{
             color: {c["text"]};
-            font-size: 0.95rem;
+            font-size: 11pt;
         }}
         QProgressBar {{
             border: 1px solid {c["border"]};

@@ -1,5 +1,6 @@
 """Stats grid: 4 StatCards (Scanned Files, Parsed Titles, TMDB Matches, Planned Moves)."""
 
+from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import QGridLayout, QSizePolicy, QWidget
 
 from anivault.interfaces.gui.components.molecules import StatCard
@@ -29,11 +30,7 @@ class StatsGrid(QWidget):
 
         # Prevent vertical stretching when embedded in a resizable scroll area.
         self.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed))
-        h = int(self.layout().sizeHint().height()) if self.layout() is not None else 0
-        if h <= 0:
-            h = int(self.sizeHint().height())
-        if h > 0:
-            self.setFixedHeight(h)
+        self._sync_fixed_height()
 
     def set_stats(
         self,
@@ -47,3 +44,21 @@ class StatsGrid(QWidget):
         self._cards[1].set_value(_fmt(parsed))
         self._cards[2].set_value(_fmt(tmdb_matches))
         self._cards[3].set_value(_fmt(planned))
+
+    def _sync_fixed_height(self) -> None:
+        """Keep row height aligned to style/font changes."""
+        h = int(self.layout().sizeHint().height()) if self.layout() is not None else 0
+        if h <= 0:
+            h = int(self.sizeHint().height())
+        if h > 0:
+            self.setFixedHeight(h)
+
+    def changeEvent(self, event: QEvent) -> None:
+        super().changeEvent(event)
+        if event.type() in {
+            QEvent.Type.FontChange,
+            QEvent.Type.StyleChange,
+            QEvent.Type.Polish,
+            QEvent.Type.LayoutRequest,
+        }:
+            self._sync_fixed_height()

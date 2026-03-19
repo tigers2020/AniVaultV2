@@ -1,6 +1,6 @@
 """Folder scan bar: PathSelectField + Scan button for Organizer page."""
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QEvent, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy
 
 from anivault.interfaces.gui import theme
@@ -29,11 +29,7 @@ class FolderScanBar(QFrame):
 
         # Prevent vertical stretching when embedded in a resizable scroll area.
         self.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed))
-        h = int(self.layout().sizeHint().height()) if self.layout() is not None else 0
-        if h <= 0:
-            h = int(self.sizeHint().height())
-        if h > 0:
-            self.setFixedHeight(h)
+        self._sync_fixed_height()
 
     def set_path(self, path: str) -> None:
         """Set path from settings. Synced with scan_build.source_path."""
@@ -42,3 +38,21 @@ class FolderScanBar(QFrame):
     def _on_scan(self) -> None:
         path = self._path_field.path()
         self.scan_clicked.emit(path)
+
+    def _sync_fixed_height(self) -> None:
+        """Keep card height aligned to current font/style metrics."""
+        h = int(self.layout().sizeHint().height()) if self.layout() is not None else 0
+        if h <= 0:
+            h = int(self.sizeHint().height())
+        if h > 0:
+            self.setFixedHeight(h)
+
+    def changeEvent(self, event: QEvent) -> None:
+        super().changeEvent(event)
+        if event.type() in {
+            QEvent.Type.FontChange,
+            QEvent.Type.StyleChange,
+            QEvent.Type.Polish,
+            QEvent.Type.LayoutRequest,
+        }:
+            self._sync_fixed_height()
