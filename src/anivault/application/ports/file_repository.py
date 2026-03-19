@@ -1,5 +1,6 @@
 """Port: file system access. Use cases depend on this; adapters implement it."""
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -14,8 +15,9 @@ class FileRepository(Protocol):
         *,
         extensions: tuple[str, ...] | None = None,
         recursive: bool = True,
+        progress_callback: Callable[[int, str | None], None] | None = None,
     ) -> list[Path]:
-        """디렉터리 내 대상 파일 목록 반환."""
+        """디렉터리 내 대상 파일 목록 반환. progress_callback(current_count, item_path) 호출 가능."""
         ...
 
     def move(self, source: Path, destination: Path) -> None:

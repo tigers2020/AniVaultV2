@@ -1,13 +1,20 @@
 """Poster grid: QScrollArea + QGridLayout + PosterCards. Dynamic columns by width."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame, QGridLayout, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QFrame,
+    QGridLayout,
+    QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import PanelHeader, PosterCard
 
 MIN_CARD_WIDTH = 140
-GRID_SPACING = 16
+GRID_SPACING = 12
 GRID_MARGINS = (0, 0, 0, 0)
 # Portrait 2:3
 POSTER_ASPECT = 3 / 2
@@ -23,9 +30,17 @@ class _GridContainer(QWidget):
     def __init__(self, min_card_width: int = MIN_CARD_WIDTH, parent=None):
         super().__init__(parent)
         self._min_card_width = min_card_width
-        self._grid = QGridLayout(self)
+        # Outer column: grid (intrinsic height) + stretch below. Without this,
+        # QGridLayout distributes extra viewport height *between* rows, making
+        # row gaps much larger than horizontal GRID_SPACING when maximized.
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(*GRID_MARGINS)
+        outer.setSpacing(0)
+        self._grid = QGridLayout()
         self._grid.setSpacing(GRID_SPACING)
-        self._grid.setContentsMargins(*GRID_MARGINS)
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        outer.addLayout(self._grid)
+        outer.addStretch(1)
         self._cards: list[PosterCard] = []
         self._last_cols = 0
         self._last_width = 0
@@ -97,6 +112,13 @@ class PosterGrid(QFrame):
             )
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        # Ensure the scroll viewport consumes all available height, so cards
+        # don't appear vertically "centered" when the window is maximized.
+        scroll.setViewportMargins(0, 0, 0, 0)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        )
         scroll.setHorizontalScrollBarPolicy(scroll.horizontalScrollBarPolicy())
         scroll.setStyleSheet(theme.scroll_area_transparent())
         self._container = _GridContainer(min_card_width=min_card_width)

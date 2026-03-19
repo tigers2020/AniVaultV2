@@ -53,3 +53,8 @@ class ProgressDialog(QProgressDialog):
         if value is not None:
             self.setMaximum(maximum)
             self.setValue(value)
+
+    def hide_progress(self) -> None:
+        """Reset and hide dialog when operation completes (result/error/cancelled)."""
+        self.reset()
+        self.hide()

@@ -85,3 +85,28 @@ def test_load_all_falls_back_for_invalid_pipeline_result_types(tmp_path: Path, m
     assert pipeline["details_pane"] is False
     assert pipeline["preview_pane"] is False
     assert pipeline["selected_index"] == -1
+
+
+def test_load_all_accepts_selected_index_bool_as_int(tmp_path: Path, monkeypatch) -> None:
+    """selected_index historically accepted bool values (bool is an int subclass in Python)."""
+    config_dir = tmp_path / ".anivault"
+    config_file = config_dir / "config.json"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file.write_text(
+        json.dumps(
+            {
+                "ui_state": {
+                    "pipeline_results": {
+                        "selected_index": True,
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(settings_storage, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(settings_storage, "CONFIG_FILE", config_file)
+
+    loaded = settings_storage.load_all()
+    pipeline = loaded["ui_state"]["pipeline_results"]
+    assert pipeline["selected_index"] == 1

@@ -1,7 +1,7 @@
 """Tile view: large cards with image + title + parsed/tmdb/path summary."""
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QGridLayout, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QGridLayout, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import PosterCard
@@ -19,7 +19,7 @@ def _make_clickable_card(card: PosterCard, index: int, callback) -> None:
     card.setCursor(Qt.CursorShape.PointingHandCursor)
 
 
-GRID_SPACING = 20
+GRID_SPACING = 14
 POSTER_ASPECT = 3 / 2
 
 
@@ -32,9 +32,16 @@ class _TileContainer(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._grid = QGridLayout(self)
+        # Grid + bottom stretch so extra height stays below the last row, not
+        # between rows (matches horizontal GRID_SPACING between card rows).
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        self._grid = QGridLayout()
         self._grid.setSpacing(GRID_SPACING)
         self._grid.setContentsMargins(0, 0, 0, 0)
+        outer.addLayout(self._grid)
+        outer.addStretch(1)
         self._cards: list[PosterCard] = []
         self._last_width = 0
 
@@ -83,6 +90,13 @@ class TileView(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        # Ensure the scroll viewport consumes all available height, so cards
+        # don't appear vertically "centered" when the window is maximized.
+        scroll.setViewportMargins(0, 0, 0, 0)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        )
         scroll.setStyleSheet(theme.scroll_area_transparent())
         self._container = _TileContainer()
         scroll.setWidget(self._container)

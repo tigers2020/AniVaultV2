@@ -62,9 +62,9 @@ def _ensure_dir() -> None:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def load_all() -> dict[str, Any]:
-    """Load full config. Returns merged dict with defaults for missing keys."""
-    result: dict[str, Any] = {
+def _default_result() -> dict[str, Any]:
+    """Return default merged config (theme/path_rules/parse_tmdb/scan_build/ui_state)."""
+    return {
         "theme": "dark",
         "path_rules": dict(DEFAULT_PATH_RULES),
         "parse_tmdb": dict(DEFAULT_PARSE_TMDB),
@@ -73,43 +73,95 @@ def load_all() -> dict[str, Any]:
             "pipeline_results": dict(DEFAULT_PIPELINE_RESULTS),
         },
     }
+
+
+def _safe_load_config_data() -> Any:
+    """Safely load config.json, returning raw decoded JSON (or None)."""
+    with suppress(OSError, ValueError):
+        return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    return None
+
+
+def _merge_string_key_group(
+    *,
+    target_group: dict[str, str],
+    loaded_data_group: Any,
+    keys: tuple[str, ...],
+) -> None:
+    """Update target_group[key] = str(loaded_data_group[key]) when key exists."""
+    if not isinstance(loaded_data_group, dict):
+        return
+    for key in keys:
+        if key in loaded_data_group:
+            target_group[key] = str(loaded_data_group[key])
+
+
+def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
+    """Merge loaded config into the existing result dict in-place."""
+    if "theme" in data:
+        result["theme"] = str(data["theme"])
+
+    _merge_string_key_group(
+        target_group=cast(dict[str, str], result["path_rules"]),
+        loaded_data_group=data.get("path_rules"),
+        keys=PATH_RULES_KEYS,
+    )
+    _merge_string_key_group(
+        target_group=cast(dict[str, str], result["parse_tmdb"]),
+        loaded_data_group=data.get("parse_tmdb"),
+        keys=PARSE_TMDB_KEYS,
+    )
+    _merge_string_key_group(
+        target_group=cast(dict[str, str], result["scan_build"]),
+        loaded_data_group=data.get("scan_build"),
+        keys=SCAN_BUILD_KEYS,
+    )
+
+    ui_state = data.get("ui_state")
+    if not isinstance(ui_state, dict):
+        return
+
+    pipeline_results = ui_state.get("pipeline_results")
+    if not isinstance(pipeline_results, dict):
+        return
+
+    result_pipeline = cast(
+        dict[str, Any],
+        cast(dict[str, Any], result["ui_state"])["pipeline_results"],
+    )
+
+    if "selected_index" in pipeline_results:
+        value = pipeline_results["selected_index"]
+        if isinstance(value, int):
+            result_pipeline["selected_index"] = value
+
+    if "details_pane" in pipeline_results:
+        value = pipeline_results["details_pane"]
+        if isinstance(value, bool):
+            result_pipeline["details_pane"] = value
+
+    if "preview_pane" in pipeline_results:
+        value = pipeline_results["preview_pane"]
+        if isinstance(value, bool):
+            result_pipeline["preview_pane"] = value
+
+    if "view_key" in pipeline_results:
+        value = pipeline_results["view_key"]
+        if isinstance(value, str):
+            result_pipeline["view_key"] = value
+
+
+def load_all() -> dict[str, Any]:
+    """Load full config. Returns merged dict with defaults for missing keys."""
+    result = _default_result()
     if not CONFIG_FILE.exists():
         return result
-    with suppress(OSError, ValueError):
-        loaded: Any = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-        if not isinstance(loaded, dict):
-            return result
-        data = loaded
-        if "theme" in data:
-            result["theme"] = str(data["theme"])
-        for key in PATH_RULES_KEYS:
-            if "path_rules" in data and key in data["path_rules"]:
-                cast(dict[str, str], result["path_rules"])[key] = str(data["path_rules"][key])
-        for key in PARSE_TMDB_KEYS:
-            if "parse_tmdb" in data and key in data["parse_tmdb"]:
-                cast(dict[str, str], result["parse_tmdb"])[key] = str(data["parse_tmdb"][key])
-        for key in SCAN_BUILD_KEYS:
-            if "scan_build" in data and key in data["scan_build"]:
-                cast(dict[str, str], result["scan_build"])[key] = str(data["scan_build"][key])
-        ui_state = data.get("ui_state")
-        if isinstance(ui_state, dict):
-            pipeline_results = ui_state.get("pipeline_results")
-            if isinstance(pipeline_results, dict):
-                result_pipeline = cast(
-                    dict[str, Any],
-                    cast(dict[str, Any], result["ui_state"])["pipeline_results"],
-                )
-                for key in PIPELINE_RESULTS_KEYS:
-                    if key in pipeline_results:
-                        value = pipeline_results[key]
-                        if key == "selected_index":
-                            if isinstance(value, int):
-                                result_pipeline[key] = value
-                        elif key in ("details_pane", "preview_pane"):
-                            if isinstance(value, bool):
-                                result_pipeline[key] = value
-                        elif key == "view_key" and isinstance(value, str):
-                            result_pipeline[key] = value
+
+    loaded = _safe_load_config_data()
+    if not isinstance(loaded, dict):
+        return result
+
+    _merge_loaded_data(result, cast(dict[str, Any], loaded))
     return result
 
 

@@ -5,6 +5,7 @@ from typing import TypedDict
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
+    QSizePolicy,
     QSplitter,
     QStackedWidget,
     QVBoxLayout,
@@ -95,6 +96,11 @@ class PipelineResultPanel(QFrame):
             right_widget=self._view_bar,
         )
         layout.addWidget(header)
+        # Keep the header ("label") height stable; let the table/content consume remaining space.
+        header.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed))
+        header_h = int(header.sizeHint().height())
+        if header_h > 0:
+            header.setFixedHeight(header_h)
 
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -149,6 +155,9 @@ class PipelineResultPanel(QFrame):
         main_splitter.setStretchFactor(1, 0)
 
         layout.addWidget(main_splitter)
+        # Vertical stretch: header(0) is fixed, splitter(1) fills remaining space.
+        layout.setStretchFactor(header, 0)
+        layout.setStretchFactor(main_splitter, 1)
         self.setStyleSheet(theme.card_panel())
 
         self._view_bar.view_changed.connect(self._on_view_changed)

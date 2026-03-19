@@ -66,36 +66,80 @@ class DarkTheme:
             font-size: 0.92rem;
         }}
         QPushButton {{
-            background-color: {c["panel"]};
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c["panel2"]}, stop:1 {c["panel"]});
             border: 1px solid {c["border"]};
+            border-top-color: rgba(43, 55, 102, 0.45);
+            border-left-color: rgba(43, 55, 102, 0.45);
+            border-bottom-color: rgba(20, 28, 55, 0.95);
+            border-right-color: rgba(20, 28, 55, 0.95);
             border-radius: 14px;
             color: {c["text"]};
             padding: 11px 14px;
             font-weight: 600;
         }}
         QPushButton:hover {{
-            background-color: rgba(122, 162, 255, 0.12);
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(122, 162, 255, 0.18), stop:1 rgba(122, 162, 255, 0.08));
             border-color: rgba(122, 162, 255, 0.28);
         }}
+        QPushButton:pressed {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c["panel"]}, stop:1 #0d1328);
+            border-top-color: rgba(20, 28, 55, 0.95);
+            border-left-color: rgba(20, 28, 55, 0.95);
+            border-bottom-color: rgba(43, 55, 102, 0.45);
+            border-right-color: rgba(43, 55, 102, 0.45);
+            padding: 12px 14px 10px 14px;
+        }}
         QPushButton#primary {{
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {c["accent"]}, stop:1 #8e8cff);
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8fa8ff, stop:1 #6b82e8);
             color: #0a1022;
             border: none;
         }}
+        QPushButton#primary:hover {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9eb4ff, stop:1 #8e8cff);
+            border: none;
+        }}
+        QPushButton#primary:pressed {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5c72d4, stop:1 #4a5fc7);
+            padding: 12px 14px 10px 14px;
+        }}
         QPushButton#success {{
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {c["accent2"]}, stop:1 #91f0da);
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8ef5e5, stop:1 #5cc9b8);
             color: #07151a;
             border: none;
         }}
+        QPushButton#success:hover {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9ef9ea, stop:1 #91f0da);
+            border: none;
+        }}
+        QPushButton#success:pressed {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4ab5a5, stop:1 #3da898);
+            padding: 12px 14px 10px 14px;
+        }}
         QPushButton#warn {{
-            background-color: rgba(255, 180, 84, 0.14);
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 180, 84, 0.22), stop:1 rgba(255, 180, 84, 0.1));
             border: 1px solid rgba(255, 180, 84, 0.3);
+            border-top-color: rgba(255, 180, 84, 0.38);
+            border-left-color: rgba(255, 180, 84, 0.38);
+            border-bottom-color: rgba(255, 180, 84, 0.22);
+            border-right-color: rgba(255, 180, 84, 0.22);
             color: #ffd697;
         }}
+        QPushButton#warn:pressed {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 180, 84, 0.08), stop:1 rgba(255, 180, 84, 0.18));
+            padding: 12px 14px 10px 14px;
+        }}
         QPushButton#danger {{
-            background-color: rgba(255, 107, 129, 0.14);
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 107, 129, 0.22), stop:1 rgba(255, 107, 129, 0.1));
             border: 1px solid rgba(255, 107, 129, 0.3);
+            border-top-color: rgba(255, 107, 129, 0.38);
+            border-left-color: rgba(255, 107, 129, 0.38);
+            border-bottom-color: rgba(255, 107, 129, 0.22);
+            border-right-color: rgba(255, 107, 129, 0.22);
             color: #ffc0cb;
+        }}
+        QPushButton#danger:pressed {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 107, 129, 0.08), stop:1 rgba(255, 107, 129, 0.18));
+            padding: 12px 14px 10px 14px;
         }}
         QLineEdit, QComboBox, QPlainTextEdit {{
             background-color: {c["input_bg"]};

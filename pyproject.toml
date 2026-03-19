@@ -21,7 +21,7 @@ classifiers = [
 
 dependencies = [
     # Phase 1: parser (anitopy or equivalent), Phase 2: TMDB, Phase 4: CLI, Phase 5: GUI
-    # "anitopy",  # Phase 1
+    "anitopy",  # Phase 1
     # "requests", # Phase 2
     # "typer", "rich",  # Phase 4
     "PySide6>=6.6",  # Phase 5: GUI

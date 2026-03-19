@@ -1,8 +1,8 @@
 """Organizer page: StatsGrid + PipelineResultPanel (organisms + templates)."""
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShowEvent
-from PySide6.QtWidgets import QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import FolderScanBar, StatsGrid
@@ -32,6 +32,9 @@ class OrganizerPage(QWidget):
         if presenter is not None:
             self._presenter.setParent(self)
         self._result_panel = PipelineResultPanel(model=self._model)
+        self._result_panel.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -40,6 +43,7 @@ class OrganizerPage(QWidget):
         scroll.setStyleSheet(theme.scroll_area_transparent())
         content = QWidget()
         content_layout = QVBoxLayout(content)
+        content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self._scan_bar = FolderScanBar()
         source_path = load_all().get("scan_build", {}).get("source_path", "") or ""
         self._scan_bar.set_path(source_path)
@@ -49,6 +53,8 @@ class OrganizerPage(QWidget):
         self._stats_grid = StatsGrid()
         content_layout.addWidget(self._stats_grid)
         content_layout.addWidget(self._result_panel)
+        # Make Pipeline Result panel consume remaining vertical space.
+        content_layout.setStretchFactor(self._result_panel, 1)
         self._model.modelReset.connect(self._update_stats)
         self._update_stats()
         scroll.setWidget(content)

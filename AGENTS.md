@@ -46,9 +46,11 @@ Cursor AI용 AniVault V2 프로젝트 가이드. [AGENTS.md](https://agents.md/)
 [유리] (MatchUseCase 수정...)
 [아다] (mapper 수정...)
 
-[시몬] 다 됐으면 렉스한테 검증 맡겨. 렉스, 4단계 돌려보고 통과하면 알려줘.
+[시몬] 다 됐으면 테스한테 테스트 먼저, 그다음 렉스한테 검증 맡겨.
 
-[렉스] 알겠어. pytest → ruff → mypy → black 순으로 돌릴게. 깨지면 담당한테 수정 요청할게.
+[테스] 코딩된 내용에 test_*.py 추가할게. tests/unit/에 맞게 넣고 렉스한테 넘길게.
+
+[렉스] 알겠어. 테스가 테스트 넣었으니 pytest → ruff → mypy → black 순으로 돌릴게. 깨지면 담당한테 수정 요청할게.
 ```
 
 ---
@@ -66,7 +68,8 @@ Cursor AI용 AniVault V2 프로젝트 가이드. [AGENTS.md](https://agents.md/)
 1. **@.cursor/rules/anivault-root.mdc** — 자기 검증 4단계, 도메인 용어, DO/DON'T
 2. **@.cursor/rules/anivault-architecture.mdc** — 레이어·포트
 3. **@.cursor/rules/anivault-mcp.mdc** — MCP(context7·GitLens·browser) 적극 활용
-4. **@.cursor/rules/anivault-qt-gui.mdc** 등 glob 규칙 — 파일/디렉터리별 적용
+4. **@.cursor/rules/anivault-cursor-usage.mdc** — Cursor 활용(계획 선행, 메모, 다중 채팅, 도메인 분리)
+5. **@.cursor/rules/anivault-qt-gui.mdc** 등 glob 규칙 — 파일/디렉터리별 적용
 
 ---
 
@@ -98,6 +101,19 @@ tests/  unit/  integration/  golden/
 
 - `protocols/`, `persona/` — 패르소나 형식
 - `documents/QT_Architecture_Spec.md` — Qt GUI 상세
+
+---
+
+## Cursor 활용 팁
+
+Cursor를 100%에 가깝게 쓰기 위한 요약. 상세는 `@.cursor/rules/anivault-cursor-usage.mdc`.
+
+- **계획 먼저**: 복잡한 작업은 Plan 모드 또는 "플랜만 작성해줘" 요청 후 진행.
+- **스스로 확인**: 구현 후 검증 방법 제공(pytest, ruff, mypy, black 및 필요 시 실행/브라우저).
+- **여러 채팅**: 영역별로 Composer/채팅 분리, 완료 알림으로 대기 중인 작업 파악.
+- **Cursor 전용 메모**: `docs/CURSOR_MEMO.md`에 실수 목록·규칙·다음 할 일 유지; 실수 시 "메모 업데이트해줘" 지시.
+- **맥락 유지**: 중요한 결정·진행 상황은 파일로 저장하고, 새 세션 시 해당 파일 @로 전달.
+- **설계서 먼저**: 코드 작성 전에 protocols/documents에 스펙·설계 정리 후 "이 설계대로 구현해줘" 지시.
 
 ---
 

@@ -2,6 +2,7 @@
 
 from PySide6.QtWidgets import QMainWindow
 
+from anivault.interfaces.gui.components.molecules import ProgressDialog
 from anivault.interfaces.gui.components.organisms import LogList
 from anivault.interfaces.gui.templates import MainShell
 from anivault.interfaces.gui.theme import global_stylesheet
@@ -39,7 +40,8 @@ class MainWindow(QMainWindow):
             create_settings_page,
         )
 
-        self._shell.add_page(create_organizer_page())
+        self._progress_dialog = ProgressDialog(parent=self)
+        self._shell.add_page(create_organizer_page(progress_dialog=self._progress_dialog))
         self._shell.add_page(create_operations_page())
         self._shell.add_page(create_settings_page())
         self._shell.tab_clicked.connect(self._on_tab_clicked)
