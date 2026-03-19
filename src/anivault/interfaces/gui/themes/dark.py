@@ -141,6 +141,39 @@ class DarkTheme:
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 107, 129, 0.08), stop:1 rgba(255, 107, 129, 0.18));
             padding: 12px 14px 10px 14px;
         }}
+        QToolButton {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c["panel2"]}, stop:1 {c["panel2"]});
+            border: 1px solid {c["border"]};
+            border-top-color: rgba(43, 55, 102, 0.45);
+            border-left-color: rgba(43, 55, 102, 0.45);
+            border-bottom-color: rgba(20, 28, 55, 0.95);
+            border-right-color: rgba(20, 28, 55, 0.95);
+            border-radius: 14px;
+            color: {c["text"]};
+            padding: 11px 14px;
+            font-weight: 600;
+        }}
+        QToolButton:hover {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(122, 162, 255, 0.18), stop:1 rgba(122, 162, 255, 0.08));
+            border-color: rgba(122, 162, 255, 0.28);
+        }}
+        QToolButton:pressed {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c["panel"]}, stop:1 #0d1328);
+            border-top-color: rgba(20, 28, 55, 0.95);
+            border-left-color: rgba(20, 28, 55, 0.95);
+            border-bottom-color: rgba(43, 55, 102, 0.45);
+            border-right-color: rgba(43, 55, 102, 0.45);
+            padding: 12px 14px 10px 14px;
+        }}
+        QToolButton:checked {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8fa8ff, stop:1 #6b82e8);
+            color: #0a1022;
+            border: none;
+        }}
+        QToolButton:checked:hover {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9eb4ff, stop:1 #8e8cff);
+            border: none;
+        }}
         QLineEdit, QComboBox, QPlainTextEdit {{
             background-color: {c["input_bg"]};
             border: 1px solid {c["border"]};
@@ -424,16 +457,30 @@ class DarkTheme:
         c = self._c()
         return f"""
         QToolButton {{
-            background-color: rgba(24, 34, 67, 0.7);
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c["panel2"]}, stop:1 {c["panel2"]});
             border: 1px solid {c["border"]};
-            border-radius: 10px;
+            border-top-color: rgba(43, 55, 102, 0.45);
+            border-left-color: rgba(43, 55, 102, 0.45);
+            border-bottom-color: rgba(20, 28, 55, 0.95);
+            border-right-color: rgba(20, 28, 55, 0.95);
+            border-radius: 14px;
             color: {c["text"]};
-            padding: 8px 12px;
+            padding: 11px 14px;
+            font-weight: 600;
             font-size: 0.88rem;
         }}
         QToolButton:hover {{
-            background-color: rgba(122, 162, 255, 0.12);
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(122, 162, 255, 0.18), stop:1 rgba(122, 162, 255, 0.08));
             border-color: rgba(122, 162, 255, 0.28);
+        }}
+        QToolButton:checked {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8fa8ff, stop:1 #6b82e8);
+            color: #0a1022;
+            border: none;
+        }}
+        QToolButton:checked:hover {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9eb4ff, stop:1 #8e8cff);
+            border: none;
         }}
         QToolButton::menu-indicator {{
             width: 16px;

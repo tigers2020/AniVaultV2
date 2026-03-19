@@ -7,6 +7,7 @@ from anivault.interfaces.gui.components.atoms.label import Label
 from anivault.interfaces.gui.components.atoms.line_edit import LineEdit
 from anivault.interfaces.gui.components.atoms.pill import Pill
 from anivault.interfaces.gui.components.atoms.step_index import StepIndex
+from anivault.interfaces.gui.components.atoms.view_toggle_button import ViewToggleButton
 
 __all__ = [
     "Badge",
@@ -16,4 +17,5 @@ __all__ = [
     "LineEdit",
     "Pill",
     "StepIndex",
+    "ViewToggleButton",
 ]

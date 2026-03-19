@@ -185,31 +185,43 @@ class PipelineResultPanel(QFrame):
     def _on_details_pane(self, checked: bool) -> None:
         if checked:
             self._pane_mode = "details"
-            self._view_bar.set_preview_pane_checked(False)
             self._pane_stack.setCurrentIndex(1)
             w = self._main_splitter.width()
             self._main_splitter.setSizes([max(200, w - self._pane_width), self._pane_width])
         else:
+            # If both toggles are on, turning off the inactive one should not hide the
+            # currently displayed pane.
             if self._pane_mode == "details":
-                self._pane_mode = None
-            self._pane_stack.setCurrentIndex(0)
-            w = self._main_splitter.width()
-            self._main_splitter.setSizes([w, 0])
+                if self._view_bar.preview_pane_checked():
+                    self._pane_mode = "preview"
+                    self._pane_stack.setCurrentIndex(2)
+                    w = self._main_splitter.width()
+                    self._main_splitter.setSizes([max(200, w - self._pane_width), self._pane_width])
+                else:
+                    self._pane_mode = None
+                    self._pane_stack.setCurrentIndex(0)
+                    w = self._main_splitter.width()
+                    self._main_splitter.setSizes([w, 0])
         self._persist_ui_state()
 
     def _on_preview_pane(self, checked: bool) -> None:
         if checked:
             self._pane_mode = "preview"
-            self._view_bar.set_details_pane_checked(False)
             self._pane_stack.setCurrentIndex(2)
             w = self._main_splitter.width()
             self._main_splitter.setSizes([max(200, w - self._pane_width), self._pane_width])
         else:
             if self._pane_mode == "preview":
-                self._pane_mode = None
-            self._pane_stack.setCurrentIndex(0)
-            w = self._main_splitter.width()
-            self._main_splitter.setSizes([w, 0])
+                if self._view_bar.details_pane_checked():
+                    self._pane_mode = "details"
+                    self._pane_stack.setCurrentIndex(1)
+                    w = self._main_splitter.width()
+                    self._main_splitter.setSizes([max(200, w - self._pane_width), self._pane_width])
+                else:
+                    self._pane_mode = None
+                    self._pane_stack.setCurrentIndex(0)
+                    w = self._main_splitter.width()
+                    self._main_splitter.setSizes([w, 0])
         self._persist_ui_state()
 
     def _make_card_clickable(self, card: PosterCard, index: int) -> None:

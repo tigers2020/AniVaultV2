@@ -1,10 +1,10 @@
-"""View toggle bar: Windows Explorer-style layout switcher."""
+"""View toggle bar: inline combo selection + pane toggles."""
 
-from PySide6.QtCore import Signal
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QHBoxLayout, QMenu, QToolButton, QWidget
+from PySide6.QtCore import QSignalBlocker, Signal
+from PySide6.QtWidgets import QHBoxLayout, QWidget
 
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import ComboBox, Label, ViewToggleButton
 
 VIEW_DETAILS = "details"
 VIEW_LIST = "list"
@@ -15,16 +15,10 @@ VIEW_ICON_L = "icon_l"
 VIEW_ICON_M = "icon_m"
 VIEW_ICON_S = "icon_s"
 
-VIEW_ORDER = [
-    VIEW_ICON_XL,
-    VIEW_ICON_L,
-    VIEW_ICON_M,
-    VIEW_ICON_S,
-    VIEW_LIST,
-    VIEW_DETAILS,
-    VIEW_TILES,
-    VIEW_CONTENT,
-]
+# 2-stage combo: a "layout" choice that may map to one of the icon sizes.
+VIEW_ICON_GROUP = "icon_group"
+
+_ICON_VIEWS: set[str] = {VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S}
 
 
 def _view_label(key: str) -> str:
@@ -37,12 +31,13 @@ def _view_label(key: str) -> str:
         VIEW_DETAILS: "자세히",
         VIEW_TILES: "타일",
         VIEW_CONTENT: "내용",
+        VIEW_ICON_GROUP: "아이콘",
     }
     return labels.get(key, key)
 
 
 class ViewToggleBar(QWidget):
-    """Windows Explorer-style view switcher. Dropdown menu with layout options."""
+    """Inline view switcher used in PipelineResultPanel header."""
 
     view_changed = Signal(str)
     details_pane_changed = Signal(bool)
@@ -50,103 +45,128 @@ class ViewToggleBar(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
-
-        self._btn = QToolButton()
-        self._btn.setText("≡ 보기")
-        self._btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self._btn.setStyleSheet(theme.view_toggle_button())
-        layout.addWidget(self._btn)
+        layout.setSpacing(8)
 
         self._current_view = VIEW_DETAILS
         self._details_pane_checked = False
         self._preview_pane_checked = False
 
-        menu = QMenu(self)
-        menu.setStyleSheet(theme.view_toggle_menu())
+        # Layout selection (details/list/tiles/content/icon-group)
+        self._layout_combo = ComboBox()
+        self._layout_combo.setObjectName("view_toggle_layout_combo")
+        for key in (VIEW_DETAILS, VIEW_LIST, VIEW_TILES, VIEW_CONTENT, VIEW_ICON_GROUP):
+            self._layout_combo.addItem(_view_label(key), key)
 
-        # Icon sizes group
-        icon_group = menu.addAction("아이콘 크기")
-        icon_group.setEnabled(False)
-        self._actions: dict[str, QAction] = {}
+        # Icon size selection (enabled only when layout == icon-group)
+        self._icon_size_combo = ComboBox()
+        self._icon_size_combo.setObjectName("view_toggle_icon_size_combo")
         for key in (VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S):
-            a = menu.addAction(_view_label(key), lambda k=key: self._set_view(k))
-            if a is not None:
-                a.setCheckable(True)
-                a.setData(key)
-                if key == self._current_view:
-                    a.setChecked(True)
-                self._actions[key] = a
-
-        menu.addSeparator()
-
-        # List/details group
-        list_group = menu.addAction("목록 및 세부 정보")
-        if list_group is not None:
-            list_group.setEnabled(False)
-        for key in (VIEW_LIST, VIEW_DETAILS, VIEW_TILES, VIEW_CONTENT):
-            a = menu.addAction(_view_label(key), lambda k=key: self._set_view(k))
-            if a is not None:
-                a.setCheckable(True)
-                a.setData(key)
-                if key == self._current_view:
-                    a.setChecked(True)
-                self._actions[key] = a
-
-        menu.addSeparator()
+            self._icon_size_combo.addItem(_view_label(key), key)
 
         # Pane toggles
-        pane_group = menu.addAction("창 표시")
-        if pane_group is not None:
-            pane_group.setEnabled(False)
-        details_action = menu.addAction("세부 정보 창", self._toggle_details_pane)
-        preview_action = menu.addAction("미리 보기 창", self._toggle_preview_pane)
-        if details_action is not None:
-            details_action.setCheckable(True)
-            details_action.setChecked(self._details_pane_checked)
-        if preview_action is not None:
-            preview_action.setCheckable(True)
-            preview_action.setChecked(self._preview_pane_checked)
+        self._details_btn = ViewToggleButton(
+            "세부 정보 창",
+            checked=self._details_pane_checked,
+            object_name="view_toggle_details_pane_btn",
+        )
 
-        self._menu = menu
-        self._details_action: QAction | None = details_action
-        self._preview_action: QAction | None = preview_action
-        self._btn.setMenu(menu)
+        self._preview_btn = ViewToggleButton(
+            "미리 보기 창",
+            checked=self._preview_pane_checked,
+            object_name="view_toggle_preview_pane_btn",
+        )
+
+        # Visual layout
+        self._label = Label("보기", "muted")
+        self._label.setStyleSheet(theme.label_muted())
+
+        layout.addWidget(self._label)
+        layout.addWidget(self._layout_combo)
+        layout.addWidget(self._icon_size_combo)
+        layout.addWidget(self._details_btn)
+        layout.addWidget(self._preview_btn)
+
+        # Set initial UI state without emitting.
+        self._sync_ui_from_view(self._current_view)
+        self._icon_size_combo.setEnabled(self._layout_combo.currentData() == VIEW_ICON_GROUP)
+
+        # Connect signals after initial setup.
+        self._layout_combo.currentIndexChanged.connect(self._on_layout_changed)
+        self._icon_size_combo.currentIndexChanged.connect(self._on_icon_size_changed)
+        self._details_btn.toggled.connect(self._on_details_pane_toggled)
+        self._preview_btn.toggled.connect(self._on_preview_pane_toggled)
+
+    def _sync_ui_from_view(self, key: str) -> None:
+        """Update combo selections. Does not emit signals."""
+        with QSignalBlocker(self._layout_combo), QSignalBlocker(self._icon_size_combo):
+            if key in _ICON_VIEWS:
+                self._layout_combo.setCurrentIndex(self._layout_combo.findData(VIEW_ICON_GROUP))
+                self._icon_size_combo.setCurrentIndex(self._icon_size_combo.findData(key))
+                self._icon_size_combo.setEnabled(True)
+            else:
+                self._layout_combo.setCurrentIndex(self._layout_combo.findData(key))
+                # Keep icon selection as-is but disable.
+                self._icon_size_combo.setEnabled(False)
+
+            self._current_view = key
 
     def _set_view(self, key: str) -> None:
+        """Internal: update current view and emit view_changed."""
+        if key == self._current_view:
+            return
         self._current_view = key
-        for k, a in self._actions.items():
-            a.setChecked(k == key)
         self.view_changed.emit(key)
 
-    def _toggle_details_pane(self) -> None:
-        if self._details_action is not None:
-            self._details_pane_checked = self._details_action.isChecked()
+    def _on_layout_changed(self, _idx: int) -> None:
+        key = self._layout_combo.currentData()
+        if not isinstance(key, str):
+            return
+
+        if key == VIEW_ICON_GROUP:
+            icon_key = self._icon_size_combo.currentData()
+            if not isinstance(icon_key, str):
+                return
+            self._icon_size_combo.setEnabled(True)
+            self._set_view(icon_key)
+        else:
+            self._icon_size_combo.setEnabled(False)
+            self._set_view(key)
+
+    def _on_icon_size_changed(self, _idx: int) -> None:
+        layout_key = self._layout_combo.currentData()
+        if layout_key != VIEW_ICON_GROUP:
+            return
+        icon_key = self._icon_size_combo.currentData()
+        if not isinstance(icon_key, str):
+            return
+        self._set_view(icon_key)
+
+    def _on_details_pane_toggled(self, checked: bool) -> None:
+        self._details_pane_checked = checked
         self.details_pane_changed.emit(self._details_pane_checked)
 
-    def _toggle_preview_pane(self) -> None:
-        if self._preview_action is not None:
-            self._preview_pane_checked = self._preview_action.isChecked()
+    def _on_preview_pane_toggled(self, checked: bool) -> None:
+        self._preview_pane_checked = checked
         self.preview_pane_changed.emit(self._preview_pane_checked)
 
     def set_details_pane_checked(self, checked: bool) -> None:
+        """Update UI state. Does not emit signals."""
         self._details_pane_checked = checked
-        if self._details_action is not None:
-            self._details_action.setChecked(checked)
+        with QSignalBlocker(self._details_btn):
+            self._details_btn.setChecked(checked)
 
     def set_preview_pane_checked(self, checked: bool) -> None:
+        """Update UI state. Does not emit signals."""
         self._preview_pane_checked = checked
-        if self._preview_action is not None:
-            self._preview_action.setChecked(checked)
+        with QSignalBlocker(self._preview_btn):
+            self._preview_btn.setChecked(checked)
 
     def set_current_view(self, key: str) -> None:
         """Update UI to reflect current view. Does not emit signal."""
-        self._current_view = key
-        if key in self._actions:
-            for k, a in self._actions.items():
-                a.setChecked(k == key)
+        self._sync_ui_from_view(key)
 
     def current_view(self) -> str:
         """Return current selected view key."""
