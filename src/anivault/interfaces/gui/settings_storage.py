@@ -16,7 +16,7 @@ PARSE_TMDB_KEYS = (
     "tmdb_search_mode",
     "season_folder_format",
 )
-SCAN_BUILD_KEYS = ("source_path", "target_path", "tmdb_mode", "unknown_mode")
+SCAN_BUILD_KEYS = ("source_path", "tmdb_mode", "unknown_mode")
 PIPELINE_RESULTS_KEYS = ("view_key", "details_pane", "preview_pane", "selected_index")
 
 DEFAULT_PATH_RULES = {
@@ -33,7 +33,6 @@ DEFAULT_PARSE_TMDB = {
 }
 DEFAULT_SCAN_BUILD = {
     "source_path": "",
-    "target_path": "G:/AniSorted",
     "tmdb_mode": "TMDB TV Search",
     "unknown_mode": "Unknown to Needs_Review",
 }
@@ -96,6 +95,23 @@ def _merge_string_key_group(
             target_group[key] = str(loaded_data_group[key])
 
 
+def _migrate_scan_build_target_path_to_target_root(
+    result: dict[str, Any],
+    data: dict[str, Any],
+) -> None:
+    """If path_rules.target_root was never stored, adopt legacy scan_build.target_path."""
+    path_loaded = data.get("path_rules")
+    path_has_root = isinstance(path_loaded, dict) and "target_root" in path_loaded
+    if path_has_root:
+        return
+    scan_loaded = data.get("scan_build")
+    if not isinstance(scan_loaded, dict):
+        return
+    if "target_path" not in scan_loaded:
+        return
+    cast(dict[str, str], result["path_rules"])["target_root"] = str(scan_loaded["target_path"])
+
+
 def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
     """Merge loaded config into the existing result dict in-place."""
     if "theme" in data:
@@ -116,6 +132,8 @@ def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
         loaded_data_group=data.get("scan_build"),
         keys=SCAN_BUILD_KEYS,
     )
+
+    _migrate_scan_build_target_path_to_target_root(result, data)
 
     ui_state = data.get("ui_state")
     if not isinstance(ui_state, dict):

@@ -1,4 +1,4 @@
-"""Scan/Build card: Source/Target inputs + TMDB/Unknown selects + Scan·Build buttons."""
+"""Scan/Build card: Source input + TMDB/Unknown selects + Scan·Build buttons."""
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout
@@ -21,7 +21,7 @@ class ScanBuildCard(QFrame):
         layout.addWidget(
             PanelHeader(
                 "Scan and Build Plan",
-                "입력 폴더 스캔, parse, TMDB 조회, 한글 제목 그룹, 최종 이동 경로 생성을 Settings 탭에서 관리",
+                "입력 폴더 스캔·파이프라인 단계는 여기서; 출력 루트(Target root)는 아래 Path Rules에서 설정",
                 pill_text="Pipeline Controls",
                 pill_color="blue",
             )
@@ -32,8 +32,6 @@ class ScanBuildCard(QFrame):
         row1.setSpacing(10)
         self._source = PathSelectField(placeholder="Source: G:/Animations; D:/Incoming_Downloads")
         row1.addWidget(self._source, 1)
-        self._target = PathSelectField(placeholder="Target Root: G:/AniSorted")
-        row1.addWidget(self._target, 1)
         body.addLayout(row1)
         row2 = QHBoxLayout()
         row2.setSpacing(10)
@@ -46,7 +44,6 @@ class ScanBuildCard(QFrame):
         row2.addStretch()
         body.addLayout(row2)
         self._source.path_changed.connect(lambda: self.settings_changed.emit())
-        self._target.path_changed.connect(lambda: self.settings_changed.emit())
         self._tmdb_mode.currentIndexChanged.connect(lambda: self.settings_changed.emit())
         self._unknown_mode.currentIndexChanged.connect(lambda: self.settings_changed.emit())
         action_row = QHBoxLayout()
@@ -68,7 +65,6 @@ class ScanBuildCard(QFrame):
     def get_values(self) -> dict[str, str]:
         return {
             "source_path": self._source.path(),
-            "target_path": self._target.path(),
             "tmdb_mode": self._tmdb_mode.currentText(),
             "unknown_mode": self._unknown_mode.currentText(),
         }
@@ -78,8 +74,6 @@ class ScanBuildCard(QFrame):
         try:
             if "source_path" in data:
                 self._source.set_path(data["source_path"])
-            if "target_path" in data:
-                self._target.set_path(data["target_path"])
             if "tmdb_mode" in data:
                 idx = self._tmdb_mode.findText(data["tmdb_mode"])
                 if idx >= 0:
