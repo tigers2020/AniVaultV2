@@ -12,6 +12,7 @@ class FolderScanBar(QFrame):
     """PathSelectField + Scan button. Emits scan_clicked(path), path_changed(path)."""
 
     scan_clicked = Signal(str)
+    match_clicked = Signal()
     path_changed = Signal(str)
 
     def __init__(self, parent=None):
@@ -25,6 +26,9 @@ class FolderScanBar(QFrame):
         scan_btn = Button("스캔", "primary")
         scan_btn.clicked.connect(self._on_scan)
         layout.addWidget(scan_btn)
+        match_btn = Button("TMDB 매칭")
+        match_btn.clicked.connect(self.match_clicked.emit)
+        layout.addWidget(match_btn)
         self.setStyleSheet(theme.card_panel())
 
         # Prevent vertical stretching when embedded in a resizable scroll area.

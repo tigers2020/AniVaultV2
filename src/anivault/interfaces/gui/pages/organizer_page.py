@@ -44,6 +44,7 @@ class OrganizerPage(QWidget):
         source_path = load_all().get("scan_build", {}).get("source_path", "") or ""
         self._scan_bar.set_path(source_path)
         self._scan_bar.scan_clicked.connect(self._presenter.on_scan_clicked)
+        self._scan_bar.match_clicked.connect(self._presenter.on_match_clicked)
         self._scan_bar.path_changed.connect(self._on_scan_path_changed)
         content_layout.addWidget(self._scan_bar)
         self._stats_grid = StatsGrid()

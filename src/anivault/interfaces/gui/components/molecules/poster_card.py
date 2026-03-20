@@ -1,5 +1,7 @@
 """Poster card: image + title + meta + path. Image via loader/placeholder. Portrait 2:3 ratio."""
 
+from __future__ import annotations
+
 from typing import Literal
 
 from PySide6.QtCore import QSize, Qt
@@ -86,6 +88,10 @@ class PosterCard(QFrame):
             body.addWidget(self._path_box)
         layout.addLayout(body, 1)
         self._image_url = image_url
+
+    @property
+    def image_url(self) -> str:
+        return self._image_url
 
     def sizeHint(self) -> QSize:
         w = 140 if self._is_compact else 180

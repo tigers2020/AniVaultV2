@@ -16,13 +16,13 @@ from anivault.interfaces.gui.models import PipelineGroupRow
 
 
 def _list_item_title(group: PipelineGroupRow) -> str:
-    """Primary list label: parsed title first, then TMDB group title."""
-    parsed = (group.parsed_title or "").strip()
-    if parsed:
-        return parsed
+    """Primary list label: TMDB Korean title when set, else parsed title."""
     tmdb = (group.tmdb_korean_title_group or "").strip()
     if tmdb:
         return tmdb
+    parsed = (group.parsed_title or "").strip()
+    if parsed:
+        return parsed
     rep = group.representative()
     base = (rep.parsed_title or "").strip()
     if base:

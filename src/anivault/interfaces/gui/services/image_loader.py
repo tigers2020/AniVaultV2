@@ -1,5 +1,7 @@
 """Async poster image loading. Memory cache; placeholder then load; fallback on failure."""
 
+from __future__ import annotations
+
 from PySide6.QtCore import QObject, QUrl, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest

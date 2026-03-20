@@ -1,8 +1,11 @@
 """Pipeline result template: integrates organisms with view toggle."""
 
+from __future__ import annotations
+
 from typing import Literal, TypedDict
 
 from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QSizePolicy,
@@ -35,6 +38,7 @@ from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
 from anivault.interfaces.gui.components.organisms.preview_pane import PreviewPane
 from anivault.interfaces.gui.components.organisms.tile_view import TileView
 from anivault.interfaces.gui.models import PipelineGroupRow, PipelineTableModel
+from anivault.interfaces.gui.services.image_loader import ImageLoader
 from anivault.interfaces.gui.settings_storage import load_all, save_all
 
 VIEW_TO_INDEX = {
@@ -84,6 +88,9 @@ class PipelineResultPanel(QFrame):
         self._pane_mode: str | None = None  # "details" | "preview" | None
         self._restoring_state = False
         self._pending_selected_index = -1
+        self._cards_by_url: dict[str, list[PosterCard]] = {}
+        self._image_loader = ImageLoader(self)
+        self._image_loader.loaded.connect(self._on_poster_image_loaded)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -249,6 +256,24 @@ class PipelineResultPanel(QFrame):
         card.setCursor(Qt.CursorShape.PointingHandCursor)
         card.mousePressEvent = lambda e, idx=index: self._on_selection(idx)  # type: ignore[method-assign,misc]
 
+    def _on_poster_image_loaded(self, url: str, pixmap: QPixmap) -> None:
+        for card in self._cards_by_url.get(url, []):
+            card.set_pixmap(pixmap if not pixmap.isNull() else None)
+
+    def _refresh_all_poster_pixmaps(self, cards: list[PosterCard]) -> None:
+        self._cards_by_url.clear()
+        for card in cards:
+            u = (card.image_url or "").strip()
+            if u.startswith("http"):
+                self._cards_by_url.setdefault(u, []).append(card)
+        for url in self._cards_by_url:
+            cached = self._image_loader.get(url)
+            if cached is not None:
+                for c in self._cards_by_url[url]:
+                    c.set_pixmap(cached)
+            else:
+                self._image_loader.load(url)
+
     def _sync_views_from_model(self) -> None:
         """Update list/tile/content/poster from model (called on modelReset)."""
         rows = self._model.rows()
@@ -281,11 +306,16 @@ class PipelineResultPanel(QFrame):
         self._list_view.set_rows(rows)
         self._tile_view.set_cards(tiles_cards)
         self._content_view.set_rows(rows)
+        all_poster_cards: list[PosterCard] = []
+        all_poster_cards.extend(tiles_cards)
+        all_poster_cards.extend(self._content_view.poster_cards())
         for grid in self._poster_grids.values():
             grid_cards = _make_cards("compact")
             for i, card in enumerate(grid_cards):
                 self._make_card_clickable(card, i)
             grid.set_cards(grid_cards)
+            all_poster_cards.extend(grid_cards)
+        self._refresh_all_poster_pixmaps(all_poster_cards)
         if rows:
             index = self._selectable_index(len(rows))
             self._on_selection(index)

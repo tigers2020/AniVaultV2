@@ -12,6 +12,8 @@ class PipelineRow:
     parsed_title: str
     parse_group: str
     tmdb_korean_title_group: str
+    tmdb_series_id: str
+    tmdb_poster_path: str
     year: str
     season: str
     resolution: str
@@ -69,7 +71,13 @@ class PipelineGroupRow:
 
     @property
     def resolution(self) -> str:
-        return _aggregate_str(self.members, "resolution")
+        """Distinct per-file resolutions; join when group has mixed quality (not '—')."""
+        vals = sorted({(m.resolution or "").strip() for m in self.members} - {""})
+        if not vals:
+            return ""
+        if len(vals) == 1:
+            return vals[0]
+        return " / ".join(vals)
 
     @property
     def status(self) -> str:

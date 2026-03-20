@@ -77,6 +77,9 @@ class ContentView(QFrame):
         self._cards: list[PosterCard] = []
         self._selected_index = -1
 
+    def poster_cards(self) -> list[PosterCard]:
+        return list(self._cards)
+
     def set_rows(self, groups: list[PipelineGroupRow]) -> None:
         self._groups = list(groups)
         while self._list_layout.count():
@@ -86,9 +89,13 @@ class ContentView(QFrame):
         self._cards.clear()
         for i, g in enumerate(self._groups):
             title = (g.tmdb_korean_title_group or "").strip() or (g.parsed_title or "").strip()
-            meta_parts = [p for p in (g.year, g.season) if (p or "").strip()]
+            meta_parts: list[str] = []
             if len(g.members) > 1:
-                meta_parts.insert(0, f"{len(g.members)}개 파일")
+                meta_parts.append(f"{len(g.members)}개 파일")
+            for p in (g.year, g.season, g.resolution):
+                s = (p or "").strip()
+                if s:
+                    meta_parts.append(s)
             meta = " • ".join(meta_parts)
             card = PosterCard(
                 title=title,
