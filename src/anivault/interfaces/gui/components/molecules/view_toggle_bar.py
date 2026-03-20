@@ -60,7 +60,7 @@ class ViewToggleBar(QWidget):
         for key in (VIEW_DETAILS, VIEW_LIST, VIEW_TILES, VIEW_CONTENT, VIEW_ICON_GROUP):
             self._layout_combo.addItem(_view_label(key), key)
 
-        # Icon size selection (enabled only when layout == icon-group)
+        # Icon size selection (shown only when layout == icon-group)
         self._icon_size_combo = ComboBox()
         self._icon_size_combo.setObjectName("view_toggle_icon_size_combo")
         for key in (VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S):
@@ -91,7 +91,6 @@ class ViewToggleBar(QWidget):
 
         # Set initial UI state without emitting.
         self._sync_ui_from_view(self._current_view)
-        self._icon_size_combo.setEnabled(self._layout_combo.currentData() == VIEW_ICON_GROUP)
 
         # Connect signals after initial setup.
         self._layout_combo.currentIndexChanged.connect(self._on_layout_changed)
@@ -99,19 +98,23 @@ class ViewToggleBar(QWidget):
         self._details_btn.toggled.connect(self._on_details_pane_toggled)
         self._preview_btn.toggled.connect(self._on_preview_pane_toggled)
 
+    def _sync_icon_size_combo_visibility(self) -> None:
+        """Show icon size combo only when '아이콘' layout is selected."""
+        show = self._layout_combo.currentData() == VIEW_ICON_GROUP
+        self._icon_size_combo.setVisible(show)
+
     def _sync_ui_from_view(self, key: str) -> None:
         """Update combo selections. Does not emit signals."""
         with QSignalBlocker(self._layout_combo), QSignalBlocker(self._icon_size_combo):
             if key in _ICON_VIEWS:
                 self._layout_combo.setCurrentIndex(self._layout_combo.findData(VIEW_ICON_GROUP))
                 self._icon_size_combo.setCurrentIndex(self._icon_size_combo.findData(key))
-                self._icon_size_combo.setEnabled(True)
             else:
                 self._layout_combo.setCurrentIndex(self._layout_combo.findData(key))
-                # Keep icon selection as-is but disable.
-                self._icon_size_combo.setEnabled(False)
+                # Keep icon selection as-is for when user returns to icon group.
 
             self._current_view = key
+        self._sync_icon_size_combo_visibility()
 
     def _set_view(self, key: str) -> None:
         """Internal: update current view and emit view_changed."""
@@ -125,14 +128,14 @@ class ViewToggleBar(QWidget):
         if not isinstance(key, str):
             return
 
+        self._sync_icon_size_combo_visibility()
+
         if key == VIEW_ICON_GROUP:
             icon_key = self._icon_size_combo.currentData()
             if not isinstance(icon_key, str):
                 return
-            self._icon_size_combo.setEnabled(True)
             self._set_view(icon_key)
         else:
-            self._icon_size_combo.setEnabled(False)
             self._set_view(key)
 
     def _on_icon_size_changed(self, _idx: int) -> None:
