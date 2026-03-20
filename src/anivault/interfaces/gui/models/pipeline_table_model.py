@@ -4,7 +4,7 @@ from typing import Any
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, QPersistentModelIndex, Qt
 
-from anivault.interfaces.gui.models.ui_rows import PipelineRow
+from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow, PipelineRow
 
 _INVALID_INDEX: QModelIndex = QModelIndex()
 
@@ -21,11 +21,11 @@ COLUMNS = [
 
 
 class PipelineTableModel(QAbstractTableModel):
-    """Model for pipeline table. Edit not required for now."""
+    """Model for pipeline table. One row per parsed-title group."""
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._rows: list[PipelineRow] = []
+        self._rows: list[PipelineGroupRow] = []
 
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = _INVALID_INDEX) -> int:
         if parent.isValid():
@@ -60,16 +60,23 @@ class PipelineTableModel(QAbstractTableModel):
             return COLUMNS[section][0]
         return None
 
-    def set_rows(self, rows: list[PipelineRow]) -> None:
+    def set_rows(self, rows: list[PipelineGroupRow]) -> None:
         self.beginResetModel()
         self._rows = list(rows)
         self.endResetModel()
 
-    def rows(self) -> list[PipelineRow]:
-        """Return current rows for sync to other views (list, tile, poster)."""
+    def rows(self) -> list[PipelineGroupRow]:
+        """Return current group rows for sync to other views (list, tile, poster)."""
         return list(self._rows)
 
-    def row_at(self, index: int) -> PipelineRow | None:
+    def flat_rows(self) -> list[PipelineRow]:
+        """All file-level rows in display order (groups, then members)."""
+        out: list[PipelineRow] = []
+        for g in self._rows:
+            out.extend(g.members)
+        return out
+
+    def row_at(self, index: int) -> PipelineGroupRow | None:
         if 0 <= index < len(self._rows):
             return self._rows[index]
         return None
