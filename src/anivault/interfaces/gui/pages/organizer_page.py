@@ -61,7 +61,7 @@ class OrganizerPage(QWidget):
 
     def _update_stats(self) -> None:
         """Refresh stats grid from pipeline model (scanned, parsed, tmdb, planned)."""
-        rows: list[PipelineRow] = self._model.rows()
+        rows: list[PipelineRow] = self._model.flat_rows()
         scanned = len(rows)
         parsed = sum(1 for r in rows if (r.parsed_title or "").strip())
         tmdb_matches = sum(1 for r in rows if (r.tmdb_korean_title_group or "").strip())

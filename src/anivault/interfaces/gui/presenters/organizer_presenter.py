@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QMessageBox, QWidget
 from anivault.application.dto.parse import ParseInput, ParseResult
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.scan import ScanInput, ScanResult
-from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel
+from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel, group_pipeline_rows
 from anivault.interfaces.gui.workers import UseCaseWorker, WorkerSignals, run_worker
 
 if TYPE_CHECKING:
@@ -87,7 +87,7 @@ class OrganizerPresenter(QObject):
     def _on_scan_result(self, result: ScanResult) -> None:
         """Map ScanResult to PipelineRow, update model; then auto-start Parse worker."""
         rows = self._scan_result_to_rows(result)
-        self._model.set_rows(rows)
+        self._model.set_rows(group_pipeline_rows(rows))
         if not rows or self._parse_execute is None:
             if self._progress_dialog is not None:
                 self._progress_dialog.hide_progress()
@@ -149,7 +149,7 @@ class OrganizerPresenter(QObject):
 
     def _on_parse_result(self, result: ParseResult) -> None:
         """Merge parsed info into current rows by index; update model."""
-        rows = self._model.rows()
+        rows = self._model.flat_rows()
         parsed_list = result.parsed or []
         merged: list[PipelineRow] = []
         for i, row in enumerate(rows):
@@ -184,7 +184,7 @@ class OrganizerPresenter(QObject):
                         target_path=row.target_path,
                     )
                 )
-        self._model.set_rows(merged)
+        self._model.set_rows(group_pipeline_rows(merged))
 
     def _on_scan_error(self, exc: Exception) -> None:
         """On error, keep model as-is; hide progress dialog."""
@@ -209,5 +209,5 @@ class OrganizerPresenter(QObject):
         pass
 
     def set_rows(self, rows: list[PipelineRow]) -> None:
-        """Update pipeline model with rows (e.g. from use case result)."""
-        self._model.set_rows(rows)
+        """Update pipeline model with file rows (grouped by parsed title for display)."""
+        self._model.set_rows(group_pipeline_rows(rows))
