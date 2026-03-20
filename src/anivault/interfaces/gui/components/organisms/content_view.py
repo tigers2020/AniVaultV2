@@ -1,5 +1,7 @@
 """Content view: top = large preview of selected, bottom = metadata. List on left."""
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
@@ -13,7 +15,7 @@ from PySide6.QtWidgets import (
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Label
 from anivault.interfaces.gui.components.molecules import PosterCard
-from anivault.interfaces.gui.models import PipelineRow
+from anivault.interfaces.gui.models import PipelineGroupRow
 
 
 class ContentView(QFrame):
@@ -71,23 +73,28 @@ class ContentView(QFrame):
         layout.addWidget(splitter)
         self.setStyleSheet(theme.card_panel())
 
-        self._rows: list[PipelineRow] = []
+        self._groups: list[PipelineGroupRow] = []
         self._cards: list[PosterCard] = []
         self._selected_index = -1
 
-    def set_rows(self, rows: list[PipelineRow]) -> None:
-        self._rows = list(rows)
+    def set_rows(self, groups: list[PipelineGroupRow]) -> None:
+        self._groups = list(groups)
         while self._list_layout.count():
             item = self._list_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         self._cards.clear()
-        for i, r in enumerate(self._rows):
+        for i, g in enumerate(self._groups):
+            title = (g.tmdb_korean_title_group or "").strip() or (g.parsed_title or "").strip()
+            meta_parts = [p for p in (g.year, g.season) if (p or "").strip()]
+            if len(g.members) > 1:
+                meta_parts.insert(0, f"{len(g.members)}개 파일")
+            meta = " • ".join(meta_parts)
             card = PosterCard(
-                title=r.tmdb_korean_title_group,
-                meta=f"{r.year} • {r.season}",
+                title=title,
+                meta=meta,
                 path="",
-                image_url=r.poster_url,
+                image_url=g.poster_url,
                 variant="compact",
             )
             card.setFixedHeight(92)
@@ -97,18 +104,30 @@ class ContentView(QFrame):
             self._list_layout.addWidget(card)
             self._cards.append(card)
         self._selected_index = -1
-        if self._rows:
+        if self._groups:
             self._on_select(0)
 
     def _on_select(self, index: int) -> None:
         self._selected_index = index
-        r = self._rows[index]
-        self._meta_label.setText(
-            f"<b>원본 파일:</b> {r.original_file}<br>"
-            f"<b>Parsed:</b> {r.parsed_title}<br>"
-            f"<b>TMDB:</b> {r.tmdb_korean_title_group}<br>"
-            f"<b>연도/시즌:</b> {r.year} / {r.season}<br>"
-            f"<b>해상도:</b> {r.resolution}<br>"
-            f"<b>경로:</b> {r.target_path}"
-        )
+        g = self._groups[index]
+        if len(g.members) > 1:
+            files_html = "<br>".join(Path(m.original_file).name for m in g.members)
+            self._meta_label.setText(
+                f"<b>파일 ({len(g.members)}개)</b><br>{files_html}<br><br>"
+                f"<b>Parsed:</b> {g.parsed_title}<br>"
+                f"<b>TMDB:</b> {g.tmdb_korean_title_group}<br>"
+                f"<b>연도/시즌:</b> {g.year} / {g.season}<br>"
+                f"<b>해상도:</b> {g.resolution}<br>"
+                f"<b>경로:</b> {g.target_path}"
+            )
+        else:
+            r = g.members[0]
+            self._meta_label.setText(
+                f"<b>원본 파일:</b> {r.original_file}<br>"
+                f"<b>Parsed:</b> {r.parsed_title}<br>"
+                f"<b>TMDB:</b> {r.tmdb_korean_title_group}<br>"
+                f"<b>연도/시즌:</b> {r.year} / {r.season}<br>"
+                f"<b>해상도:</b> {r.resolution}<br>"
+                f"<b>경로:</b> {r.target_path}"
+            )
         self.selection_changed.emit(index)

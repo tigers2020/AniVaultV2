@@ -58,7 +58,7 @@ from anivault.interfaces.gui.components.organisms import (
     TileView,
     Topbar,
 )
-from anivault.interfaces.gui.models import PipelineRow
+from anivault.interfaces.gui.models import PipelineRow, group_pipeline_rows
 from anivault.interfaces.gui.theme import global_stylesheet
 from anivault.interfaces.gui.themes import load_saved_theme
 
@@ -245,36 +245,37 @@ def _organisms_preview() -> QWidget:
     layout.setSpacing(14)
 
     rows = _sample_rows()
+    groups = group_pipeline_rows(rows)
 
     compact = CompactListView()
-    compact.set_rows(rows)
+    compact.set_rows(groups)
     compact.setFixedHeight(190)
 
     content = ContentView()
-    content.set_rows(rows)
+    content.set_rows(groups)
     content.setFixedHeight(360)
 
     details = DetailsPane()
-    details.set_row(rows[0])
+    details.set_row(groups[0])
     details.setFixedHeight(240)
 
     preview = PreviewPane()
-    preview.set_row(rows[0])
+    preview.set_row(groups[0])
     preview.setFixedHeight(260)
 
     pipeline = PipelineTable(show_header=True)
-    pipeline.set_rows(rows)
+    pipeline.set_rows(groups)
     pipeline.setFixedHeight(300)
 
     poster_grid = PosterGrid(show_header=True)
     poster_grid.set_cards(
         [
             PosterCard(
-                title=r.tmdb_korean_title_group,
-                meta=f"{r.year} • S{r.season} • {r.resolution}",
-                path=r.target_path,
+                title=g.tmdb_korean_title_group,
+                meta=f"{g.year} • S{g.season} • {g.resolution}",
+                path=g.target_path,
             )
-            for r in rows
+            for g in groups
         ]
     )
     poster_grid.setFixedHeight(420)
@@ -283,11 +284,11 @@ def _organisms_preview() -> QWidget:
     tile_view.set_cards(
         [
             PosterCard(
-                title=r.tmdb_korean_title_group,
-                meta=f"{r.year} • S{r.season} • {r.resolution}",
-                path=r.target_path,
+                title=g.tmdb_korean_title_group,
+                meta=f"{g.year} • S{g.season} • {g.resolution}",
+                path=g.target_path,
             )
-            for r in rows
+            for g in groups
         ]
     )
     tile_view.setFixedHeight(420)

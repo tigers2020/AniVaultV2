@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QFrame, QHeaderView, QTableView, QVBoxLayout
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import PanelHeader
-from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel
+from anivault.interfaces.gui.models import PipelineGroupRow, PipelineTableModel
 
 
 class PipelineTable(QFrame):
@@ -48,7 +48,7 @@ class PipelineTable(QFrame):
         if idx.isValid():
             self.selection_changed.emit(idx.row())
 
-    def set_rows(self, rows: list[PipelineRow]) -> None:
+    def set_rows(self, rows: list[PipelineGroupRow]) -> None:
         self._model.set_rows(rows)
 
     def model(self) -> PipelineTableModel:

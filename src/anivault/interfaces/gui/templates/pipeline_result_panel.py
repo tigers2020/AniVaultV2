@@ -34,7 +34,7 @@ from anivault.interfaces.gui.components.organisms.pipeline_table import Pipeline
 from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
 from anivault.interfaces.gui.components.organisms.preview_pane import PreviewPane
 from anivault.interfaces.gui.components.organisms.tile_view import TileView
-from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel
+from anivault.interfaces.gui.models import PipelineGroupRow, PipelineTableModel
 from anivault.interfaces.gui.settings_storage import load_all, save_all
 
 VIEW_TO_INDEX = {
@@ -79,7 +79,7 @@ class PipelineResultPanel(QFrame):
     ):
         super().__init__(parent)
         self._model = model if model is not None else PipelineTableModel()
-        self._rows: list[PipelineRow] = []
+        self._rows: list[PipelineGroupRow] = []
         self._selected_index = -1
         self._pane_mode: str | None = None  # "details" | "preview" | None
         self._restoring_state = False
@@ -255,16 +255,25 @@ class PipelineResultPanel(QFrame):
         self._rows = list(rows)
 
         def _make_cards(variant: Literal["poster", "compact"]) -> list[PosterCard]:
-            return [
-                PosterCard(
-                    title=r.tmdb_korean_title_group,
-                    meta=f"Parsed: {r.parsed_title}\nYear: {r.year} • {r.season} • {r.resolution}",
-                    path=r.target_path,
-                    image_url=r.poster_url,
-                    variant=variant,
+            cards: list[PosterCard] = []
+            for g in rows:
+                title = (g.tmdb_korean_title_group or "").strip() or (g.parsed_title or "").strip()
+                meta_lines = [
+                    f"Parsed: {g.parsed_title}",
+                    f"Year: {g.year} • {g.season} • {g.resolution}",
+                ]
+                if len(g.members) > 1:
+                    meta_lines.insert(0, f"{len(g.members)} files")
+                cards.append(
+                    PosterCard(
+                        title=title,
+                        meta="\n".join(meta_lines),
+                        path=g.target_path,
+                        image_url=g.poster_url,
+                        variant=variant,
+                    )
                 )
-                for r in rows
-            ]
+            return cards
 
         tiles_cards = _make_cards("poster")
         for i, card in enumerate(tiles_cards):
@@ -354,8 +363,8 @@ class PipelineResultPanel(QFrame):
         """Return shared model for presenter updates."""
         return self._model
 
-    def set_rows(self, rows: list[PipelineRow]) -> None:
-        """Set rows. Updates model (triggers _sync_views_from_model for list/tile/content/poster)."""
+    def set_rows(self, rows: list[PipelineGroupRow]) -> None:
+        """Set group rows. Updates model (triggers _sync_views_from_model for list/tile/content/poster)."""
         self._model.set_rows(rows)
 
     def _sync_header_height(self) -> None:

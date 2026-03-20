@@ -5,7 +5,7 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
 
 from anivault.interfaces.gui import theme
-from anivault.interfaces.gui.models import PipelineRow
+from anivault.interfaces.gui.models import PipelineGroupRow, PipelineRow
 
 
 class PreviewPane(QFrame):
@@ -28,13 +28,20 @@ class PreviewPane(QFrame):
 
         self.setStyleSheet(theme.card_panel())
 
-    def set_row(self, row: PipelineRow | None) -> None:
+    def set_row(self, row: PipelineRow | PipelineGroupRow | None) -> None:
         if row is None:
             self._img.clear()
             self._img.setText("항목을 선택하세요")
             return
+        rep = row
+        if isinstance(row, PipelineGroupRow):
+            rep = row.representative()
+            for m in row.members:
+                if (m.tmdb_korean_title_group or "").strip():
+                    rep = m
+                    break
         # Poster loading is async elsewhere; for now show placeholder
-        self._img.setText(f"Poster\n{row.tmdb_korean_title_group}")
+        self._img.setText(f"Poster\n{rep.tmdb_korean_title_group}")
 
     def set_pixmap(self, pixmap: QPixmap | None) -> None:
         if pixmap is not None and not pixmap.isNull():
