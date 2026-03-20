@@ -350,7 +350,7 @@ class DarkTheme:
         QPushButton {{
             width: 100%;
             text-align: left;
-            padding: 13px 14px;
+            padding: 12px 16px;
             border-radius: {self._button_radius_px}px;
             background: transparent;
             border: 1px solid transparent;
