@@ -27,6 +27,12 @@ class ParseTmdbForm(QFrame):
         )
         body = QVBoxLayout()
         body.setContentsMargins(18, 18, 18, 18)
+        self._tmdb_api_key = FormField(
+            "TMDB API key",
+            "line",
+            "Stored in .env as TMDB_API_KEY",
+            echo_password=True,
+        )
         self._ignore_tokens = FormField(
             "Ignore tokens", "line", "1080p, 720p, x264, WEBRip, BluRay, AAC, HEVC"
         )
@@ -37,11 +43,12 @@ class ParseTmdbForm(QFrame):
         self._tmdb_search = ComboBox()
         self._tmdb_search.addItems(TMDB_MODES)
         self._season_format = FormField("Season folder format", "line", "Season{season:02}")
+        body.addWidget(self._tmdb_api_key)
         body.addWidget(self._ignore_tokens)
         body.addWidget(self._video_ext)
         body.addWidget(self._tmdb_search)
         body.addWidget(self._season_format)
-        for f in (self._ignore_tokens, self._video_ext, self._season_format):
+        for f in (self._tmdb_api_key, self._ignore_tokens, self._video_ext, self._season_format):
             f.value_changed.connect(self.settings_changed.emit)
         self._tmdb_search.currentIndexChanged.connect(lambda: self.settings_changed.emit())
         layout.addLayout(body)
@@ -49,6 +56,7 @@ class ParseTmdbForm(QFrame):
 
     def get_values(self) -> dict[str, str]:
         return {
+            "tmdb_api_key": self._tmdb_api_key.value(),
             "ignore_tokens": self._ignore_tokens.value(),
             "video_extensions": self._video_ext.value(),
             "tmdb_search_mode": self._tmdb_search.currentText(),
@@ -58,6 +66,8 @@ class ParseTmdbForm(QFrame):
     def set_values(self, data: dict[str, str]) -> None:
         self.blockSignals(True)
         try:
+            if "tmdb_api_key" in data:
+                self._tmdb_api_key.set_value(data["tmdb_api_key"])
             if "ignore_tokens" in data:
                 self._ignore_tokens.set_value(data["ignore_tokens"])
             if "video_extensions" in data:

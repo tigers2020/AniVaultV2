@@ -8,6 +8,9 @@ from typing import Any, cast
 CONFIG_DIR = Path.home() / ".anivault"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
+# Never persist in config.json (stored in `.env` only).
+PARSE_TMDB_SECRET_KEYS = frozenset({"tmdb_api_key"})
+
 # Schema keys for each settings group
 PATH_RULES_KEYS = ("target_root", "path_template", "unknown_resolution", "unknown_group_folder")
 PARSE_TMDB_KEYS = (
@@ -186,13 +189,19 @@ def load_all() -> dict[str, Any]:
 def save_all(data: dict[str, Any]) -> None:
     """Save config. Merges with existing file to preserve theme and other keys."""
     _ensure_dir()
+    to_merge = dict(data)
+    parse_tmdb = to_merge.get("parse_tmdb")
+    if isinstance(parse_tmdb, dict):
+        to_merge["parse_tmdb"] = {
+            k: v for k, v in parse_tmdb.items() if k not in PARSE_TMDB_SECRET_KEYS
+        }
     existing: dict[str, Any] = {}
     if CONFIG_FILE.exists():
         with suppress(OSError, ValueError):
             loaded = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
             if isinstance(loaded, dict):
                 existing = loaded
-    for key, val in data.items():
+    for key, val in to_merge.items():
         if isinstance(val, dict):
             existing.setdefault(key, {})
             if isinstance(existing[key], dict):

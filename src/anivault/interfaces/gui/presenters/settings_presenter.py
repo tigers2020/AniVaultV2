@@ -4,6 +4,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject
 
+from anivault.bootstrap.env_file import read_tmdb_api_key, write_tmdb_api_key
 from anivault.interfaces.gui.settings_storage import get_defaults, load_all, save_all
 from anivault.interfaces.gui.themes import save_theme, set_current_theme
 
@@ -41,7 +42,9 @@ class SettingsPresenter(QObject):
         if self._path_rules_form is not None and "path_rules" in data:
             self._path_rules_form.set_values(data["path_rules"])
         if self._parse_tmdb_form is not None and "parse_tmdb" in data:
-            self._parse_tmdb_form.set_values(data["parse_tmdb"])
+            merged = dict(data["parse_tmdb"])
+            merged["tmdb_api_key"] = read_tmdb_api_key()
+            self._parse_tmdb_form.set_values(merged)
         if self._scan_build_card is not None and "scan_build" in data:
             self._scan_build_card.set_values(data["scan_build"])
 
@@ -51,7 +54,10 @@ class SettingsPresenter(QObject):
         if self._path_rules_form is not None:
             to_save["path_rules"] = self._path_rules_form.get_values()
         if self._parse_tmdb_form is not None:
-            to_save["parse_tmdb"] = self._parse_tmdb_form.get_values()
+            parse_vals = dict(self._parse_tmdb_form.get_values())
+            api_key = parse_vals.pop("tmdb_api_key", "")
+            to_save["parse_tmdb"] = parse_vals
+            write_tmdb_api_key(api_key)
         if self._scan_build_card is not None:
             to_save["scan_build"] = self._scan_build_card.get_values()
         if to_save:
@@ -67,7 +73,9 @@ class SettingsPresenter(QObject):
         if self._path_rules_form is not None:
             self._path_rules_form.set_values(defaults["path_rules"])
         if self._parse_tmdb_form is not None:
-            self._parse_tmdb_form.set_values(defaults["parse_tmdb"])
+            merged = dict(defaults["parse_tmdb"])
+            merged["tmdb_api_key"] = read_tmdb_api_key()
+            self._parse_tmdb_form.set_values(merged)
         if self._scan_build_card is not None:
             self._scan_build_card.set_values(defaults["scan_build"])
 

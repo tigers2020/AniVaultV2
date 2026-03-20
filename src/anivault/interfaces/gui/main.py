@@ -5,6 +5,7 @@ import sys
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QApplication, QWidget
 
+from anivault.bootstrap.env_file import load_into_os_environ
 from anivault.interfaces.gui.app import MainWindow
 from anivault.interfaces.gui.theme import global_stylesheet
 from anivault.interfaces.gui.themes import load_saved_theme, on_density_changed, on_theme_changed
@@ -95,6 +96,7 @@ class _ThemeReapplyCoordinator(QObject):
 
 def run() -> None:
     """Start the GUI application."""
+    load_into_os_environ()
     load_saved_theme()
     app = QApplication(sys.argv)
     window = MainWindow()

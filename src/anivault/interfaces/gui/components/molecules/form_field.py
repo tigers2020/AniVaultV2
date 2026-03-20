@@ -3,7 +3,7 @@
 from collections.abc import Callable
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLineEdit, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui.components.atoms import ComboBox, Label, LineEdit
 from anivault.interfaces.gui.components.molecules.path_select_field import PathSelectField
@@ -24,6 +24,7 @@ class FormField(QWidget):
         parent: QWidget | None = None,
         *,
         label_updater: Callable[[str], str] | None = None,
+        echo_password: bool = False,
     ) -> None:
         super().__init__(parent)
         layout = QVBoxLayout(self)
@@ -47,6 +48,8 @@ class FormField(QWidget):
             path_field.path_changed.connect(self.value_changed.emit)
         else:
             line = LineEdit(initial, self)
+            if echo_password:
+                line.setEchoMode(QLineEdit.EchoMode.Password)
             if initial:
                 line.setText(initial)
             if label_updater:
