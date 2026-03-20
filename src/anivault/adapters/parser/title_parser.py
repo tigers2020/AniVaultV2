@@ -7,6 +7,10 @@ import anitopy  # type: ignore[import-untyped]
 
 from anivault.application.dto.parse import ParsedInfo
 from anivault.application.ports.filename_parser import FilenameParser
+from anivault.domain.rules.resolution_from_filename import (
+    normalize_resolution_from_raw,
+    resolution_from_filename,
+)
 
 
 def _token_set(ignore_tokens: str) -> set[str]:
@@ -21,11 +25,6 @@ def _clean_title(stem: str, tokens: set[str]) -> str:
     return " ".join(kept).strip() if kept else stem
 
 
-def _extract_resolution(stem: str) -> str:
-    m = re.search(r"\b(720p|1080p|2160p|480p|360p|4k)\b", stem, re.I)
-    return m.group(1) if m else ""
-
-
 def _extract_season(stem: str) -> str:
     m = re.search(r"(?:season|s)\s*(\d+)|(\d+)\s*화", stem, re.I)
     if m:
@@ -36,32 +35,6 @@ def _extract_season(stem: str) -> str:
 def _extract_year(stem: str) -> str:
     m = re.search(r"\b(19\d{2}|20\d{2})\b", stem)
     return m.group(1) if m else ""
-
-
-def _normalize_resolution(raw: str) -> str:
-    """Convert anitopy video_resolution (e.g. 1280x720) to short form (720p)."""
-    if not raw or not raw.strip():
-        return ""
-    s = raw.strip()
-    # Already short form
-    m = re.search(r"\b(720p|1080p|2160p|480p|360p|4k)\b", s, re.I)
-    if m:
-        return m.group(1)
-    # Pixel form: take height from WxH or single number
-    m = re.search(r"(?:x|×)\s*(\d+)|^\s*(\d+)\s*$", s)
-    if m:
-        h = int(m.group(1) or m.group(2) or "0")
-        if h >= 2160:
-            return "2160p"
-        if h >= 1080:
-            return "1080p"
-        if h >= 720:
-            return "720p"
-        if h >= 480:
-            return "480p"
-        if h >= 360:
-            return "360p"
-    return s
 
 
 def _get_stem(filename: str) -> str:
@@ -86,7 +59,7 @@ class MinimalTitleParser(FilenameParser):
             parse_group=title,
             year=_extract_year(stem),
             season=_extract_season(stem),
-            resolution=_extract_resolution(stem),
+            resolution=resolution_from_filename(filename),
         )
 
 
@@ -110,7 +83,11 @@ class AnitopyTitleParser(FilenameParser):
         year = (data.get("anime_year") or "").strip() or _extract_year(stem)
         season = _extract_season(stem)  # anitopy has no season field
         res_raw = (data.get("video_resolution") or "").strip()
-        resolution = _normalize_resolution(res_raw) if res_raw else _extract_resolution(stem)
+        resolution = (
+            normalize_resolution_from_raw(res_raw)
+            if res_raw
+            else resolution_from_filename(filename)
+        )
         return ParsedInfo(
             title=title,
             parse_group=title,
