@@ -13,6 +13,7 @@ class ScanInput:
 
 @dataclass
 class ScanResult:
-    """Result from scan_library. Empty for stub; Phase 1 will add scanned files."""
+    """Result from scan_library. paths and resolutions share the same order and length."""
 
     paths: list[str] = field(default_factory=list)
+    resolutions: list[str] = field(default_factory=list)

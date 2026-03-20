@@ -7,6 +7,7 @@ from threading import Event
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.application.ports.file_repository import FileRepository
+from anivault.domain.rules.resolution_from_filename import resolution_from_filename
 
 _VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".webm", ".ts", ".m2ts")
 
@@ -23,7 +24,7 @@ def make_execute(
     ) -> ScanResult:
         """Scan directory for media files. Uses FileRepository.list_files."""
         if cancel_token.is_set():
-            return ScanResult(paths=[])
+            return ScanResult(paths=[], resolutions=[])
         if callable(progress_callback):
             progress_callback(
                 ProgressEvent(
@@ -56,7 +57,7 @@ def make_execute(
             progress_callback=scan_progress,
         )
         if cancel_token.is_set():
-            return ScanResult(paths=[])
+            return ScanResult(paths=[], resolutions=[])
         if callable(progress_callback) and paths:
             progress_callback(
                 ProgressEvent(
@@ -68,6 +69,8 @@ def make_execute(
                     item_path=str(paths[-1]) if paths else None,
                 )
             )
-        return ScanResult(paths=[str(p) for p in paths])
+        str_paths = [str(p) for p in paths]
+        resolutions = [resolution_from_filename(p) for p in str_paths]
+        return ScanResult(paths=str_paths, resolutions=resolutions)
 
     return execute
