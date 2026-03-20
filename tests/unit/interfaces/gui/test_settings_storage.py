@@ -163,3 +163,23 @@ def test_load_all_keeps_path_rules_target_root_over_legacy_scan_target(
 
     loaded = settings_storage.load_all()
     assert loaded["path_rules"]["target_root"] == "E:/FromPathRules"
+
+
+def test_save_all_does_not_persist_tmdb_api_key_in_config(tmp_path: Path, monkeypatch) -> None:
+    """parse_tmdb must never store tmdb_api_key in config.json (`.env` only)."""
+    config_dir = tmp_path / ".anivault"
+    config_file = config_dir / "config.json"
+    monkeypatch.setattr(settings_storage, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(settings_storage, "CONFIG_FILE", config_file)
+
+    settings_storage.save_all(
+        {
+            "parse_tmdb": {
+                "ignore_tokens": "x",
+                "tmdb_api_key": "super-secret",
+            },
+        }
+    )
+    raw = json.loads(config_file.read_text(encoding="utf-8"))
+    assert "tmdb_api_key" not in raw.get("parse_tmdb", {})
+    assert raw["parse_tmdb"]["ignore_tokens"] == "x"
