@@ -55,7 +55,6 @@ from anivault.interfaces.gui.components.organisms import (
     SettingsActionsCard,
     Sidebar,
     StatsGrid,
-    TileView,
     Topbar,
 )
 from anivault.interfaces.gui.models import PipelineRow, group_pipeline_rows
@@ -101,11 +100,13 @@ def _sample_rows() -> list[PipelineRow]:
             tmdb_korean_title_group="장송의 프리렌",
             tmdb_series_id="",
             tmdb_poster_path="",
+            tmdb_backdrop_path="",
             year="2023",
             season="01",
             resolution="1080p",
             status="Ready",
             poster_url="",
+            backdrop_url="",
             target_path=r"G:\AniSorted\1080p\2023\장송의 프리렌\Season01\ep01.mkv",
         ),
         PipelineRow(
@@ -115,11 +116,13 @@ def _sample_rows() -> list[PipelineRow]:
             tmdb_korean_title_group="약사의 혼잣말",
             tmdb_series_id="",
             tmdb_poster_path="",
+            tmdb_backdrop_path="",
             year="2023",
             season="01",
             resolution="1080p",
             status="Needs Review",
             poster_url="",
+            backdrop_url="",
             target_path=r"G:\AniSorted\1080p\2023\약사의 혼잣말\Season01\ep03.mkv",
         ),
     ]
@@ -284,19 +287,6 @@ def _organisms_preview() -> QWidget:
     )
     poster_grid.setFixedHeight(420)
 
-    tile_view = TileView()
-    tile_view.set_cards(
-        [
-            PosterCard(
-                title=g.tmdb_korean_title_group,
-                meta=f"{g.year} • S{g.season} • {g.resolution}",
-                path=g.target_path,
-            )
-            for g in groups
-        ]
-    )
-    tile_view.setFixedHeight(420)
-
     layout.addWidget(Sidebar())
     layout.addWidget(Topbar())
     layout.addWidget(FolderScanBar())
@@ -315,7 +305,6 @@ def _organisms_preview() -> QWidget:
     layout.addWidget(details)
     layout.addWidget(preview)
     layout.addWidget(poster_grid)
-    layout.addWidget(tile_view)
     return box
 
 

@@ -19,7 +19,6 @@ from anivault.interfaces.gui.components.organisms.scan_build_card import ScanBui
 from anivault.interfaces.gui.components.organisms.settings_actions_card import SettingsActionsCard
 from anivault.interfaces.gui.components.organisms.sidebar import Sidebar
 from anivault.interfaces.gui.components.organisms.stats_grid import StatsGrid
-from anivault.interfaces.gui.components.organisms.tile_view import TileView
 from anivault.interfaces.gui.components.organisms.topbar import Topbar
 
 __all__ = [
@@ -38,7 +37,6 @@ __all__ = [
     "SettingsActionsCard",
     "Sidebar",
     "StatsGrid",
-    "TileView",
     "Topbar",
     "PathRulesForm",
     "ParseTmdbForm",

@@ -1,4 +1,4 @@
-"""Poster card: image + title + meta + path. Image via loader/placeholder. Portrait 2:3 ratio."""
+"""Poster card: image + title + meta + path. Image area matches poster (2:3) or backdrop (5:2)."""
 
 from __future__ import annotations
 
@@ -6,18 +6,25 @@ from typing import Literal
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QFontMetrics, QPixmap
-from PySide6.QtWidgets import QFrame, QLabel, QSizePolicy, QVBoxLayout
+from PySide6.QtWidgets import QFrame, QSizePolicy, QVBoxLayout
 
 from anivault.interfaces.gui import theme
-from anivault.interfaces.gui.components.atoms import Label
-from anivault.interfaces.gui.components.molecules import PathBox
+from anivault.interfaces.gui.components.atoms import Label, RoundedPixmapLabel
+from anivault.interfaces.gui.components.molecules.path_box import PathBox
 
-# Portrait poster ratio: width : height = 2 : 3
-POSTER_ASPECT = 3 / 2  # height / width
+# Image area height/width: poster portrait 2:3; backdrop wide 5:2 (width:height)
+POSTER_IMAGE_ASPECT_HW = 3 / 2
+BACKDROP_IMAGE_ASPECT_HW = 2 / 5
+# Space for title + meta (+ path on non-compact) below the image
+COMPACT_BODY_HEIGHT_PX = 48
+NON_COMPACT_BODY_HEIGHT_PX = 100
+# Vertical gap between image row and title/meta row (must match layout.setSpacing)
+CARD_LAYOUT_SPACING_COMPACT_PX = 6
+CARD_LAYOUT_SPACING_POSTER_PX = 8
 
 
 class PosterCard(QFrame):
-    """Single poster: image area, title, meta line, path box. Keeps portrait ratio 2:3."""
+    """Single poster: image area, title, meta line, path box."""
 
     def __init__(
         self,
@@ -27,45 +34,66 @@ class PosterCard(QFrame):
         image_url: str = "",
         parent=None,
         variant: Literal["poster", "compact"] = "poster",
+        image_aspect: Literal["poster", "backdrop"] = "poster",
+        text_panel_overlay: bool = False,
     ):
         super().__init__(parent)
         is_compact = variant == "compact"
+        use_text_panel = is_compact and text_panel_overlay
         self._is_compact = is_compact
+        self._aspect_hw_compact = (
+            POSTER_IMAGE_ASPECT_HW if image_aspect == "poster" else BACKDROP_IMAGE_ASPECT_HW
+        )
         self.setStyleSheet(theme.poster_card())
         if is_compact:
             self.setMinimumWidth(120)
-            self.setMinimumHeight(88)
+            self.setMinimumHeight(
+                int(120 * self._aspect_hw_compact)
+                + CARD_LAYOUT_SPACING_COMPACT_PX
+                + COMPACT_BODY_HEIGHT_PX
+            )
         else:
             self.setMinimumWidth(140)
-            self.setMinimumHeight(int(140 * POSTER_ASPECT))
-        # Height follows width (portrait 2:3) so layout can align rows
+            self.setMinimumHeight(
+                int(140 * POSTER_IMAGE_ASPECT_HW)
+                + CARD_LAYOUT_SPACING_POSTER_PX
+                + NON_COMPACT_BODY_HEIGHT_PX
+            )
         sp = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         sp.setHeightForWidth(True)
         self.setSizePolicy(sp)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        self._img_label = QLabel()
-        # In compact mode, children minimum sizes must not exceed the card's fixed height.
-        if is_compact:
-            self._img_label.setMinimumHeight(0)
-        else:
-            self._img_label.setMinimumHeight(140)
-        self._img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._img_label.setStyleSheet(theme.poster_card_image())
-        self._img_label.setText("Poster")
-        self._img_label.setScaledContents(False)
-        self._img_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        # Picture area gets 3/4 of card height; labels stay in bottom 1/4
-        layout.addWidget(self._img_label, 4 if is_compact else 3)
-        body = QVBoxLayout()
-        body.setSpacing(2 if is_compact else 6)
-        body.setContentsMargins(
-            4 if is_compact else 10,
-            2 if is_compact else 10,
-            4 if is_compact else 10,
-            2 if is_compact else 10,
+        # Clear gap between image slot and title/meta (no stretch on rows = no shared slack)
+        layout.setSpacing(
+            CARD_LAYOUT_SPACING_COMPACT_PX if is_compact else CARD_LAYOUT_SPACING_POSTER_PX
         )
+        self._img_placeholder = "Backdrop" if image_aspect == "backdrop" else "Poster"
+        self._img_label = RoundedPixmapLabel()
+        self._img_label.setMinimumHeight(0)
+        self._img_label.set_placeholder_text(self._img_placeholder)
+        self._img_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
+        layout.addWidget(self._img_label, stretch=0, alignment=Qt.AlignmentFlag.AlignTop)
+        body_frame: QFrame | None = None
+        if use_text_panel:
+            body_frame = QFrame()
+            body_frame.setObjectName("content_view_text_panel")
+            body_frame.setStyleSheet(theme.content_view_text_panel_overlay())
+            body = QVBoxLayout(body_frame)
+            body.setSpacing(2)
+            body.setContentsMargins(6, 6, 6, 6)
+        else:
+            body = QVBoxLayout()
+            body.setSpacing(2 if is_compact else 6)
+            body.setContentsMargins(
+                4 if is_compact else 10,
+                0 if is_compact else 10,
+                4 if is_compact else 10,
+                2 if is_compact else 10,
+            )
         self._title_text = title
         self._meta_text = meta
         self._title_lbl = Label(self._title_text, "title")
@@ -86,7 +114,11 @@ class PosterCard(QFrame):
         if not is_compact:
             self._path_box = PathBox(path)
             body.addWidget(self._path_box)
-        layout.addLayout(body, 1)
+        if use_text_panel and body_frame is not None:
+            layout.addWidget(body_frame, stretch=0)
+        else:
+            layout.addLayout(body, stretch=0)
+        layout.addStretch(1)
         self._image_url = image_url
 
     @property
@@ -94,28 +126,46 @@ class PosterCard(QFrame):
         return self._image_url
 
     def sizeHint(self) -> QSize:
-        w = 140 if self._is_compact else 180
-        return QSize(w, int(w * POSTER_ASPECT))
+        if self._is_compact:
+            w = 140
+            return QSize(
+                w,
+                int(w * self._aspect_hw_compact)
+                + CARD_LAYOUT_SPACING_COMPACT_PX
+                + COMPACT_BODY_HEIGHT_PX,
+            )
+        w = 180
+        return QSize(
+            w,
+            int(w * POSTER_IMAGE_ASPECT_HW)
+            + CARD_LAYOUT_SPACING_POSTER_PX
+            + NON_COMPACT_BODY_HEIGHT_PX,
+        )
 
     def hasHeightForWidth(self) -> bool:
         return True
 
     def heightForWidth(self, w: int) -> int:
-        return int(w * POSTER_ASPECT) if w > 0 else self.minimumHeight()
+        if w <= 0:
+            return self.minimumHeight()
+        if self._is_compact:
+            return (
+                int(w * self._aspect_hw_compact)
+                + CARD_LAYOUT_SPACING_COMPACT_PX
+                + COMPACT_BODY_HEIGHT_PX
+            )
+        return (
+            int(w * POSTER_IMAGE_ASPECT_HW)
+            + CARD_LAYOUT_SPACING_POSTER_PX
+            + NON_COMPACT_BODY_HEIGHT_PX
+        )
 
     def set_pixmap(self, pixmap: QPixmap | None) -> None:
         if pixmap is not None and not pixmap.isNull():
-            self._img_label.setPixmap(
-                pixmap.scaled(
-                    self._img_label.width(),
-                    self._img_label.height(),
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-            )
+            self._img_label.set_source_pixmap(pixmap)
         else:
-            self._img_label.clear()
-            self._img_label.setText("Poster")
+            self._img_label.clear_source_pixmap()
+            self._img_label.set_placeholder_text(self._img_placeholder)
 
     def set_title(self, title: str) -> None:
         self._title_text = title
@@ -123,9 +173,20 @@ class PosterCard(QFrame):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        if not self._is_compact:
-            return
-        self._apply_compact_elide()
+        w = self.width()
+        if w > 0:
+            aspect = self._aspect_hw_compact if self._is_compact else POSTER_IMAGE_ASPECT_HW
+            img_h = int(w * aspect)
+            self._img_label.setFixedHeight(img_h)
+            self._img_label.setMaximumHeight(img_h)
+            # QVBoxLayout in QScrollArea does not always re-apply heightForWidth when width
+            # changes; lock total height so image + body track width at fixed ratio.
+            target_h = self.heightForWidth(w)
+            if self.height() != target_h:
+                self.setFixedHeight(target_h)
+                self.updateGeometry()
+        if self._is_compact:
+            self._apply_compact_elide()
 
     def _apply_compact_elide(self) -> None:
         pairs = (

@@ -8,7 +8,6 @@ from anivault.interfaces.gui.components.atoms import ComboBox, Label, ViewToggle
 
 VIEW_DETAILS = "details"
 VIEW_LIST = "list"
-VIEW_TILES = "tiles"
 VIEW_CONTENT = "content"
 VIEW_ICON_XL = "icon_xl"
 VIEW_ICON_L = "icon_l"
@@ -29,7 +28,6 @@ def _view_label(key: str) -> str:
         VIEW_ICON_S: "작은 아이콘",
         VIEW_LIST: "목록",
         VIEW_DETAILS: "자세히",
-        VIEW_TILES: "타일",
         VIEW_CONTENT: "내용",
         VIEW_ICON_GROUP: "아이콘",
     }
@@ -54,10 +52,10 @@ class ViewToggleBar(QWidget):
         self._details_pane_checked = False
         self._preview_pane_checked = False
 
-        # Layout selection (details/list/tiles/content/icon-group)
+        # Layout selection (details/list/content/icon-group)
         self._layout_combo = ComboBox()
         self._layout_combo.setObjectName("view_toggle_layout_combo")
-        for key in (VIEW_DETAILS, VIEW_LIST, VIEW_TILES, VIEW_CONTENT, VIEW_ICON_GROUP):
+        for key in (VIEW_DETAILS, VIEW_LIST, VIEW_CONTENT, VIEW_ICON_GROUP):
             self._layout_combo.addItem(_view_label(key), key)
 
         # Icon size selection (shown only when layout == icon-group)

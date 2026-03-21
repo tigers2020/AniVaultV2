@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, Protocol, TypedDict
 
 from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QPixmap
@@ -28,7 +28,6 @@ from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
     VIEW_ICON_S,
     VIEW_ICON_XL,
     VIEW_LIST,
-    VIEW_TILES,
 )
 from anivault.interfaces.gui.components.organisms.compact_list_view import CompactListView
 from anivault.interfaces.gui.components.organisms.content_view import ContentView
@@ -36,7 +35,6 @@ from anivault.interfaces.gui.components.organisms.details_pane import DetailsPan
 from anivault.interfaces.gui.components.organisms.pipeline_table import PipelineTable
 from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
 from anivault.interfaces.gui.components.organisms.preview_pane import PreviewPane
-from anivault.interfaces.gui.components.organisms.tile_view import TileView
 from anivault.interfaces.gui.models import PipelineGroupRow, PipelineTableModel
 from anivault.interfaces.gui.services.image_loader import ImageLoader
 from anivault.interfaces.gui.settings_storage import load_all, save_all
@@ -44,13 +42,24 @@ from anivault.interfaces.gui.settings_storage import load_all, save_all
 VIEW_TO_INDEX = {
     VIEW_DETAILS: 0,
     VIEW_LIST: 1,
-    VIEW_TILES: 2,
-    VIEW_CONTENT: 3,
-    VIEW_ICON_XL: 4,
-    VIEW_ICON_L: 5,
-    VIEW_ICON_M: 6,
-    VIEW_ICON_S: 7,
+    VIEW_CONTENT: 2,
+    VIEW_ICON_XL: 3,
+    VIEW_ICON_L: 4,
+    VIEW_ICON_M: 5,
+    VIEW_ICON_S: 6,
 }
+
+# Persisted ui_state may still reference removed "tiles" view.
+_LEGACY_VIEW_KEY_MAP = {"tiles": VIEW_CONTENT}
+
+
+class _ImageRowTarget(Protocol):
+    """PosterCard or compact list row: async image URL + pixmap apply."""
+
+    @property
+    def image_url(self) -> str: ...
+
+    def set_pixmap(self, pixmap: QPixmap | None) -> None: ...
 
 
 class PipelineResultUiState(TypedDict):
@@ -88,7 +97,7 @@ class PipelineResultPanel(QFrame):
         self._pane_mode: str | None = None  # "details" | "preview" | None
         self._restoring_state = False
         self._pending_selected_index = -1
-        self._cards_by_url: dict[str, list[PosterCard]] = {}
+        self._cards_by_url: dict[str, list[_ImageRowTarget]] = {}
         self._image_loader = ImageLoader(self)
         self._image_loader.loaded.connect(self._on_poster_image_loaded)
 
@@ -98,7 +107,7 @@ class PipelineResultPanel(QFrame):
         self._view_bar = ViewToggleBar()
         self._header = PanelHeader(
             "Pipeline Result",
-            "테이블 또는 포스터 그리드로 결과 보기. 보기 메뉴에서 레이아웃을 선택하세요.",
+            "테이블·목록·내용·아이콘 그리드로 결과를 볼 수 있습니다. 보기에서 레이아웃을 선택하세요.",
             right_widget=self._view_bar,
         )
         layout.addWidget(self._header)
@@ -129,19 +138,13 @@ class PipelineResultPanel(QFrame):
         self._stack.addWidget(list_view)
         self._list_view = list_view
 
-        # 2: Tiles
-        tile_view = TileView()
-        tile_view.selection_changed.connect(self._on_selection)
-        self._stack.addWidget(tile_view)
-        self._tile_view = tile_view
-
-        # 3: Content
+        # 2: Content
         content_view = ContentView()
         content_view.selection_changed.connect(self._on_selection)
         self._stack.addWidget(content_view)
         self._content_view = content_view
 
-        # 4-7: Icon grids (XL, L, M, S)
+        # 3-6: Icon grids (XL, L, M, S)
         self._poster_grids: dict[str, PosterGrid] = {}
         for key in (VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S):
             grid = PosterGrid(min_card_width=ICON_SIZES[key], show_header=False)
@@ -184,7 +187,7 @@ class PipelineResultPanel(QFrame):
         self._view_bar.details_pane_changed.connect(self._on_details_pane)
         self._view_bar.preview_pane_changed.connect(self._on_preview_pane)
 
-        # Sync list/tile/content/poster when model changes
+        # Sync list/content/poster grids when model changes
         self._model.modelReset.connect(self._sync_views_from_model)
         self._restore_ui_state()
 
@@ -266,6 +269,10 @@ class PipelineResultPanel(QFrame):
             u = (card.image_url or "").strip()
             if u.startswith("http"):
                 self._cards_by_url.setdefault(u, []).append(card)
+        for row in self._list_view.pixmap_targets():
+            u = (row.image_url or "").strip()
+            if u.startswith("http"):
+                self._cards_by_url.setdefault(u, []).append(row)
         for url in self._cards_by_url:
             cached = self._image_loader.get(url)
             if cached is not None:
@@ -275,7 +282,7 @@ class PipelineResultPanel(QFrame):
                 self._image_loader.load(url)
 
     def _sync_views_from_model(self) -> None:
-        """Update list/tile/content/poster from model (called on modelReset)."""
+        """Update list/content/poster grids from model (called on modelReset)."""
         rows = self._model.rows()
         self._rows = list(rows)
 
@@ -300,14 +307,9 @@ class PipelineResultPanel(QFrame):
                 )
             return cards
 
-        tiles_cards = _make_cards("poster")
-        for i, card in enumerate(tiles_cards):
-            self._make_card_clickable(card, i)
         self._list_view.set_rows(rows)
-        self._tile_view.set_cards(tiles_cards)
         self._content_view.set_rows(rows)
         all_poster_cards: list[PosterCard] = []
-        all_poster_cards.extend(tiles_cards)
         all_poster_cards.extend(self._content_view.poster_cards())
         for grid in self._poster_grids.values():
             grid_cards = _make_cards("compact")
@@ -362,8 +364,10 @@ class PipelineResultPanel(QFrame):
             "preview_pane": DEFAULT_UI_STATE["preview_pane"],
             "selected_index": DEFAULT_UI_STATE["selected_index"],
         }
-        if isinstance(view_key, str) and view_key in VIEW_TO_INDEX:
-            normalized["view_key"] = view_key
+        if isinstance(view_key, str):
+            view_key = _LEGACY_VIEW_KEY_MAP.get(view_key, view_key)
+            if view_key in VIEW_TO_INDEX:
+                normalized["view_key"] = view_key
         if isinstance(details_pane, bool):
             normalized["details_pane"] = details_pane
         if isinstance(preview_pane, bool):
@@ -394,7 +398,7 @@ class PipelineResultPanel(QFrame):
         return self._model
 
     def set_rows(self, rows: list[PipelineGroupRow]) -> None:
-        """Set group rows. Updates model (triggers _sync_views_from_model for list/tile/content/poster)."""
+        """Set group rows. Updates model (triggers _sync_views_from_model)."""
         self._model.set_rows(rows)
 
     def _sync_header_height(self) -> None:

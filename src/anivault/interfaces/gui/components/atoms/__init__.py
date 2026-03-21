@@ -6,6 +6,7 @@ from anivault.interfaces.gui.components.atoms.combo_box import ComboBox
 from anivault.interfaces.gui.components.atoms.label import Label
 from anivault.interfaces.gui.components.atoms.line_edit import LineEdit
 from anivault.interfaces.gui.components.atoms.pill import Pill
+from anivault.interfaces.gui.components.atoms.rounded_pixmap_label import RoundedPixmapLabel
 from anivault.interfaces.gui.components.atoms.step_index import StepIndex
 from anivault.interfaces.gui.components.atoms.view_toggle_button import ViewToggleButton
 
@@ -16,6 +17,7 @@ __all__ = [
     "Label",
     "LineEdit",
     "Pill",
+    "RoundedPixmapLabel",
     "StepIndex",
     "ViewToggleButton",
 ]

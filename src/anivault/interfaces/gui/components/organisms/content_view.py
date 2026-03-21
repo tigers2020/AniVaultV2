@@ -1,11 +1,10 @@
-"""Content view: top = large preview of selected, bottom = metadata. List on left."""
+"""Content view: scrollable compact list on left, scrollable metadata on right."""
 
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
-    QLabel,
     QScrollArea,
     QSplitter,
     QVBoxLayout,
@@ -19,7 +18,7 @@ from anivault.interfaces.gui.models import PipelineGroupRow
 
 
 class ContentView(QFrame):
-    """Content layout: list on left, large preview + metadata on right."""
+    """Content layout: list on left, details on right (no large preview strip)."""
 
     selection_changed = Signal(int)
 
@@ -50,23 +49,34 @@ class ContentView(QFrame):
         left_layout.addWidget(left_scroll)
         splitter.addWidget(left)
 
-        # Right: preview + metadata
+        # Right: scrollable info only
         right = QWidget()
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(0, 0, 0, 0)
 
-        self._preview_label = QLabel()
-        self._preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._preview_label.setMinimumHeight(300)
-        self._preview_label.setStyleSheet(theme.poster_card_image())
-        self._preview_label.setText("항목을 선택하세요")
-        self._preview_label.setScaledContents(False)
-        right_layout.addWidget(self._preview_label)
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setStyleSheet(theme.scroll_area_transparent())
+        right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
+        self._meta_scroll_content = QWidget()
+        meta_content_layout = QVBoxLayout(self._meta_scroll_content)
+        meta_content_layout.setContentsMargins(8, 8, 8, 8)
+
+        self._meta_frame = QFrame()
+        self._meta_frame.setObjectName("content_view_text_panel")
+        self._meta_frame.setStyleSheet(theme.content_view_text_panel_overlay())
+        meta_layout = QVBoxLayout(self._meta_frame)
+        meta_layout.setContentsMargins(8, 8, 8, 8)
         self._meta_label = Label("", "muted")
         self._meta_label.setWordWrap(True)
         self._meta_label.setStyleSheet(theme.panel_header_desc())
-        right_layout.addWidget(self._meta_label)
+        meta_layout.addWidget(self._meta_label)
+        meta_content_layout.addWidget(self._meta_frame)
+        meta_content_layout.addStretch(1)
+
+        right_scroll.setWidget(self._meta_scroll_content)
+        right_layout.addWidget(right_scroll)
         splitter.addWidget(right)
 
         splitter.setSizes([320, 900])
@@ -97,14 +107,17 @@ class ContentView(QFrame):
                 if s:
                     meta_parts.append(s)
             meta = " • ".join(meta_parts)
+            backdrop = (g.backdrop_url or "").strip()
             card = PosterCard(
                 title=title,
                 meta=meta,
                 path="",
-                image_url=g.poster_url,
+                # Load backdrop when present, else poster; slot is always backdrop-shaped.
+                image_url=(backdrop or g.poster_url).strip(),
                 variant="compact",
+                image_aspect="backdrop",
+                text_panel_overlay=True,
             )
-            card.setFixedHeight(92)
             card.setMinimumWidth(220)
             card.setCursor(Qt.CursorShape.PointingHandCursor)
             card.mousePressEvent = lambda e, idx=i: self._on_select(idx)  # type: ignore[method-assign,misc]

@@ -12,13 +12,16 @@ from PySide6.QtWidgets import (
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import PanelHeader, PosterCard
+from anivault.interfaces.gui.components.molecules.poster_card import (
+    CARD_LAYOUT_SPACING_POSTER_PX,
+    NON_COMPACT_BODY_HEIGHT_PX,
+    POSTER_IMAGE_ASPECT_HW,
+)
 from anivault.interfaces.gui.themes import get_current_density_key, on_density_changed
 
 MIN_CARD_WIDTH = 140
 GRID_SPACING = 12
 GRID_MARGINS = (0, 0, 0, 0)
-# Portrait 2:3
-POSTER_ASPECT = 3 / 2
 
 
 def _column_count(width: int, *, min_card: int, grid_spacing: int) -> int:
@@ -78,7 +81,11 @@ class _GridContainer(QWidget):
         self._last_width = w
         # One size for all cards so height never "shrinks" by column
         card_w = max(mc, (w - (cols - 1) * grid_spacing) // cols)
-        card_h = int(card_w * POSTER_ASPECT)
+        card_h = (
+            int(card_w * POSTER_IMAGE_ASPECT_HW)
+            + CARD_LAYOUT_SPACING_POSTER_PX
+            + NON_COMPACT_BODY_HEIGHT_PX
+        )
         for c in range(cols):
             self._grid.setColumnStretch(c, 1)
         align = Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft

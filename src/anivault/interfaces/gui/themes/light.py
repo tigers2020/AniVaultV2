@@ -29,3 +29,14 @@ class LightTheme(DarkTheme):
             card_bg="rgba(255, 255, 255, 0.95)",
         )
         self.colors = self.palette.to_dict()
+
+    def content_view_text_panel_overlay(self) -> str:
+        """Slightly softer overlay on light backgrounds."""
+        r = self._frame_radius_px
+        return f"""
+        QFrame#content_view_text_panel {{
+            background-color: rgba(0, 0, 0, 0.22);
+            border: none;
+            border-radius: {r}px;
+        }}
+        """

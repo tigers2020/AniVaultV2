@@ -58,9 +58,11 @@ __all__ = [
     "panel_header_desc",
     "path_box",
     "poster_card",
+    "frame_radius_px",
     "poster_card_image",
     "poster_card_title",
     "poster_card_meta",
+    "content_view_text_panel_overlay",
     "card_panel",
     "list_item",
     "list_item_strong",
@@ -71,8 +73,6 @@ __all__ = [
     "progress_dialog",
     # responsive metrics
     "sidebar_width_px",
-    "tile_min_width_px",
-    "tile_grid_spacing_px",
     "poster_min_card_width_px",
     "poster_grid_spacing_px",
 ]
@@ -208,6 +208,10 @@ def poster_card() -> str:
     return _t().poster_card()
 
 
+def frame_radius_px() -> int:
+    return _t().frame_radius_px()
+
+
 def poster_card_image() -> str:
     return _t().poster_card_image()
 
@@ -218,6 +222,10 @@ def poster_card_title() -> str:
 
 def poster_card_meta() -> str:
     return _t().poster_card_meta()
+
+
+def content_view_text_panel_overlay() -> str:
+    return _t().content_view_text_panel_overlay()
 
 
 def card_panel() -> str:
@@ -254,8 +262,6 @@ def progress_dialog() -> str:
 
 # ---- Responsive layout metrics ----
 # Base metrics are aligned with the previous hard-coded px constants.
-_TILE_MIN_WIDTH_BASE_PX = 220
-_TILE_GRID_SPACING_BASE_PX = 16
 _POSTER_MIN_CARD_WIDTH_BASE_PX = 150
 _POSTER_GRID_SPACING_BASE_PX = 13
 
@@ -272,26 +278,6 @@ def sidebar_width_px() -> int:
         p.sidebar_width_scale,
         minimum=240,
         maximum=380,
-    )
-
-
-def tile_min_width_px() -> int:
-    p = _p()
-    return scaled_int(
-        _TILE_MIN_WIDTH_BASE_PX,
-        p.card_min_width_scale,
-        minimum=170,
-        maximum=340,
-    )
-
-
-def tile_grid_spacing_px() -> int:
-    p = _p()
-    return scaled_int(
-        _TILE_GRID_SPACING_BASE_PX,
-        p.grid_spacing_scale,
-        minimum=10,
-        maximum=28,
     )
 
 

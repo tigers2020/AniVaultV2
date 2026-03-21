@@ -427,15 +427,34 @@ class DarkTheme:
         }}
     """
 
+    def frame_radius_px(self) -> int:
+        """Corner radius for poster image slots (matches poster_card / text panel)."""
+        return self._frame_radius_px
+
     def poster_card_image(self) -> str:
         c = self._c()
-        return f"background-color: {c['input_bg']}; color: {c['muted']};"
+        r = self._frame_radius_px
+        return (
+            f"background-color: {c['input_bg']}; color: {c['muted']}; "
+            f"border: none; border-radius: {r}px;"
+        )
 
     def poster_card_title(self) -> str:
         return f"{FONT_TITLE} font-size: 12pt; margin: 0; background: transparent; border: none;"
 
     def poster_card_meta(self) -> str:
         return f"{FONT_BODY} font-size: 10pt; line-height: 1.45; background: transparent; border: none;"
+
+    def content_view_text_panel_overlay(self) -> str:
+        """Semi-transparent strip under image for title/meta in Content view."""
+        r = self._frame_radius_px
+        return f"""
+        QFrame#content_view_text_panel {{
+            background-color: rgba(0, 0, 0, 0.75);
+            border: none;
+            border-radius: {r}px;
+        }}
+        """
 
     def card_panel(self) -> str:
         c = self._c()

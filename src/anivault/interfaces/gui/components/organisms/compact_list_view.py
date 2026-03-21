@@ -1,17 +1,17 @@
 """Compact list view: single column with thumbnail + title + meta per row."""
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
 from anivault.interfaces.gui import theme
-from anivault.interfaces.gui.components.atoms import Label
+from anivault.interfaces.gui.components.atoms import Label, RoundedPixmapLabel
 from anivault.interfaces.gui.models import PipelineGroupRow
 
 
@@ -49,17 +49,18 @@ class _ListItem(QFrame):
 
     def __init__(self, group: PipelineGroupRow, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        backdrop = (group.backdrop_url or "").strip()
+        poster = (group.poster_url or "").strip()
+        self._image_url = backdrop or poster
         self.setStyleSheet(theme.list_item())
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(14)
 
         # Small thumbnail
-        thumb = QLabel()
+        thumb = RoundedPixmapLabel()
         thumb.setFixedSize(48, 72)
-        thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        thumb.setStyleSheet(theme.poster_card_image())
-        thumb.setText("—")
+        thumb.set_placeholder_text("—")
         layout.addWidget(thumb)
         self._thumb = thumb
 
@@ -77,6 +78,18 @@ class _ListItem(QFrame):
         meta.setVisible(bool(meta_text))
         right.addWidget(meta)
         layout.addLayout(right, 1)
+
+    @property
+    def image_url(self) -> str:
+        return self._image_url
+
+    def set_pixmap(self, pixmap: QPixmap | None) -> None:
+        """Same contract as PosterCard for ImageLoader batch refresh."""
+        if pixmap is not None and not pixmap.isNull():
+            self._thumb.set_source_pixmap(pixmap)
+        else:
+            self._thumb.clear_source_pixmap()
+            self._thumb.set_placeholder_text("—")
 
 
 class CompactListView(QFrame):
@@ -122,3 +135,7 @@ class CompactListView(QFrame):
 
     def _on_click(self, index: int) -> None:
         self.selection_changed.emit(index)
+
+    def pixmap_targets(self) -> list[_ListItem]:
+        """List rows wired to async TMDB image URLs (backdrop preferred, else poster)."""
+        return list(self._items)
