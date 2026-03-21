@@ -1,4 +1,9 @@
-"""Application settings (paths, API keys, defaults)."""
+"""settings.py
+
+애플리케이션 설정 상수(경로, 기본 확장자 등).
+
+Author: Pom Kim
+"""
 
 from pathlib import Path
 
