@@ -1,11 +1,16 @@
-"""TMDB metadata DTOs. Filled by adapters; use cases consume these only."""
+"""tmdb.py
+
+TMDB 메타데이터 DTO. 어댑터가 채우고 유스케이스는 이 타입만 소비한다.
+
+Author: Pom Kim
+"""
 
 from dataclasses import dataclass
 
 
 @dataclass(slots=True)
 class TmdbSeriesCandidateDTO:
-    """One TV series search candidate (localized fields per adapter request)."""
+    """TV 시리즈 검색 후보 한 건(어댑터가 요청한 현지화 필드)."""
 
     tmdb_id: int
     name_ko: str

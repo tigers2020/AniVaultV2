@@ -1,4 +1,9 @@
-"""DTOs for parse_titles use case."""
+"""parse.py
+
+parse_titles 유스케이스용 DTO: ParsedInfo, ParseInput, ParseResult.
+
+Author: Pom Kim
+"""
 
 from dataclasses import dataclass, field
 
@@ -16,13 +21,13 @@ class ParsedInfo:
 
 @dataclass
 class ParseInput:
-    """Input for parse_titles use case. Paths in pipeline order."""
+    """parse_titles 입력. 경로는 파이프라인 순서."""
 
     paths: list[str] = field(default_factory=list)
 
 
 @dataclass
 class ParseResult:
-    """Result from parse_titles. ParsedInfo per path, same order as ParseInput.paths."""
+    """parse_titles 결과. ParsedInfo는 ParseInput.paths와 동일 순서."""
 
     parsed: list[ParsedInfo] = field(default_factory=list)

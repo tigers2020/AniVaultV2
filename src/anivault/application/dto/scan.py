@@ -1,19 +1,25 @@
-"""DTOs for scan use case."""
+"""scan.py
+
+scan_library 유스케이스용 DTO: ScanInput, ScanResult.
+
+Author: Pom Kim
+"""
 
 from dataclasses import dataclass, field
 
 
 @dataclass
 class ScanInput:
-    """Input for scan_library use case."""
+    """scan_library 입력."""
 
     path: str
     recursive: bool = True
+    sort_paths: bool = True
 
 
 @dataclass
 class ScanResult:
-    """Result from scan_library. paths and resolutions share the same order and length."""
+    """scan_library 결과. paths와 resolutions는 동일 길이·순서."""
 
     paths: list[str] = field(default_factory=list)
     resolutions: list[str] = field(default_factory=list)

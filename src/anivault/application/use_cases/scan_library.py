@@ -1,4 +1,9 @@
-"""Scan library use case. Scans directory for media files via FileRepository."""
+"""scan_library.py
+
+FileRepository로 디렉터리를 스캔해 미디어 파일 경로와 파일명 기준 해상도를 수집한다.
+
+Author: Pom Kim
+"""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -15,14 +20,30 @@ _VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".webm", ".ts", ".m2ts")
 def make_execute(
     file_repo: FileRepository,
 ) -> Callable[[ScanInput, object, Event], ScanResult]:
-    """Create execute function with FileRepository injected."""
+    """FileRepository가 주입된 스캔 실행 함수를 만든다.
+
+    Args:
+        file_repo: 파일 목록 조회 포트.
+
+    Returns:
+        (ScanInput, progress_callback, cancel_token) -> ScanResult 클로저.
+    """
 
     def execute(
         input_dto: ScanInput,
         progress_callback: object,
         cancel_token: Event,
     ) -> ScanResult:
-        """Scan directory for media files. Uses FileRepository.list_files."""
+        """디렉터리를 스캔해 비디오 경로와 해상도 라벨을 반환한다.
+
+        Args:
+            input_dto: 스캔 루트 경로·재귀 여부.
+            progress_callback: ProgressEvent를 받는 콜백. 없으면 무시.
+            cancel_token: 설정 시 빈 결과로 조기 반환.
+
+        Returns:
+            paths와 resolutions는 동일 길이·순서.
+        """
         if cancel_token.is_set():
             return ScanResult(paths=[], resolutions=[])
         if callable(progress_callback):
@@ -38,6 +59,15 @@ def make_execute(
         root = Path(input_dto.path)
 
         def scan_progress(count: int, item_path: str | None) -> None:
+            """list_files 진행 콜백을 ProgressEvent로 넘긴다.
+
+            Args:
+                count: 현재까지 발견한 파일 수.
+                item_path: 마지막 처리 항목 경로(선택).
+
+            Returns:
+                None.
+            """
             if callable(progress_callback):
                 progress_callback(
                     ProgressEvent(
@@ -55,6 +85,7 @@ def make_execute(
             extensions=_VIDEO_EXTENSIONS,
             recursive=input_dto.recursive,
             progress_callback=scan_progress,
+            sort=input_dto.sort_paths,
         )
         if cancel_token.is_set():
             return ScanResult(paths=[], resolutions=[])

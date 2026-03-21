@@ -1,4 +1,9 @@
-"""Parse titles use case. Enriches paths with parsed title/season/year/resolution."""
+"""parse_titles.py
+
+FilenameParser로 각 경로의 파일명을 파싱해 제목·시즌·연도·해상도를 채운다.
+
+Author: Pom Kim
+"""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -12,14 +17,30 @@ from anivault.application.ports.filename_parser import FilenameParser
 def make_execute(
     parser: FilenameParser,
 ) -> Callable[[ParseInput, object, Event], ParseResult]:
-    """Create execute function with FilenameParser injected."""
+    """FilenameParser가 주입된 파싱 실행 함수를 만든다.
+
+    Args:
+        parser: 파일명 파싱 포트.
+
+    Returns:
+        (ParseInput, progress_callback, cancel_token) -> ParseResult 클로저.
+    """
 
     def execute(
         input_dto: ParseInput,
         progress_callback: object,
         cancel_token: Event,
     ) -> ParseResult:
-        """Parse each path's filename; return ParsedInfo list in same order."""
+        """경로 순서대로 파일명을 파싱한 ParsedInfo 목록을 반환한다.
+
+        Args:
+            input_dto: 파싱할 경로 목록.
+            progress_callback: ProgressEvent를 받는 콜백. 없으면 무시.
+            cancel_token: 설정 시 지금까지 파싱분만 반환.
+
+        Returns:
+            입력 순서와 동일한 parsed 리스트.
+        """
         paths = input_dto.paths or []
         if cancel_token.is_set():
             return ParseResult(parsed=[])

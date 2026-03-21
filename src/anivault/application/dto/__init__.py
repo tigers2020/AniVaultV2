@@ -1,4 +1,9 @@
-"""Data transfer objects for use case inputs/outputs."""
+"""__init__.py
+
+유스케이스 입·출력 데이터 전송 객체(DTO) 재노출.
+
+Author: Pom Kim
+"""
 
 from anivault.application.dto.match_result import (
     GroupMatchResultDTO,

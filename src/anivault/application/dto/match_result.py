@@ -1,11 +1,16 @@
-"""Match use case input/output."""
+"""match_result.py
+
+match_series 유스케이스 입·출력 DTO.
+
+Author: Pom Kim
+"""
 
 from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
 class MatchFileRow:
-    """One file row snapshot for matching (no GUI types)."""
+    """매칭용 파일 한 줄 스냅샷(GUI 타입 없음)."""
 
     original_file: str
     parsed_title: str
@@ -25,7 +30,7 @@ class MatchFileRow:
 
 @dataclass(slots=True)
 class GroupMatchResultDTO:
-    """Per-group match outcome for debugging / future UI."""
+    """그룹별 매칭 결과(디버깅·향후 UI)."""
 
     group_key: str
     matched: bool
@@ -38,14 +43,14 @@ class GroupMatchResultDTO:
 
 @dataclass(slots=True)
 class MatchInput:
-    """Input for match_series: one entry per file in pipeline order."""
+    """match_series 입력. 파일당 한 행, 파이프라인 순서."""
 
     files: tuple[MatchFileRow, ...] = field(default_factory=tuple)
 
 
 @dataclass(slots=True)
 class MatchResult:
-    """Updated file rows after TMDB match; order preserved."""
+    """TMDB 매칭 후 갱신된 파일 행. 순서 유지."""
 
     files: tuple[MatchFileRow, ...]
     groups: tuple[GroupMatchResultDTO, ...] = field(default_factory=tuple)
