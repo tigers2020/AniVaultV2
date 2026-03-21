@@ -1,4 +1,9 @@
-"""Settings page with balanced, two-column card distribution."""
+"""settings_page.py
+
+설정 카드 그리드: 외형·스캔·경로·파서·저장 액션.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtWidgets import QGridLayout, QScrollArea, QVBoxLayout, QWidget
 
@@ -13,9 +18,19 @@ from anivault.interfaces.gui.presenters import SettingsPresenter
 
 
 class SettingsPage(QWidget):
-    """Settings: appearance + scan/build + path rules + parse/TMDB rules."""
+    """Appearance, ScanBuild, PathRules, ParseTmdb, Actions."""
 
     def __init__(self, parent=None, presenter: SettingsPresenter | None = None):
+        """Presenter와 폼·시그널을 연결한다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+            presenter: SettingsPresenter. None이면 자체 생성.
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         self._presenter = presenter if presenter is not None else SettingsPresenter(parent=self)
         if presenter is not None:

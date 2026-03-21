@@ -1,7 +1,8 @@
-"""Responsive theme density selection based on window size.
+"""responsive.py
 
-This module is intentionally GUI-library-agnostic: it only maps (width, height)
-into a discrete density key and provides scale factors / metric multipliers.
+창 크기에 따른 밀도 키·스케일 팩터. Qt에 직접 의존하지 않는다.
+
+Author: Pom Kim
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ DensityKey = Literal["compact", "standard", "expanded", "spacious"]
 
 @dataclass(frozen=True, slots=True)
 class DensityProfile:
-    """Discrete profile used to generate a QSS variant."""
+    """이산 밀도 프로필(반경·사이드바·그리드 배율)."""
 
     key: DensityKey
     scale: float
@@ -63,11 +64,14 @@ _PROFILES: dict[DensityKey, DensityProfile] = {
 
 
 def choose_density_key(*, width: int, height: int) -> DensityKey:
-    """Pick the density key using both width and height.
+    """너비·높이로 밀도 키를 고른다(최소 1280x768 전후 기준).
 
-    Rules are tuned for AniVault's minimum size (1280x768). The goal is:
-    - smaller windows => compact UI (less padding, tighter radius)
-    - larger windows => spacious UI (bigger typography and card density)
+    Args:
+        width: 창 너비.
+        height: 창 높이.
+
+    Returns:
+        compact | standard | expanded | spacious.
     """
 
     # Guard against weird negative/None conversions.
@@ -89,12 +93,29 @@ def choose_density_key(*, width: int, height: int) -> DensityKey:
 
 
 def get_profile(key: DensityKey) -> DensityProfile:
-    """Get density profile by key."""
+    """키에 해당하는 DensityProfile을 반환한다.
+
+    Args:
+        key: 밀도 키.
+
+    Returns:
+        프로필 인스턴스.
+    """
 
     return _PROFILES[key]
 
 
 def clamp_int(value: float, *, minimum: int, maximum: int) -> int:
+    """실수를 반올림한 뒤 [minimum, maximum]으로 자른다.
+
+    Args:
+        value: 원본 값.
+        minimum: 하한.
+        maximum: 상한.
+
+    Returns:
+        정수.
+    """
     v = int(round(value))
     return max(minimum, min(maximum, v))
 
@@ -102,7 +123,17 @@ def clamp_int(value: float, *, minimum: int, maximum: int) -> int:
 def scaled_int(
     base: int, multiplier: float, *, minimum: int | None = None, maximum: int | None = None
 ) -> int:
-    """Scale an integer with optional clamping."""
+    """정수 base에 배율을 곱하고 선택적으로 자른다.
+
+    Args:
+        base: 기준 픽셀.
+        multiplier: 곱할 배율.
+        minimum: 선택 하한.
+        maximum: 선택 상한.
+
+    Returns:
+        스케일된 정수.
+    """
 
     v = int(round(base * multiplier))
     if minimum is not None:

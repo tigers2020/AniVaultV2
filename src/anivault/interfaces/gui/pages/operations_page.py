@@ -1,4 +1,9 @@
-"""Operations page: structure preview, context cards, execution, and logs."""
+"""operations_page.py
+
+폴더 구조 미리보기·실행 카드·로그 두 열 페이지.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
@@ -14,9 +19,19 @@ from anivault.interfaces.gui.presenters import OperationsPresenter
 
 
 class OperationsPage(QWidget):
-    """Operations: folder structure list + execution card + log list (two-col)."""
+    """구조 목록 + 실행 + 로그."""
 
     def __init__(self, parent=None, presenter: OperationsPresenter | None = None):
+        """Presenter를 연결하고 레이아웃을 구성한다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+            presenter: 외부 주입 Presenter. None이면 자체 생성.
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         self._presenter = presenter if presenter is not None else OperationsPresenter(parent=self)
         if presenter is not None:
@@ -52,6 +67,14 @@ class OperationsPage(QWidget):
         layout.addWidget(scroll)
 
     def _build_pipeline_context_card(self) -> QFrame:
+        """파이프라인 단계 StepRow 카드를 만든다.
+
+        Args:
+            self: 이 위젯.
+
+        Returns:
+            QFrame 카드.
+        """
         card = QFrame()
         card.setStyleSheet(theme.sidebar_card())
         card_layout = QVBoxLayout(card)
@@ -73,6 +96,14 @@ class OperationsPage(QWidget):
         return card
 
     def _build_output_pattern_card(self) -> QFrame:
+        """출력 패턴·Pill 안내 카드를 만든다.
+
+        Args:
+            self: 이 위젯.
+
+        Returns:
+            QFrame 카드.
+        """
         card = QFrame()
         card.setStyleSheet(theme.sidebar_footer())
         card_layout = QVBoxLayout(card)

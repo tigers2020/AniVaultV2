@@ -1,4 +1,9 @@
-"""Main shell: Sidebar + Topbar + QStackedWidget(pages area)."""
+"""main_shell.py
+
+Sidebar + Topbar + QStackedWidget 페이지 영역.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QStackedWidget, QVBoxLayout, QWidget
@@ -7,11 +12,20 @@ from anivault.interfaces.gui.components.organisms import Sidebar, Topbar
 
 
 class MainShell(QWidget):
-    """Sidebar (fixed width) + main content (topbar + stacked pages)."""
+    """고정 너비 사이드바와 메인(탑바+스택)."""
 
     tab_clicked = Signal(str)
 
     def __init__(self, parent=None):
+        """사이드바·탑바·스택을 가로로 배치한다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -29,20 +43,73 @@ class MainShell(QWidget):
         layout.addWidget(main, 1)
 
     def _on_tab_clicked(self, tab_id: str) -> None:
+        """사이드바 활성 탭을 맞추고 tab_clicked를보낸다.
+
+        Args:
+            self: 이 위젯.
+            tab_id: 탭 식별자.
+
+        Returns:
+            None.
+        """
         self._sidebar.set_active_tab(tab_id)
         self.tab_clicked.emit(tab_id)
 
     def set_topbar_page(self, title: str, description: str) -> None:
+        """탑바 제목·설명을 바꾼다.
+
+        Args:
+            self: 이 위젯.
+            title: 페이지 제목.
+            description: 부제.
+
+        Returns:
+            None.
+        """
         self._topbar.set_page(title, description)
 
     def add_page(self, widget: QWidget) -> None:
+        """스택에 페이지 위젯을 추가한다.
+
+        Args:
+            self: 이 위젯.
+            widget: 페이지 루트.
+
+        Returns:
+            None.
+        """
         self._stack.addWidget(widget)
 
     def set_current_page(self, index: int) -> None:
+        """스택 현재 인덱스를 설정한다.
+
+        Args:
+            self: 이 위젯.
+            index: QStackedWidget 인덱스.
+
+        Returns:
+            None.
+        """
         self._stack.setCurrentIndex(index)
 
     def topbar(self) -> Topbar:
+        """탑바 위젯을 반환한다.
+
+        Args:
+            self: 이 위젯.
+
+        Returns:
+            Topbar.
+        """
         return self._topbar
 
     def sidebar(self) -> Sidebar:
+        """사이드바 위젯을 반환한다.
+
+        Args:
+            self: 이 위젯.
+
+        Returns:
+            Sidebar.
+        """
         return self._sidebar

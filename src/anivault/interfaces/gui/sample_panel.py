@@ -1,4 +1,9 @@
-"""Sample panel window for visual QA of component spacing and layout."""
+"""sample_panel.py
+
+Atoms/Molecules/Organisms 컴포넌트의 간격·레이아웃을 시각적으로 점검하는 샘플 패널 앱.
+
+Author: Pom Kim
+"""
 
 import sys
 
@@ -63,6 +68,15 @@ from anivault.interfaces.gui.themes import load_saved_theme
 
 
 def _section_title(text: str, note: str) -> QWidget:
+    """섹션 제목·설명·구분선을 담은 위젯을 만든다.
+
+    Args:
+        text: 섹션 제목.
+        note: 부가 설명.
+
+    Returns:
+        구성된 QWidget.
+    """
     wrapper = QWidget()
     layout = QVBoxLayout(wrapper)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -81,6 +95,18 @@ def _section_title(text: str, note: str) -> QWidget:
 
 
 def _add_section(layout: QVBoxLayout, name: str, title: str, note: str, widget: QWidget) -> None:
+    """이름이 있는 프레임으로 섹션을 감싸 부모 수직 레이아웃에 추가한다.
+
+    Args:
+        layout: 루트 수직 레이아웃.
+        name: objectName으로 쓸 식별자.
+        title: 섹션 제목.
+        note: 섹션 설명.
+        widget: 섹션 본문 위젯.
+
+    Returns:
+        None.
+    """
     section = QFrame()
     section.setObjectName(name)
     section_layout = QVBoxLayout(section)
@@ -92,6 +118,14 @@ def _add_section(layout: QVBoxLayout, name: str, title: str, note: str, widget: 
 
 
 def _sample_rows() -> list[PipelineRow]:
+    """데모용 파이프라인 행 두 건을 반환한다.
+
+    Args:
+        없음.
+
+    Returns:
+        PipelineRow 목록.
+    """
     return [
         PipelineRow(
             original_file="[SubsPlease] Frieren - 01 (1080p).mkv",
@@ -129,6 +163,14 @@ def _sample_rows() -> list[PipelineRow]:
 
 
 def _atoms_preview() -> QWidget:
+    """Atom 컴포넌트 미리보기 위젯을 구성한다.
+
+    Args:
+        없음.
+
+    Returns:
+        프리뷰 QFrame.
+    """
     box = QFrame()
     layout = QVBoxLayout(box)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -182,6 +224,14 @@ def _atoms_preview() -> QWidget:
 
 
 def _molecules_preview() -> QWidget:
+    """Molecule 컴포넌트 미리보기 위젯을 구성한다.
+
+    Args:
+        없음.
+
+    Returns:
+        프리뷰 QFrame.
+    """
     box = QFrame()
     layout = QVBoxLayout(box)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -246,6 +296,14 @@ def _molecules_preview() -> QWidget:
 
 
 def _organisms_preview() -> QWidget:
+    """Organism 컴포넌트 미리보기 위젯을 구성한다.
+
+    Args:
+        없음.
+
+    Returns:
+        프리뷰 QFrame.
+    """
     box = QFrame()
     layout = QVBoxLayout(box)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -309,7 +367,14 @@ def _organisms_preview() -> QWidget:
 
 
 def build_sample_panel_widget() -> QWidget:
-    """Build a scrollable panel containing atom/molecule/organism previews."""
+    """Atom/Molecule/Organism 프리뷰가 담긴 스크롤 가능한 루트 위젯을 만든다.
+
+    Args:
+        없음.
+
+    Returns:
+        구성된 QWidget.
+    """
     root = QWidget()
     root_layout = QVBoxLayout(root)
     root_layout.setContentsMargins(20, 20, 20, 20)
@@ -360,9 +425,18 @@ def build_sample_panel_widget() -> QWidget:
 
 
 class SamplePanelWindow(QMainWindow):
-    """Window wrapper for sample panel viewer."""
+    """샘플 패널을 중앙 위젯으로 두는 메인 윈도우."""
 
     def __init__(self, parent=None) -> None:
+        """창 제목·크기·중앙 위젯을 초기화한다.
+
+        Args:
+            self: 이 윈도우 인스턴스.
+            parent: Qt 부모.
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         self.setWindowTitle("AniVault V2 - Sample Panel")
         self.resize(1520, 980)
@@ -371,7 +445,14 @@ class SamplePanelWindow(QMainWindow):
 
 
 def run() -> None:
-    """Run sample panel app."""
+    """테마·스타일을 적용한 뒤 샘플 패널 QApplication을 실행한다.
+
+    Args:
+        없음.
+
+    Returns:
+        None.
+    """
     load_saved_theme()
     app = QApplication(sys.argv)
     app.setStyleSheet(global_stylesheet())

@@ -1,6 +1,8 @@
-"""
-Composition root for GUI. Creates presenters and use cases.
-Start simple; expand when DI container is needed.
+"""composition.py
+
+GUI 조립 루트: Presenter·유스케이스·어댑터 생성. DI 컨테이너 전 단계.
+
+Author: Pom Kim
 """
 
 import os
@@ -29,7 +31,14 @@ if TYPE_CHECKING:
 def create_organizer_page(
     progress_dialog: "ProgressDialog | None" = None,
 ) -> OrganizerPage:
-    """Create OrganizerPage with presenter and shared model."""
+    """스캔·파싱·매칭 유스케이스와 OrganizerPresenter를 주입한 페이지를 만든다.
+
+    Args:
+        progress_dialog: 진행 대화상자(선택).
+
+    Returns:
+        OrganizerPage.
+    """
     model = PipelineTableModel()
     file_repo = FsFileRepository()
     scan_execute = make_execute(file_repo)
@@ -54,10 +63,24 @@ def create_organizer_page(
 
 
 def create_operations_page() -> OperationsPage:
-    """Create OperationsPage with presenter."""
+    """OperationsPresenter만 주입한 OperationsPage를 만든다.
+
+    Args:
+        없음.
+
+    Returns:
+        OperationsPage.
+    """
     return OperationsPage(presenter=OperationsPresenter())
 
 
 def create_settings_page() -> SettingsPage:
-    """Create SettingsPage with presenter."""
+    """SettingsPresenter를 주입한 SettingsPage를 만든다.
+
+    Args:
+        없음.
+
+    Returns:
+        SettingsPage.
+    """
     return SettingsPage(presenter=SettingsPresenter())

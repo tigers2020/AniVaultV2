@@ -1,11 +1,16 @@
-"""Theme base: ColorPalette and BaseTheme for QSS generation."""
+"""base.py
+
+테마 기반: ColorPalette와 QSS 생성용 상수.
+
+Author: Pom Kim
+"""
 
 from dataclasses import dataclass
 
 
 @dataclass
 class ColorPalette:
-    """Color palette for a theme."""
+    """앱 UI 색상 팔레트."""
 
     bg: str
     panel: str
@@ -26,6 +31,14 @@ class ColorPalette:
     card_bg: str
 
     def to_dict(self) -> dict[str, str]:
+        """팔레트 필드를 문자열 dict로 반환한다.
+
+        Args:
+            self: 이 팔레트.
+
+        Returns:
+            키→색상 문자열.
+        """
         d = {
             "bg": self.bg,
             "panel": self.panel,

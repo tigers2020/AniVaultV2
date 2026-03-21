@@ -1,4 +1,9 @@
-"""Base worker: QObject + QThread. Runs use case in background, emits signals."""
+"""base_use_case_worker.py
+
+QObject + QThread에서 유스케이스 실행·시그널 보고.
+
+Author: Pom Kim
+"""
 
 from collections.abc import Callable
 from threading import Event
@@ -11,10 +16,7 @@ from anivault.interfaces.gui.workers.worker_signals import WorkerSignals
 
 
 class UseCaseWorker(QObject):
-    """
-    Runs a use case callable in a QThread.
-    Emits progress/result/error/cancelled via WorkerSignals.
-    """
+    """유스케이스 callable을 QThread에서 돌리고 WorkerSignals로 알린다."""
 
     def __init__(
         self,
@@ -23,6 +25,18 @@ class UseCaseWorker(QObject):
         signals: WorkerSignals | None = None,
         parent: QObject | None = None,
     ) -> None:
+        """실행 함수·입력 DTO·시그널 객체를 저장한다.
+
+        Args:
+            self: 이 Worker.
+            execute_fn: (input_dto, progress_cb, cancel_token) -> result.
+            input_dto: 유스케이스 입력.
+            signals: 외부에서 공유할 시그널. None이면 새로 생성.
+            parent: Qt 부모.
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         self._execute_fn = execute_fn
         self._input_dto = input_dto
@@ -30,18 +44,48 @@ class UseCaseWorker(QObject):
         self._cancel = Event()
 
     def signals(self) -> WorkerSignals:
+        """이 Worker가 사용하는 WorkerSignals를 반환한다.
+
+        Args:
+            self: 이 Worker.
+
+        Returns:
+            WorkerSignals 인스턴스.
+        """
         return self._signals
 
     def cancel(self) -> None:
-        """Request cancellation. Use case should check cancel token."""
+        """취소 이벤트를 설정한다. 유스케이스는 토큰을 폴링해야 한다.
+
+        Args:
+            self: 이 Worker.
+
+        Returns:
+            None.
+        """
         self._cancel.set()
 
     def run(self) -> None:
-        """Entry point for worker thread. Called when QThread starts."""
+        """스레드 시작 시 호출되는 진입점. 실행 후 finished를 emit한다.
+
+        Args:
+            self: 이 Worker.
+
+        Returns:
+            None.
+        """
         self._signals.started.emit()
         try:
 
             def progress_cb(event: ProgressEvent) -> None:
+                """취소 중이면 progress를 보내지 않는다.
+
+                Args:
+                    event: 진행 이벤트.
+
+                Returns:
+                    None.
+                """
                 if self._cancel.is_set():
                     return
                 self._signals.progress.emit(event)
@@ -68,9 +112,16 @@ def run_worker(
     on_error: Callable[[Exception], None] | None = None,
     on_progress: Callable[[ProgressEvent], None] | None = None,
 ) -> QThread:
-    """
-    Start worker in a new QThread. Returns the thread (caller may hold ref).
-    Connect on_result, on_error, on_progress to worker signals.
+    """새 QThread에서 worker를 시작하고 시그널을 연결한다.
+
+    Args:
+        worker: UseCaseWorker 인스턴스.
+        on_result: result 시그널 슬롯.
+        on_error: error 시그널 슬롯.
+        on_progress: progress 시그널 슬롯.
+
+    Returns:
+        시작된 QThread(참조 유지 권장).
     """
     thread = QThread()
     worker.moveToThread(thread)

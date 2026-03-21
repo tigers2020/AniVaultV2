@@ -1,4 +1,9 @@
-"""Organizer page: StatsGrid + PipelineResultPanel (organisms + templates)."""
+"""organizer_page.py
+
+StatsGrid + PipelineResultPanel. 데이터는 OrganizerPresenter.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QShowEvent
@@ -12,7 +17,7 @@ from anivault.interfaces.gui.templates import PipelineResultPanel
 
 
 class OrganizerPage(QWidget):
-    """Organizer: stats + pipeline table + poster grid. Data via OrganizerPresenter."""
+    """통계·스캔 바·파이프라인 결과 패널."""
 
     def __init__(
         self,
@@ -20,6 +25,17 @@ class OrganizerPage(QWidget):
         model: PipelineTableModel | None = None,
         presenter: OrganizerPresenter | None = None,
     ):
+        """모델·Presenter·패널을 연결한다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+            model: 파이프라인 테이블 모델.
+            presenter: OrganizerPresenter. None이면 자체 생성.
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         self._auto_scan_done = False
         self._model = model if model is not None else PipelineTableModel()
@@ -57,11 +73,26 @@ class OrganizerPage(QWidget):
         layout.addLayout(content_layout, 1)
 
     def _on_scan_path_changed(self, path: str) -> None:
-        """Persist source_path to settings when user changes Organizer scan path."""
+        """Organizer 스캔 경로 변경 시 설정에 저장한다.
+
+        Args:
+            self: 이 위젯.
+            path: 새 소스 경로.
+
+        Returns:
+            None.
+        """
         save_all({"scan_build": {"source_path": path or ""}})
 
     def _update_stats(self) -> None:
-        """Refresh stats grid from pipeline model (scanned, parsed, tmdb, planned)."""
+        """모델에서 스캔·파싱·TMDB·계획 수를 집계해 StatsGrid에 넘긴다.
+
+        Args:
+            self: 이 위젯.
+
+        Returns:
+            None.
+        """
         rows: list[PipelineRow] = self._model.flat_rows()
         scanned = len(rows)
         parsed = sum(1 for r in rows if (r.parsed_title or "").strip())
@@ -75,7 +106,15 @@ class OrganizerPage(QWidget):
         )
 
     def showEvent(self, event: QShowEvent) -> None:
-        """Reload source_path from settings; auto-scan once with delay so UI is ready."""
+        """설정에서 경로를 다시 읽고, 최초 한 번 자동 스캔을 예약한다.
+
+        Args:
+            self: 이 위젯.
+            event: 표시 이벤트.
+
+        Returns:
+            None.
+        """
         super().showEvent(event)
         source_path = load_all().get("scan_build", {}).get("source_path", "") or ""
         self._scan_bar.set_path(source_path)

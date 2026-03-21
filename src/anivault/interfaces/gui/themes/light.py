@@ -1,13 +1,27 @@
-"""Light theme: bright palette for daytime use."""
+"""light.py
+
+주간용 밝은 팔레트 라이트 테마.
+
+Author: Pom Kim
+"""
 
 from anivault.interfaces.gui.themes.base import ColorPalette
 from anivault.interfaces.gui.themes.dark import DarkTheme
 
 
 class LightTheme(DarkTheme):
-    """Light theme with white/light gray palette."""
+    """DarkTheme QSS 구조를 유지하고 팔레트만 밝게 바꾼다."""
 
     def __init__(self, *, scale: float = 1.0) -> None:
+        """라이트 ColorPalette를 설정하고 colors를 갱신한다.
+
+        Args:
+            self: 이 인스턴스.
+            scale: 반응형 타이포·메트릭 배율.
+
+        Returns:
+            None.
+        """
         super().__init__(scale=scale)
         self.palette = ColorPalette(
             bg="#f5f6fa",
@@ -31,7 +45,14 @@ class LightTheme(DarkTheme):
         self.colors = self.palette.to_dict()
 
     def content_view_text_panel_overlay(self) -> str:
-        """Slightly softer overlay on light backgrounds."""
+        """밝은 배경용 약한 오버레이 QSS를 반환한다.
+
+        Args:
+            self: 이 인스턴스.
+
+        Returns:
+            QSS 문자열.
+        """
         r = self._frame_radius_px
         return f"""
         QFrame#content_view_text_panel {{

@@ -1,4 +1,9 @@
-"""Settings persistence. Load/save to ~/.anivault/config.json."""
+"""settings_storage.py
+
+~/.anivault/config.json 로드·저장. API 키는 config에 넣지 않는다.
+
+Author: Pom Kim
+"""
 
 import json
 from contextlib import suppress
@@ -48,7 +53,14 @@ DEFAULT_PIPELINE_RESULTS = {
 
 
 def get_defaults() -> dict[str, Any]:
-    """Return default settings for path_rules, parse_tmdb, scan_build, ui_state."""
+    """path_rules·parse_tmdb·scan_build·ui_state 기본 dict를 반환한다.
+
+    Args:
+        없음.
+
+    Returns:
+        기본 설정 딕셔너리.
+    """
     return {
         "path_rules": dict(DEFAULT_PATH_RULES),
         "parse_tmdb": dict(DEFAULT_PARSE_TMDB),
@@ -60,12 +72,27 @@ def get_defaults() -> dict[str, Any]:
 
 
 def _ensure_dir() -> None:
+    """설정 디렉터리를 만든다.
+
+    Args:
+        없음.
+
+    Returns:
+        None.
+    """
     with suppress(OSError):
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _default_result() -> dict[str, Any]:
-    """Return default merged config (theme/path_rules/parse_tmdb/scan_build/ui_state)."""
+    """theme·각 그룹이 채워진 병합 기본 설정을 반환한다.
+
+    Args:
+        없음.
+
+    Returns:
+        기본 전체 설정.
+    """
     return {
         "theme": "dark",
         "path_rules": dict(DEFAULT_PATH_RULES),
@@ -78,7 +105,14 @@ def _default_result() -> dict[str, Any]:
 
 
 def _safe_load_config_data() -> Any:
-    """Safely load config.json, returning raw decoded JSON (or None)."""
+    """config.json을 읽어 JSON으로 파싱한다.
+
+    Args:
+        없음.
+
+    Returns:
+        dict 등 파싱 결과 또는 실패 시 None.
+    """
     with suppress(OSError, ValueError):
         return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     return None
@@ -90,7 +124,16 @@ def _merge_string_key_group(
     loaded_data_group: Any,
     keys: tuple[str, ...],
 ) -> None:
-    """Update target_group[key] = str(loaded_data_group[key]) when key exists."""
+    """로드된 dict에서 지정 키만 str로 target_group에 덮어쓴다.
+
+    Args:
+        target_group: 갱신할 대상.
+        loaded_data_group: 파일에서 온 하위 dict.
+        keys: 허용 키 튜플.
+
+    Returns:
+        None.
+    """
     if not isinstance(loaded_data_group, dict):
         return
     for key in keys:
@@ -102,7 +145,15 @@ def _migrate_scan_build_target_path_to_target_root(
     result: dict[str, Any],
     data: dict[str, Any],
 ) -> None:
-    """If path_rules.target_root was never stored, adopt legacy scan_build.target_path."""
+    """구버전 scan_build.target_path를 path_rules.target_root로 승격한다.
+
+    Args:
+        result: 병합 중 결과 dict.
+        data: 파일에서 읽은 원본.
+
+    Returns:
+        None.
+    """
     path_loaded = data.get("path_rules")
     path_has_root = isinstance(path_loaded, dict) and "target_root" in path_loaded
     if path_has_root:
@@ -116,7 +167,15 @@ def _migrate_scan_build_target_path_to_target_root(
 
 
 def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
-    """Merge loaded config into the existing result dict in-place."""
+    """로드된 dict를 result에 제자리 병합한다.
+
+    Args:
+        result: 기본에서 시작한 결과.
+        data: 파일 내용.
+
+    Returns:
+        None.
+    """
     if "theme" in data:
         result["theme"] = str(data["theme"])
 
@@ -173,7 +232,14 @@ def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
 
 
 def load_all() -> dict[str, Any]:
-    """Load full config. Returns merged dict with defaults for missing keys."""
+    """전체 설정을 읽어 기본값과 병합한다.
+
+    Args:
+        없음.
+
+    Returns:
+        병합된 설정 dict.
+    """
     result = _default_result()
     if not CONFIG_FILE.exists():
         return result
@@ -187,7 +253,14 @@ def load_all() -> dict[str, Any]:
 
 
 def save_all(data: dict[str, Any]) -> None:
-    """Save config. Merges with existing file to preserve theme and other keys."""
+    """부분 dict를 기존 파일과 병합해 저장한다.
+
+    Args:
+        data: 갱신할 키·하위 dict.
+
+    Returns:
+        None.
+    """
     _ensure_dir()
     to_merge = dict(data)
     parse_tmdb = to_merge.get("parse_tmdb")
