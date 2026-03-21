@@ -116,29 +116,13 @@ class FsFileRepository(FileRepository):
             return []
         result: list[Path] = []
         ext_set = {e.lstrip(".").lower() for e in (extensions or ())}
-
-        def _collect(base: Path) -> None:
-            """한 디렉터리에서 파일을 result에 누적한다.
-
-            Args:
-                base: 현재 디렉터리.
-
-            Returns:
-                None.
-            """
-            try:
-                for p in base.iterdir():
-                    if p.is_dir():
-                        if recursive:
-                            _collect(p)
-                    elif p.is_file() and (not ext_set or p.suffix.lstrip(".").lower() in ext_set):
-                        result.append(p)
-                        if progress_callback and len(result) % _PROGRESS_INTERVAL == 0:
-                            progress_callback(len(result), str(p))
-            except OSError:
-                pass
-
-        _collect(directory)
+        _walk_collect_files(
+            directory,
+            recursive=recursive,
+            ext_set=ext_set,
+            result=result,
+            progress_callback=progress_callback,
+        )
         if progress_callback and result:
             progress_callback(len(result), str(result[-1]))
         if sort:
