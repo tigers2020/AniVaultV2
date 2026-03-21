@@ -9,15 +9,11 @@ from threading import Event
 
 
 def execute(
-    input_dto: object,
-    progress_callback: object,
     cancel_token: Event,
 ) -> object:
     """계획을 적용한다(스텁: 빈 dict).
 
     Args:
-        input_dto: 향후 Apply 입력 DTO. 현재는 미사용 객체.
-        progress_callback: 향후 진행 콜백. 현재 무시.
         cancel_token: 설정 시 빈 dict 반환.
 
     Returns:
