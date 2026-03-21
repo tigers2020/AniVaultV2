@@ -6,6 +6,7 @@ Author: Pom Kim
 """
 
 from collections.abc import Callable
+from threading import Event
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, QThread
@@ -30,7 +31,13 @@ class OrganizerPresenter(QObject):
         pipeline_model: PipelineTableModel,
         scan_execute: Callable[[ScanInput, object, Any], ScanResult] | None = None,
         parse_execute: Callable[[ParseInput, object, Any], ParseResult] | None = None,
-        match_execute: Callable[[MatchInput, object, Any], MatchResult] | None = None,
+        match_execute: (
+            Callable[
+                [MatchInput, Callable[[ProgressEvent], None] | None, Event],
+                MatchResult,
+            ]
+            | None
+        ) = None,
         progress_dialog: "ProgressDialog | None" = None,
         parent: QObject | None = None,
     ) -> None:
