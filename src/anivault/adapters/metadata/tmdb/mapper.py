@@ -43,6 +43,9 @@ def tv_show_to_candidate(tv: Any) -> TmdbSeriesCandidateDTO:
     poster = getattr(tv, "poster_path", None)
     poster_path = str(poster) if poster else ""
 
+    backdrop = getattr(tv, "backdrop_path", None)
+    backdrop_path = str(backdrop) if backdrop else ""
+
     return TmdbSeriesCandidateDTO(
         tmdb_id=tmdb_id,
         name_ko=_as_str(getattr(tv, "name", None) or getattr(tv, "title", None)),
@@ -51,5 +54,6 @@ def tv_show_to_candidate(tv: Any) -> TmdbSeriesCandidateDTO:
         original_language=_as_str(getattr(tv, "original_language", None)),
         overview=_as_str(getattr(tv, "overview", None)),
         poster_path=poster_path,
+        backdrop_path=backdrop_path,
         popularity=popularity,
     )

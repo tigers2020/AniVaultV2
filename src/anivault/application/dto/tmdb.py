@@ -14,4 +14,5 @@ class TmdbSeriesCandidateDTO:
     original_language: str
     overview: str
     poster_path: str
+    backdrop_path: str
     popularity: float

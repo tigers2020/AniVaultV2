@@ -46,6 +46,15 @@ def _poster_url(poster_path: str) -> str:
     return f"https://image.tmdb.org/t/p/w342{p}"
 
 
+def _backdrop_url(backdrop_path: str) -> str:
+    p = (backdrop_path or "").strip()
+    if not p:
+        return ""
+    if p.startswith("http"):
+        return p
+    return f"https://image.tmdb.org/t/p/w780{p}"
+
+
 def _select_best_candidate(
     candidates: list[TmdbSeriesCandidateDTO],
     query: str,
@@ -160,6 +169,8 @@ def make_execute(
             original = (best.original_name or "").strip()
             poster_path_raw = (best.poster_path or "").strip()
             poster = _poster_url(poster_path_raw)
+            backdrop_path_raw = (best.backdrop_path or "").strip()
+            backdrop = _backdrop_url(backdrop_path_raw)
             tid = str(best.tmdb_id)
             tmdb_year = _year_prefix(best.first_air_date)
 
@@ -172,11 +183,13 @@ def make_execute(
                     tmdb_korean_title_group=korean or prev.tmdb_korean_title_group,
                     tmdb_series_id=tid,
                     tmdb_poster_path=poster_path_raw or prev.tmdb_poster_path,
+                    tmdb_backdrop_path=backdrop_path_raw or prev.tmdb_backdrop_path,
                     year=tmdb_year if tmdb_year else prev.year,
                     season=prev.season,
                     resolution=prev.resolution,
                     status="TMDB 매칭됨" if korean else prev.status,
                     poster_url=poster or prev.poster_url,
+                    backdrop_url=backdrop or prev.backdrop_url,
                     target_path=prev.target_path,
                 )
 

@@ -13,11 +13,13 @@ class MatchFileRow:
     tmdb_korean_title_group: str
     tmdb_series_id: str
     tmdb_poster_path: str
+    tmdb_backdrop_path: str
     year: str
     season: str
     resolution: str
     status: str
     poster_url: str
+    backdrop_url: str
     target_path: str
 
 
