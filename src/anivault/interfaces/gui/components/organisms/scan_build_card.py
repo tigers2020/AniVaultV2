@@ -1,4 +1,9 @@
-"""Scan/Build card: Source input + TMDB/Unknown selects + Scan·Build buttons."""
+"""scan_build_card.py
+
+소스 입력 + TMDB/Unknown 콤보 + 스캔·빌드 버튼 줄.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout
@@ -9,12 +14,21 @@ from anivault.interfaces.gui.components.molecules import PanelHeader, PathSelect
 
 
 class ScanBuildCard(QFrame):
-    """Pipeline controls: inputs and step buttons. Buttons only collect input + emit; no step logic."""
+    """파이프라인 입력·버튼만 모음. 로직은 Presenter/Worker."""
 
     scan_clicked = Signal(str)
     settings_changed = Signal()
 
     def __init__(self, parent=None):
+        """필드·시그널·버튼을 배치한다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -59,10 +73,26 @@ class ScanBuildCard(QFrame):
         self.setStyleSheet(theme.card_panel())
 
     def _on_scan(self) -> None:
+        """소스 경로로 scan_clicked를보낸다.
+
+        Args:
+            self: 이 위젯.
+
+        Returns:
+            None.
+        """
         path = self._source.path()
         self.scan_clicked.emit(path)
 
     def get_values(self) -> dict[str, str]:
+        """현재 폼 값을 dict로 반환한다.
+
+        Args:
+            self: 이 위젯.
+
+        Returns:
+            source_path, tmdb_mode, unknown_mode.
+        """
         return {
             "source_path": self._source.path(),
             "tmdb_mode": self._tmdb_mode.currentText(),
@@ -70,6 +100,15 @@ class ScanBuildCard(QFrame):
         }
 
     def set_values(self, data: dict[str, str]) -> None:
+        """dict 값으로 필드를 채운다(시그널 일시 차단).
+
+        Args:
+            self: 이 위젯.
+            data: 키별 문자열.
+
+        Returns:
+            None.
+        """
         self.blockSignals(True)
         try:
             if "source_path" in data:

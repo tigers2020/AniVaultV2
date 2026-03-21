@@ -1,4 +1,9 @@
-"""Folder structure preview: list of path items."""
+"""folder_structure_preview.py
+
+폴더 구조 샘플 경로 목록.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
@@ -8,9 +13,18 @@ from anivault.interfaces.gui.components.molecules.path_box import PathBox
 
 
 class FolderStructurePreview(QFrame):
-    """List of folder path items (resolution + path)."""
+    """해상도 라벨 + PathBox 항목 리스트."""
 
     def __init__(self, parent=None):
+        """데모 경로 블록을 채운다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

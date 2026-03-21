@@ -1,4 +1,9 @@
-"""Stats grid: 4 StatCards (Scanned Files, Parsed Titles, TMDB Matches, Planned Moves)."""
+"""stats_grid.py
+
+스캔·파싱·TMDB 매칭·플랜 건수를 네 장의 StatCard로 보여 주는 그리드.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import QGridLayout, QSizePolicy, QWidget
@@ -7,14 +12,30 @@ from anivault.interfaces.gui.components.molecules import StatCard
 
 
 def _fmt(n: int) -> str:
-    """Format integer with thousands separator."""
+    """정수를 천 단위 구분 기호가 있는 문자열로 포맷한다.
+
+    Args:
+        n: 포맷할 정수.
+
+    Returns:
+        콤마가 들어간 문자열.
+    """
     return f"{n:,}"
 
 
 class StatsGrid(QWidget):
-    """Four stat cards in a row. Update via set_stats()."""
+    """한 줄에 네 개의 StatCard. set_stats로 값 갱신."""
 
     def __init__(self, parent=None):
+        """그리드 레이아웃·카드 위젯·고정 높이 동기화를 초기화한다.
+
+        Args:
+            self: 이 그리드 인스턴스.
+            parent: Qt 부모.
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QGridLayout(self)
         layout.setSpacing(18)
@@ -39,14 +60,32 @@ class StatsGrid(QWidget):
         tmdb_matches: int = 0,
         planned: int = 0,
     ) -> None:
-        """Update card values from pipeline counts."""
+        """파이프라인 집계 값으로 네 장의 카드 텍스트를 갱신한다.
+
+        Args:
+            self: 이 그리드 인스턴스.
+            scanned: 스캔된 파일 수.
+            parsed: 파싱된 타이틀 수.
+            tmdb_matches: TMDB 매칭 수.
+            planned: 플랜된 이동 수.
+
+        Returns:
+            None.
+        """
         self._cards[0].set_value(_fmt(scanned))
         self._cards[1].set_value(_fmt(parsed))
         self._cards[2].set_value(_fmt(tmdb_matches))
         self._cards[3].set_value(_fmt(planned))
 
     def _sync_fixed_height(self) -> None:
-        """Keep row height aligned to style/font changes."""
+        """폰트·스타일에 맞춰 그리드 행 고정 높이를 sizeHint로 맞춘다.
+
+        Args:
+            self: 이 그리드 인스턴스.
+
+        Returns:
+            None.
+        """
         h = int(self.layout().sizeHint().height()) if self.layout() is not None else 0
         if h <= 0:
             h = int(self.sizeHint().height())
@@ -54,6 +93,15 @@ class StatsGrid(QWidget):
             self.setFixedHeight(h)
 
     def changeEvent(self, event: QEvent) -> None:
+        """폰트·스타일 변경 시 행 높이를 재동기화한다.
+
+        Args:
+            self: 이 그리드 인스턴스.
+            event: Qt 변경 이벤트.
+
+        Returns:
+            None.
+        """
         super().changeEvent(event)
         if event.type() in {
             QEvent.Type.FontChange,

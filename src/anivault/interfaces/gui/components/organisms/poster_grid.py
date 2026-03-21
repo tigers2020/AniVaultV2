@@ -1,4 +1,9 @@
-"""Poster grid: QScrollArea + QGridLayout + PosterCards. Dynamic columns by width."""
+"""poster_grid.py
+
+가로 폭에 따라 열 수가 바뀌는 QScrollArea+QGridLayout 포스터 카드 그리드.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -25,13 +30,33 @@ GRID_MARGINS = (0, 0, 0, 0)
 
 
 def _column_count(width: int, *, min_card: int, grid_spacing: int) -> int:
+    """주어진 뷰포트 너비에서 들어갈 그리드 열 개수를 계산한다.
+
+    Args:
+        width: 컨테이너 너비(픽셀).
+        min_card: 카드 최소 너비.
+        grid_spacing: 셀 간격.
+
+    Returns:
+        1 이상의 열 개수.
+    """
     return max(1, (width + grid_spacing) // (min_card + grid_spacing))
 
 
 class _GridContainer(QWidget):
-    """Container that relayouts grid when width changes."""
+    """너비·밀도 변경 시 그리드를 다시 배치하는 내부 컨테이너."""
 
     def __init__(self, min_card_width: int | None = MIN_CARD_WIDTH, parent=None):
+        """그리드 레이아웃·밀도 변경 콜백을 초기화한다.
+
+        Args:
+            self: 이 컨테이너.
+            min_card_width: 카드 최소 너비. None이면 테마 기본값 사용.
+            parent: Qt 부모.
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         self._min_card_width = min_card_width
         # Outer column: grid (intrinsic height) + stretch below. Without this,
@@ -52,12 +77,29 @@ class _GridContainer(QWidget):
         on_density_changed(self._apply_responsive_metrics)
 
     def set_cards(self, cards: list[PosterCard]) -> None:
+        """카드 목록을 저장하고 그리드를 처음부터 다시 배치한다.
+
+        Args:
+            self: 이 컨테이너.
+            cards: PosterCard 목록.
+
+        Returns:
+            None.
+        """
         self._cards = list(cards)
         self._last_cols = 0
         self._last_width = 0
         self._relayout()
 
     def _relayout(self) -> None:
+        """현재 폭·간격·카드 수에 맞춰 그리드 셀을 채우고 최소 높이를 갱신한다.
+
+        Args:
+            self: 이 컨테이너.
+
+        Returns:
+            None.
+        """
         while self._grid.count():
             item = self._grid.takeAt(0)
             if item.widget():
@@ -104,6 +146,15 @@ class _GridContainer(QWidget):
         self._last_density_key = get_current_density_key()
 
     def resizeEvent(self, event) -> None:
+        """너비 또는 UI 밀도 키가 바뀌면 그리드를 재배치한다.
+
+        Args:
+            self: 이 컨테이너.
+            event: Qt 리사이즈 이벤트.
+
+        Returns:
+            None.
+        """
         super().resizeEvent(event)
         w = self.width()
         if w <= 0:
@@ -116,12 +167,20 @@ class _GridContainer(QWidget):
             self._relayout()
 
     def _apply_responsive_metrics(self) -> None:
+        """밀도 테마 변경 시 카드가 있으면 레이아웃을 다시 계산한다.
+
+        Args:
+            self: 이 컨테이너.
+
+        Returns:
+            None.
+        """
         if self._cards:
             self._relayout()
 
 
 class PosterGrid(QFrame):
-    """Grid of poster cards. Portrait 2:3 ratio; columns from available width."""
+    """세로형 비율 포스터 카드 그리드. 사용 가능한 너비로 열 수 결정."""
 
     def __init__(
         self,
@@ -129,6 +188,17 @@ class PosterGrid(QFrame):
         show_header: bool = True,
         parent=None,
     ):
+        """스크롤 영역·내부 그리드 컨테이너·선택적 헤더를 구성한다.
+
+        Args:
+            self: 이 그리드 위젯.
+            min_card_width: 카드 최소 너비. None이면 기본값.
+            show_header: 상단 PanelHeader 표시 여부.
+            parent: Qt 부모.
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -158,6 +228,26 @@ class PosterGrid(QFrame):
         self.setStyleSheet(theme.card_panel())
 
     def set_cards(self, cards: list[PosterCard]) -> None:
+        """기존 카드를 정리한 뒤 새 카드 목록으로 그리드를 채운다.
+
+        Args:
+            self: 이 그리드 위젯.
+            cards: 표시할 PosterCard 목록.
+
+        Returns:
+            None.
+        """
         for c in self._container._cards:
             c.deleteLater()
         self._container.set_cards(cards)
+
+    def cards(self) -> list[PosterCard]:
+        """현재 그리드에 올라간 포스터 카드 목록의 복사본을 반환한다.
+
+        Args:
+            self: 이 그리드 위젯.
+
+        Returns:
+            PosterCard 리스트 복사본.
+        """
+        return list(self._container._cards)

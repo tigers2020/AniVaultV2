@@ -1,4 +1,9 @@
-"""Appearance card: theme selection and appearance options."""
+"""appearance_card.py
+
+테마 선택·외형 옵션 카드.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QVBoxLayout
@@ -10,11 +15,20 @@ from anivault.interfaces.gui.themes import get_current_theme_name, list_themes
 
 
 class AppearanceCard(QFrame):
-    """Theme selection panel. Emits theme_changed when user selects a new theme."""
+    """테마 콤보. 선택 시 theme_changed 시그널."""
 
     theme_changed = Signal(str)
 
     def __init__(self, parent=None):
+        """테마 목록을 채우고 현재 테마를 선택한다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -44,6 +58,14 @@ class AppearanceCard(QFrame):
         self.setStyleSheet(theme.card_panel())
 
     def _on_theme_selected(self) -> None:
+        """현재 콤보 데이터로 theme_changed를보낸다.
+
+        Args:
+            self: 이 위젯.
+
+        Returns:
+            None.
+        """
         idx = self._theme_combo.currentIndex()
         if idx >= 0:
             theme_id = self._theme_combo.itemData(idx)

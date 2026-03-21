@@ -1,4 +1,9 @@
-"""Log list: Recent Activity (time + message)."""
+"""log_list.py
+
+최근 활동(시간 + 메시지) 스크롤 목록.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtWidgets import QFrame, QLabel, QScrollArea, QVBoxLayout, QWidget
 
@@ -7,9 +12,18 @@ from anivault.interfaces.gui.components.molecules import PanelHeader
 
 
 class LogList(QFrame):
-    """Scrollable list of log entries (time + message)."""
+    """로그 항목을 위에서 삽입하는 스크롤 리스트."""
 
     def __init__(self, parent=None):
+        """데모 항목으로 목록을 채운다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -40,6 +54,16 @@ class LogList(QFrame):
             self.append_entry(time_str, msg)
 
     def append_entry(self, time_str: str, message: str) -> None:
+        """새 로그 블록을 목록 맨 위에 삽입한다.
+
+        Args:
+            self: 이 위젯.
+            time_str: 시간/타임스탬프 줄.
+            message: 본문 메시지.
+
+        Returns:
+            None.
+        """
         item = QWidget()
         item_layout = QVBoxLayout(item)
         item_layout.setContentsMargins(14, 14, 14, 14)

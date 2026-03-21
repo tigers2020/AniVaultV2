@@ -1,4 +1,9 @@
-"""Parse and TMDB rules form."""
+"""parse_tmdb_form.py
+
+파일명 파싱·TMDB 검색 관련 설정 필드가 있는 설정 폼 패널.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
@@ -14,11 +19,20 @@ TMDB_MODES = [
 
 
 class ParseTmdbForm(QFrame):
-    """Parse and TMDB rules panel fields."""
+    """Parse·TMDB 규칙 입력 필드와 settings_changed 시그널."""
 
     settings_changed = Signal()
 
     def __init__(self, parent=None):
+        """폼 필드·콤보·값 변경 시그널 연결을 구성한다.
+
+        Args:
+            self: 이 폼 인스턴스.
+            parent: Qt 부모.
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -55,6 +69,14 @@ class ParseTmdbForm(QFrame):
         self.setStyleSheet(theme.card_panel())
 
     def get_values(self) -> dict[str, str]:
+        """현재 폼 값을 문자열 딕셔너리로 수집한다.
+
+        Args:
+            self: 이 폼 인스턴스.
+
+        Returns:
+            설정 키-값 맵.
+        """
         return {
             "tmdb_api_key": self._tmdb_api_key.value(),
             "ignore_tokens": self._ignore_tokens.value(),
@@ -64,6 +86,15 @@ class ParseTmdbForm(QFrame):
         }
 
     def set_values(self, data: dict[str, str]) -> None:
+        """딕셔너리 키에 해당하는 필드 값을 설정한다(시그널 일시 차단).
+
+        Args:
+            self: 이 폼 인스턴스.
+            data: 적용할 설정 맵.
+
+        Returns:
+            None.
+        """
         self.blockSignals(True)
         try:
             if "tmdb_api_key" in data:

@@ -1,4 +1,9 @@
-"""Organisms: composition of molecules/atoms."""
+"""__init__.py
+
+Organism 컴포넌트(molecules/atoms 조합) 재노출.
+
+Author: Pom Kim
+"""
 
 from anivault.interfaces.gui.components.organisms.appearance_card import AppearanceCard
 from anivault.interfaces.gui.components.organisms.compact_list_view import CompactListView

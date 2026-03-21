@@ -1,4 +1,9 @@
-"""Details pane: right-side panel showing selected row fields."""
+"""details_pane.py
+
+선택 행 필드를 보여 주는 우측 패널.
+
+Author: Pom Kim
+"""
 
 from pathlib import Path
 
@@ -10,6 +15,14 @@ from anivault.interfaces.gui.models import PipelineGroupRow, PipelineRow
 
 
 def _member_lines(group: PipelineGroupRow) -> str:
+    """그룹 멤버 파일명·시즌·해상도를 HTML 줄로 만든다.
+
+    Args:
+        group: 파이프라인 그룹 행.
+
+    Returns:
+        <br>로 이어진 HTML 조각.
+    """
     parts: list[str] = []
     for m in group.members:
         name = Path(m.original_file).name
@@ -22,9 +35,18 @@ def _member_lines(group: PipelineGroupRow) -> str:
 
 
 class DetailsPane(QFrame):
-    """Right pane: fields of selected file or group of files."""
+    """선택 파일 또는 그룹의 상세 HTML."""
 
     def __init__(self, parent=None):
+        """스크롤 영역과 내용 라벨을 구성한다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         self.setMinimumWidth(300)
         self.setMaximumWidth(480)
@@ -46,6 +68,15 @@ class DetailsPane(QFrame):
         self.setStyleSheet(theme.card_panel())
 
     def set_row(self, row: PipelineRow | PipelineGroupRow | None) -> None:
+        """선택 행에 맞춰 HTML을 갱신한다.
+
+        Args:
+            self: 이 위젯.
+            row: 단일 행·그룹 행 또는 None.
+
+        Returns:
+            None.
+        """
         if row is None:
             self._content.setText("항목을 선택하세요")
             return
@@ -69,6 +100,15 @@ class DetailsPane(QFrame):
         self._set_single_row(row)
 
     def _set_single_row(self, row: PipelineRow) -> None:
+        """단일 PipelineRow를 HTML로 표시한다.
+
+        Args:
+            self: 이 위젯.
+            row: 파이프라인 행.
+
+        Returns:
+            None.
+        """
         self._content.setText(
             f"<b>원본 파일</b><br>{row.original_file}<br><br>"
             f"<b>Parsed Title</b><br>{row.parsed_title}<br><br>"

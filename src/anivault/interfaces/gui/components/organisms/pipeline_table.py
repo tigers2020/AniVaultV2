@@ -1,4 +1,9 @@
-"""Pipeline table: QTableView + PipelineTableModel."""
+"""pipeline_table.py
+
+QTableView와 PipelineTableModel을 묶은 파이프라인 결과 테이블 organism.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHeaderView, QTableView, QVBoxLayout
@@ -9,7 +14,7 @@ from anivault.interfaces.gui.models import PipelineGroupRow, PipelineTableModel
 
 
 class PipelineTable(QFrame):
-    """Table with optional panel header. Selection feeds preview."""
+    """선택 가능한 파이프라인 테이블. 헤더 패널은 옵션."""
 
     selection_changed = Signal(int)  # row index
 
@@ -19,6 +24,17 @@ class PipelineTable(QFrame):
         model: PipelineTableModel | None = None,
         parent=None,
     ):
+        """테이블 뷰·모델·선택 시그널을 구성한다.
+
+        Args:
+            self: 이 테이블 위젯.
+            show_header: 상단 PanelHeader 표시 여부.
+            model: 외부 모델. None이면 내부 생성.
+            parent: Qt 부모.
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -44,12 +60,37 @@ class PipelineTable(QFrame):
         self.setStyleSheet(theme.card_panel())
 
     def _on_selection(self) -> None:
+        """현재 행 선택이 바뀌면 selection_changed에 행 인덱스를 emit한다.
+
+        Args:
+            self: 이 테이블 위젯.
+
+        Returns:
+            None.
+        """
         idx = self._view.currentIndex()
         if idx.isValid():
             self.selection_changed.emit(idx.row())
 
     def set_rows(self, rows: list[PipelineGroupRow]) -> None:
+        """모델에 그룹 행 목록을 설정한다.
+
+        Args:
+            self: 이 테이블 위젯.
+            rows: 파이프라인 그룹 행.
+
+        Returns:
+            None.
+        """
         self._model.set_rows(rows)
 
     def model(self) -> PipelineTableModel:
+        """내부 PipelineTableModel을 반환한다.
+
+        Args:
+            self: 이 테이블 위젯.
+
+        Returns:
+            테이블 모델 인스턴스.
+        """
         return self._model

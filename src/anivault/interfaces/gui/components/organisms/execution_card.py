@@ -1,4 +1,9 @@
-"""Execution card: Move summary + action row (Move Files, Undo, etc.)."""
+"""execution_card.py
+
+이동 요약 + Move/Undo 등 액션 행.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
@@ -9,12 +14,21 @@ from anivault.interfaces.gui.components.molecules import PanelHeader
 
 
 class ExecutionCard(QFrame):
-    """Execution panel: summary text, pills, action buttons."""
+    """실행 패널: 요약 텍스트, Pill, 버튼."""
 
     apply_clicked = Signal()
     rollback_clicked = Signal()
 
     def __init__(self, parent=None):
+        """요약·Pill·버튼 행을 구성한다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
