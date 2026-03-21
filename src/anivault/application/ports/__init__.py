@@ -1,4 +1,9 @@
-"""Application ports (protocols). Adapters implement these; use cases depend on them."""
+"""__init__.py
+
+애플리케이션 포트(Protocol) 재노출. 어댑터가 구현하고 유스케이스가 의존한다.
+
+Author: Pom Kim
+"""
 
 from anivault.application.ports.cache_port import CacheRepository
 from anivault.application.ports.file_repository import FileRepository

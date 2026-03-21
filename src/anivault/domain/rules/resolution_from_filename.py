@@ -1,4 +1,9 @@
-"""Extract display resolution from a media file path or basename (Np, 4K, WxH)."""
+"""resolution_from_filename.py
+
+미디어 파일 경로·베이스명에서 표시용 해상도(Np, 4K, WxH)를 추출·정규화한다.
+
+Author: Pom Kim
+"""
 
 from __future__ import annotations
 
@@ -13,7 +18,14 @@ _SHORT = re.compile(
 
 
 def normalize_resolution_from_raw(raw: str) -> str:
-    """Map anitopy-style or bare resolution strings to short label (e.g. 1280x720 -> 720p)."""
+    """anitopy 스타일 또는 단순 해상도 문자열을 짧은 라벨로 맞춘다.
+
+    Args:
+        raw: 원본 해상도 문자열.
+
+    Returns:
+        예: 1280x720 → 720p. 빈 입력이면 빈 문자열.
+    """
     if not raw or not raw.strip():
         return ""
     s = raw.strip()
@@ -28,6 +40,14 @@ def normalize_resolution_from_raw(raw: str) -> str:
 
 
 def _height_to_label(h: int) -> str:
+    """세로 픽셀 높이를 짧은 p 라벨로 변환한다.
+
+    Args:
+        h: 세로(또는 기준) 픽셀 수.
+
+    Returns:
+        2160p 등. 구간에 없으면 빈 문자열.
+    """
     if h >= 2160:
         return "2160p"
     if h >= 1080:
@@ -44,11 +64,27 @@ def _height_to_label(h: int) -> str:
 
 
 def _video_height(w: int, h: int) -> int:
-    """Assume width x height with landscape releases; fallback to larger dimension."""
+    """가로×세로에서 영상 높이로 쓸 값을 고른다(가로가 긴 전제).
+
+    Args:
+        w: 가로 픽셀.
+        h: 세로 픽셀.
+
+    Returns:
+        세로가 더 작거나 같으면 min, 아니면 max.
+    """
     return min(w, h) if w >= h else max(w, h)
 
 
 def _best_dimension_label(stem: str) -> str:
+    """stem에서 WxH 후보 중 가장 큰 영상 높이에 해당하는 라벨을 고른다.
+
+    Args:
+        stem: 파일명 stem(확장자 제외).
+
+    Returns:
+        720p 등 또는 WxH 문자열. 없으면 빈 문자열.
+    """
     best_h = 0
     best_pair: tuple[int, int] | None = None
     for m in _WxH.finditer(stem):
@@ -67,7 +103,14 @@ def _best_dimension_label(stem: str) -> str:
 
 
 def resolution_from_filename(filename: str) -> str:
-    """Return short resolution label from a full path or basename (Np / 4K / WxH)."""
+    """전체 경로 또는 베이스명에서 짧은 해상도 라벨을 반환한다.
+
+    Args:
+        filename: 파일 경로 또는 이름.
+
+    Returns:
+        Np/4K/WxH 기반 짧은 라벨. 없으면 빈 문자열.
+    """
     try:
         stem = Path(filename).stem
     except Exception:
