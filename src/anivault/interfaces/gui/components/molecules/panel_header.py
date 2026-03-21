@@ -1,4 +1,9 @@
-"""Panel header: title + description + optional Pill or right widget."""
+"""panel_header.py
+
+패널 제목·설명·선택적 Pill 또는 우측 위젯.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontMetrics
@@ -9,7 +14,7 @@ from anivault.interfaces.gui.components.atoms import Label, Pill
 
 
 class PanelHeader(QWidget):
-    """Title, optional description, and optional right-side pill or widget."""
+    """타이틀, 선택적 설명, 우측 Pill 또는 커스텀 위젯."""
 
     def __init__(
         self,
@@ -20,6 +25,20 @@ class PanelHeader(QWidget):
         right_widget: QWidget | None = None,
         parent=None,
     ):
+        """헤더 레이아웃을 구성한다.
+
+        Args:
+            self: 이 위젯.
+            title: 패널 제목.
+            description: 한 줄 말줄임 설명(선택).
+            pill_text: 우측 Pill 문구(right_widget 없을 때).
+            pill_color: Pill 색 키.
+            right_widget: 우측에 넣을 위젯(있으면 Pill 대신).
+            parent: 부모 위젯(선택).
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         self._description_text = description
         self._desc_lbl: Label | None = None
@@ -50,10 +69,27 @@ class PanelHeader(QWidget):
             layout.addWidget(Pill(pill_text, pill_color))
 
     def resizeEvent(self, event) -> None:
+        """크기 변경 시 설명 말줄임을 다시 적용한다.
+
+        Args:
+            self: 이 위젯.
+            event: Qt 리사이즈 이벤트.
+
+        Returns:
+            None.
+        """
         super().resizeEvent(event)
         self._apply_description_elide()
 
     def _apply_description_elide(self) -> None:
+        """설명 라벨이 있으면 가용 폭에 맞춰 오른쪽 말줄임을 적용한다.
+
+        Args:
+            self: 이 위젯.
+
+        Returns:
+            None.
+        """
         if self._desc_lbl is None:
             return
         metrics = QFontMetrics(self._desc_lbl.font())

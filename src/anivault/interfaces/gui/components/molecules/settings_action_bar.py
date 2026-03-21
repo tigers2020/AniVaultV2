@@ -1,4 +1,9 @@
-"""Settings action bar: Save, Reset, Load buttons (molecule)."""
+"""settings_action_bar.py
+
+Save / Reset / Load 버튼 한 줄.
+
+Author: Pom Kim
+"""
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QWidget
@@ -7,13 +12,22 @@ from anivault.interfaces.gui.components.atoms import Button
 
 
 class SettingsActionBar(QWidget):
-    """Save/Reset/Load button row. Emits signals only."""
+    """설정 저장·되돌리기·불러오기 시그널만보낸다."""
 
     save_clicked = Signal()
     reset_clicked = Signal()
     load_clicked = Signal()
 
     def __init__(self, parent=None):
+        """버튼 행을 구성한다.
+
+        Args:
+            self: 이 위젯.
+            parent: 부모 위젯(선택).
+
+        Returns:
+            None.
+        """
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

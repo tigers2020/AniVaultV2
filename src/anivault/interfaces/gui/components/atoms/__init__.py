@@ -1,4 +1,9 @@
-"""Atoms: smallest UI building blocks."""
+"""__init__.py
+
+Atom 컴포넌트: 최소 UI 블록 재노출.
+
+Author: Pom Kim
+"""
 
 from anivault.interfaces.gui.components.atoms.badge import Badge
 from anivault.interfaces.gui.components.atoms.button import Button

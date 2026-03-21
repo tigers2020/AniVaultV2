@@ -1,4 +1,9 @@
-"""Molecules: composition of atoms."""
+"""__init__.py
+
+Atom 조합 분자(molecule) 컴포넌트 재노출.
+
+Author: Pom Kim
+"""
 
 from anivault.interfaces.gui.components.molecules.brand import Brand
 from anivault.interfaces.gui.components.molecules.form_field import FormField
