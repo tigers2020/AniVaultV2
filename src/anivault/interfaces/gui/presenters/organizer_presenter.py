@@ -111,11 +111,13 @@ class OrganizerPresenter(QObject):
                     tmdb_korean_title_group="",
                     tmdb_series_id="",
                     tmdb_poster_path="",
+                    tmdb_backdrop_path="",
                     year="",
                     season="",
                     resolution=res,
                     status="스캔됨",
                     poster_url="",
+                    backdrop_url="",
                     target_path="",
                 )
             )
@@ -170,11 +172,13 @@ class OrganizerPresenter(QObject):
                         tmdb_korean_title_group=row.tmdb_korean_title_group,
                         tmdb_series_id=row.tmdb_series_id,
                         tmdb_poster_path=row.tmdb_poster_path,
+                        tmdb_backdrop_path=row.tmdb_backdrop_path,
                         year=row.year,
                         season=row.season,
                         resolution=row.resolution,
                         status=row.status,
                         poster_url=row.poster_url,
+                        backdrop_url=row.backdrop_url,
                         target_path=row.target_path,
                     )
                 )
@@ -188,11 +192,13 @@ class OrganizerPresenter(QObject):
                         tmdb_korean_title_group=row.tmdb_korean_title_group,
                         tmdb_series_id=row.tmdb_series_id,
                         tmdb_poster_path=row.tmdb_poster_path,
+                        tmdb_backdrop_path=row.tmdb_backdrop_path,
                         year=p.year,
                         season=p.season,
                         resolution=merged_res,
                         status="파싱됨",
                         poster_url=row.poster_url,
+                        backdrop_url=row.backdrop_url,
                         target_path=row.target_path,
                     )
                 )
@@ -270,11 +276,13 @@ class OrganizerPresenter(QObject):
             tmdb_korean_title_group=row.tmdb_korean_title_group,
             tmdb_series_id=row.tmdb_series_id,
             tmdb_poster_path=row.tmdb_poster_path,
+            tmdb_backdrop_path=row.tmdb_backdrop_path,
             year=row.year,
             season=row.season,
             resolution=row.resolution,
             status=row.status,
             poster_url=row.poster_url,
+            backdrop_url=row.backdrop_url,
             target_path=row.target_path,
         )
 
@@ -286,11 +294,13 @@ class OrganizerPresenter(QObject):
             tmdb_korean_title_group=m.tmdb_korean_title_group,
             tmdb_series_id=m.tmdb_series_id,
             tmdb_poster_path=m.tmdb_poster_path,
+            tmdb_backdrop_path=m.tmdb_backdrop_path,
             year=m.year,
             season=m.season,
             resolution=m.resolution,
             status=m.status,
             poster_url=m.poster_url,
+            backdrop_url=m.backdrop_url,
             target_path=m.target_path,
         )
 

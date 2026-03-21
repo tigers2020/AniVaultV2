@@ -14,11 +14,13 @@ class PipelineRow:
     tmdb_korean_title_group: str
     tmdb_series_id: str
     tmdb_poster_path: str
+    tmdb_backdrop_path: str
     year: str
     season: str
     resolution: str
     status: str
     poster_url: str
+    backdrop_url: str
     target_path: str
 
 
@@ -88,6 +90,13 @@ class PipelineGroupRow:
         for m in self.members:
             if (m.poster_url or "").strip():
                 return m.poster_url
+        return ""
+
+    @property
+    def backdrop_url(self) -> str:
+        for m in self.members:
+            if (m.backdrop_url or "").strip():
+                return m.backdrop_url
         return ""
 
     @property
