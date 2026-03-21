@@ -1,4 +1,9 @@
-"""Map tmdbapis objects to application DTOs."""
+"""mapper.py
+
+tmdbapis 응답 객체를 애플리케이션 TmdbSeriesCandidateDTO로 변환한다.
+
+Author: Pom Kim
+"""
 
 from __future__ import annotations
 
@@ -9,6 +14,14 @@ from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 
 
 def _as_str(value: Any) -> str:
+    """값을 표시용 문자열로 만든다. 언어 객체는 iso_639_1을 쓴다.
+
+    Args:
+        value: 임의 객체 또는 None.
+
+    Returns:
+        문자열. None이면 빈 문자열.
+    """
     if value is None:
         return ""
     if hasattr(value, "iso_639_1"):
@@ -18,6 +31,14 @@ def _as_str(value: Any) -> str:
 
 
 def _first_air_date_str(tv: Any) -> str:
+    """TVShow의 first_air_date를 YYYY-MM-DD 문자열로 만든다.
+
+    Args:
+        tv: tmdbapis TVShow 유사 객체.
+
+    Returns:
+        날짜 문자열. 없으면 빈 문자열.
+    """
     raw = getattr(tv, "first_air_date", None)
     if raw is None:
         return ""
@@ -27,7 +48,14 @@ def _first_air_date_str(tv: Any) -> str:
 
 
 def tv_show_to_candidate(tv: Any) -> TmdbSeriesCandidateDTO:
-    """Build DTO from a tmdbapis TVShow (including partial search results)."""
+    """tmdbapis TVShow(검색 결과 포함)에서 DTO를 만든다.
+
+    Args:
+        tv: TVShow 유사 객체.
+
+    Returns:
+        TmdbSeriesCandidateDTO. id 변환 실패 시 tmdb_id 0 등 기본값.
+    """
     tid_raw = getattr(tv, "id", 0)
     try:
         tmdb_id = int(tid_raw)
