@@ -46,7 +46,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-v"
+addopts = '-v -m "not benchmark"'
+markers = [
+    "benchmark: optional performance smoke tests (pytest -m benchmark tests/benchmarks)",
+]
 
 # -----------------------------------------------------------------------------
 # 공통: Python 3.12, line-length 100, src 레이아웃
