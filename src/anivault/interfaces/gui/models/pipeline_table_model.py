@@ -46,7 +46,11 @@ class PipelineTableModel(QAbstractTableModel):
             return None
         row = self._rows[index.row()]
         _, key = COLUMNS[index.column()]
-        return getattr(row, key, "")
+        value = getattr(row, key, "")
+        if key == "season":
+            s = (value or "").strip()
+            return s if s else "1"
+        return value
 
     def headerData(
         self,
@@ -66,7 +70,7 @@ class PipelineTableModel(QAbstractTableModel):
         self.endResetModel()
 
     def rows(self) -> list[PipelineGroupRow]:
-        """Return current group rows for sync to other views (list, tile, poster)."""
+        """Return current group rows for sync to other views (list, content, icon grids)."""
         return list(self._rows)
 
     def flat_rows(self) -> list[PipelineRow]:
