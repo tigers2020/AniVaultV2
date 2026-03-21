@@ -22,6 +22,8 @@ from anivault.application.ports.metadata_provider import MetadataProvider
 
 _MAX_CANDIDATES = 5
 
+MatchProgressCallback = Callable[[ProgressEvent], None]
+
 
 def _group_key(row: MatchFileRow) -> str:
     """매칭 그룹 키를 행에서 뽑는다.
@@ -100,6 +102,43 @@ def _backdrop_url(backdrop_path: str) -> str:
     return f"https://image.tmdb.org/t/p/w780{p}"
 
 
+def _score_one_candidate(
+    c: TmdbSeriesCandidateDTO,
+    qn: str,
+    expected_year: str,
+    reason_in: str,
+) -> tuple[float, str]:
+    """단일 후보에 대한 점수와 갱신된 이유 문자열을 계산한다.
+
+    Args:
+        c: TMDB 시리즈 후보.
+        qn: 정규화된 검색어.
+        expected_year: 기대 방영 연도(빈 문자열이면 연도 보너스 없음).
+        reason_in: 이전 후보까지 반영된 이유 문자열.
+
+    Returns:
+        (누적 점수, 이 후보 처리 후 이유 문자열).
+    """
+    score = 0.0
+    reason = reason_in
+    names = [_normalize_key(c.name_ko), _normalize_key(c.original_name)]
+    names = [n for n in names if n]
+    if qn and any(qn == n for n in names):
+        score += 10.0
+        reason = "exact_name"
+    elif qn and any(qn in n or n in qn for n in names):
+        score += 5.0
+        reason = "partial_name"
+    if (c.name_ko or "").strip():
+        score += 2.0
+    cy = _year_prefix(c.first_air_date)
+    if expected_year and cy == expected_year:
+        score += 3.0
+        reason = f"{reason}+year"
+    score += (c.popularity or 0.0) * 0.01
+    return score, reason
+
+
 def _select_best_candidate(
     candidates: list[TmdbSeriesCandidateDTO],
     query: str,
@@ -122,22 +161,7 @@ def _select_best_candidate(
     best_score = -1.0
     reason = "fallback_first"
     for c in candidates[:_MAX_CANDIDATES]:
-        score = 0.0
-        names = [_normalize_key(c.name_ko), _normalize_key(c.original_name)]
-        names = [n for n in names if n]
-        if qn and any(qn == n for n in names):
-            score += 10.0
-            reason = "exact_name"
-        elif qn and any(qn in n or n in qn for n in names):
-            score += 5.0
-            reason = "partial_name"
-        if (c.name_ko or "").strip():
-            score += 2.0
-        cy = _year_prefix(c.first_air_date)
-        if expected_year and cy == expected_year:
-            score += 3.0
-            reason = f"{reason}+year"
-        score += (c.popularity or 0.0) * 0.01
+        score, reason = _score_one_candidate(c, qn, expected_year, reason)
         if score > best_score:
             best_score = score
             best = c
@@ -164,9 +188,197 @@ def _rep_year_for_indices(files: list[MatchFileRow], indices: list[int]) -> str:
     return ""
 
 
+def _index_files_by_group_key(files: list[MatchFileRow]) -> dict[str, list[int]]:
+    """파일 행을 그룹 키별 인덱스 목록으로 묶는다.
+
+    Args:
+        files: 전체 파일 행 목록.
+
+    Returns:
+        그룹 키 → 해당 행 인덱스 리스트.
+    """
+    key_to_indices: dict[str, list[int]] = {}
+    for i, f in enumerate(files):
+        key_to_indices.setdefault(_group_key(f), []).append(i)
+    return key_to_indices
+
+
+def _notify_match_progress_prepare(
+    progress_callback: MatchProgressCallback | None,
+    total: int,
+) -> None:
+    """매칭 단계 시작 진행 이벤트를 보낸다.
+
+    Args:
+        progress_callback: ProgressEvent를 받는 콜백. None이면 무시.
+        total: 그룹 개수.
+
+    Returns:
+        None.
+    """
+    if not total:
+        return
+    if progress_callback is None:
+        return
+    progress_callback(
+        ProgressEvent(
+            stage="match",
+            current=0,
+            total=total,
+            message="TMDB 매칭 준비…",
+            percent=0,
+        )
+    )
+
+
+def _notify_match_progress_step(
+    progress_callback: MatchProgressCallback | None,
+    total: int,
+    current: int,
+    message: str,
+) -> None:
+    """매칭 단계 중 진행 이벤트를 보낸다.
+
+    Args:
+        progress_callback: ProgressEvent를 받는 콜백. None이면 무시.
+        total: 그룹 개수.
+        current: 현재 처리 순번(1부터).
+        message: 표시 메시지.
+
+    Returns:
+        None.
+    """
+    if not total:
+        return
+    if progress_callback is None:
+        return
+    pct = int(current * 100 / total) if total else 100
+    progress_callback(
+        ProgressEvent(
+            stage="match",
+            current=current,
+            total=total,
+            message=message,
+            percent=pct,
+        )
+    )
+
+
+def _apply_tmdb_to_file_rows(
+    files: list[MatchFileRow],
+    indices: list[int],
+    korean: str,
+    poster_path_raw: str,
+    backdrop_path_raw: str,
+    poster: str,
+    backdrop: str,
+    tid: str,
+    tmdb_year: str,
+) -> None:
+    """선택된 TMDB 시리즈 메타로 그룹 내 파일 행을 갱신한다.
+
+    Args:
+        files: 전체 파일 행 목록(제자리 수정).
+        indices: 같은 그룹 행 인덱스.
+        korean: 한글 표시 제목(트림됨).
+        poster_path_raw: 포스터 상대 경로(원본).
+        backdrop_path_raw: 백드롭 상대 경로(원본).
+        poster: 포스터 전체 URL.
+        backdrop: 백드롭 전체 URL.
+        tid: 시리즈 ID 문자열.
+        tmdb_year: first_air_date에서 뽑은 연도 접두.
+
+    Returns:
+        None.
+    """
+    for idx in indices:
+        prev = files[idx]
+        files[idx] = MatchFileRow(
+            original_file=prev.original_file,
+            parsed_title=prev.parsed_title,
+            parse_group=prev.parse_group,
+            tmdb_korean_title_group=korean or prev.tmdb_korean_title_group,
+            tmdb_series_id=tid,
+            tmdb_poster_path=poster_path_raw or prev.tmdb_poster_path,
+            tmdb_backdrop_path=backdrop_path_raw or prev.tmdb_backdrop_path,
+            year=tmdb_year if tmdb_year else prev.year,
+            season=prev.season,
+            resolution=prev.resolution,
+            status="TMDB 매칭됨" if korean else prev.status,
+            poster_url=poster or prev.poster_url,
+            backdrop_url=backdrop or prev.backdrop_url,
+            target_path=prev.target_path,
+        )
+
+
+def _match_single_group(
+    files: list[MatchFileRow],
+    group_key: str,
+    indices: list[int],
+    provider: MetadataProvider,
+) -> GroupMatchResultDTO:
+    """한 그룹에 대해 TMDB 검색·선택 후 파일 행과 그룹 결과를 만든다.
+
+    Args:
+        files: 전체 파일 행 목록(성공 시 제자리 수정).
+        group_key: 그룹 식별 키.
+        indices: 그룹에 속한 행 인덱스.
+        provider: 메타데이터 검색 포트.
+
+    Returns:
+        해당 그룹의 매칭 결과 DTO.
+    """
+    year_str = _rep_year_for_indices(files, indices)
+    year_i = int(year_str) if year_str.isdigit() else None
+    raw_candidates = list(provider.search_series(group_key, year=year_i))
+    best, conf, reason = _select_best_candidate(raw_candidates, group_key, year_str)
+
+    if best is None or not best.tmdb_id:
+        return GroupMatchResultDTO(
+            group_key=group_key,
+            matched=False,
+            tmdb_id=None,
+            korean_group_title="",
+            original_title="",
+            confidence=0.0,
+            reason=reason,
+        )
+
+    korean = (best.name_ko or "").strip()
+    original = (best.original_name or "").strip()
+    poster_path_raw = (best.poster_path or "").strip()
+    poster = _poster_url(poster_path_raw)
+    backdrop_path_raw = (best.backdrop_path or "").strip()
+    backdrop = _backdrop_url(backdrop_path_raw)
+    tid = str(best.tmdb_id)
+    tmdb_year = _year_prefix(best.first_air_date)
+
+    _apply_tmdb_to_file_rows(
+        files,
+        indices,
+        korean,
+        poster_path_raw,
+        backdrop_path_raw,
+        poster,
+        backdrop,
+        tid,
+        tmdb_year,
+    )
+
+    return GroupMatchResultDTO(
+        group_key=group_key,
+        matched=bool(korean),
+        tmdb_id=best.tmdb_id,
+        korean_group_title=korean,
+        original_title=original,
+        confidence=conf,
+        reason=reason,
+    )
+
+
 def make_execute(
     provider: MetadataProvider,
-) -> Callable[[MatchInput, object, Event], MatchResult]:
+) -> Callable[[MatchInput, MatchProgressCallback | None, Event], MatchResult]:
     """MetadataProvider가 주입된 매칭 실행 함수를 만든다.
 
     Args:
@@ -178,14 +390,14 @@ def make_execute(
 
     def execute(
         input_dto: MatchInput,
-        progress_callback: object,
+        progress_callback: MatchProgressCallback | None,
         cancel_token: Event,
     ) -> MatchResult:
         """그룹별로 TMDB 검색 후 파일 행을 갱신한다.
 
         Args:
             input_dto: 매칭 입력(파일 행 튜플).
-            progress_callback: ProgressEvent를 받는 콜백. 없으면 무시.
+            progress_callback: ProgressEvent를 받는 콜백. None이면 진행 보고 없음.
             cancel_token: 설정 시 중단.
 
         Returns:
@@ -195,96 +407,22 @@ def make_execute(
         if cancel_token.is_set():
             return MatchResult(files=tuple(files), groups=())
 
-        key_to_indices: dict[str, list[int]] = {}
-        for i, f in enumerate(files):
-            key_to_indices.setdefault(_group_key(f), []).append(i)
+        key_to_indices = _index_files_by_group_key(files)
         total = len(key_to_indices)
         group_results: list[GroupMatchResultDTO] = []
 
-        if callable(progress_callback) and total:
-            progress_callback(
-                ProgressEvent(
-                    stage="match",
-                    current=0,
-                    total=total,
-                    message="TMDB 매칭 준비…",
-                    percent=0,
-                )
-            )
+        _notify_match_progress_prepare(progress_callback, total)
 
         for n, (key, indices) in enumerate(key_to_indices.items()):
             if cancel_token.is_set():
                 break
-            if callable(progress_callback) and total:
-                pct = int((n + 1) * 100 / total) if total else 100
-                progress_callback(
-                    ProgressEvent(
-                        stage="match",
-                        current=n + 1,
-                        total=total,
-                        message=f"TMDB 검색 ({n + 1}/{total}): {key[:60]}",
-                        percent=pct,
-                    )
-                )
-
-            year_str = _rep_year_for_indices(files, indices)
-            year_i = int(year_str) if year_str.isdigit() else None
-            raw_candidates = list(provider.search_series(key, year=year_i))
-            best, conf, reason = _select_best_candidate(raw_candidates, key, year_str)
-
-            if best is None or not best.tmdb_id:
-                group_results.append(
-                    GroupMatchResultDTO(
-                        group_key=key,
-                        matched=False,
-                        tmdb_id=None,
-                        korean_group_title="",
-                        original_title="",
-                        confidence=0.0,
-                        reason=reason,
-                    )
-                )
-                continue
-
-            korean = (best.name_ko or "").strip()
-            original = (best.original_name or "").strip()
-            poster_path_raw = (best.poster_path or "").strip()
-            poster = _poster_url(poster_path_raw)
-            backdrop_path_raw = (best.backdrop_path or "").strip()
-            backdrop = _backdrop_url(backdrop_path_raw)
-            tid = str(best.tmdb_id)
-            tmdb_year = _year_prefix(best.first_air_date)
-
-            for idx in indices:
-                prev = files[idx]
-                files[idx] = MatchFileRow(
-                    original_file=prev.original_file,
-                    parsed_title=prev.parsed_title,
-                    parse_group=prev.parse_group,
-                    tmdb_korean_title_group=korean or prev.tmdb_korean_title_group,
-                    tmdb_series_id=tid,
-                    tmdb_poster_path=poster_path_raw or prev.tmdb_poster_path,
-                    tmdb_backdrop_path=backdrop_path_raw or prev.tmdb_backdrop_path,
-                    year=tmdb_year if tmdb_year else prev.year,
-                    season=prev.season,
-                    resolution=prev.resolution,
-                    status="TMDB 매칭됨" if korean else prev.status,
-                    poster_url=poster or prev.poster_url,
-                    backdrop_url=backdrop or prev.backdrop_url,
-                    target_path=prev.target_path,
-                )
-
-            group_results.append(
-                GroupMatchResultDTO(
-                    group_key=key,
-                    matched=bool(korean),
-                    tmdb_id=best.tmdb_id,
-                    korean_group_title=korean,
-                    original_title=original,
-                    confidence=conf,
-                    reason=reason,
-                )
+            _notify_match_progress_step(
+                progress_callback,
+                total,
+                n + 1,
+                f"TMDB 검색 ({n + 1}/{total}): {key[:60]}",
             )
+            group_results.append(_match_single_group(files, key, indices, provider))
 
         return MatchResult(files=tuple(files), groups=tuple(group_results))
 
