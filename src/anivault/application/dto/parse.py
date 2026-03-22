@@ -10,12 +10,13 @@ from dataclasses import dataclass, field
 
 @dataclass
 class ParsedInfo:
-    """경량 파싱 결과. title, parse_group, year, season, resolution."""
+    """경량 파싱 결과. title, parse_group, year, season, episode, resolution."""
 
     title: str = ""
     parse_group: str = ""
     year: str = ""
     season: str = ""
+    episode: str = ""
     resolution: str = ""
 
 

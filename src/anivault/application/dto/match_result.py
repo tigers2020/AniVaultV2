@@ -26,6 +26,7 @@ class MatchFileRow:
     poster_url: str
     backdrop_url: str
     target_path: str
+    episode: str = ""
 
 
 @dataclass(slots=True)
