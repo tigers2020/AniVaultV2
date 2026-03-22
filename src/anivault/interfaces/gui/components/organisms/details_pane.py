@@ -27,7 +27,9 @@ def _member_lines(group: PipelineGroupRow) -> str:
     parts: list[str] = []
     for m in group.members:
         name = Path(m.original_file).name
-        extra = " · ".join(p for p in (m.season or "", m.resolution or "") if (p or "").strip())
+        extra = " · ".join(
+            p for p in (m.season or "", m.episode or "", m.resolution or "") if (p or "").strip()
+        )
         if extra:
             parts.append(f"{name}<br><small>{extra}</small>")
         else:
@@ -98,7 +100,7 @@ class DetailsPane(QFrame):
                     f"<b>Parsed Title</b><br>{row.parsed_title}<br><br>"
                     f"<b>Parse Group</b><br>{row.parse_group}<br><br>"
                     f"<b>TMDB 한글</b><br>{row.tmdb_korean_title_group}<br><br>"
-                    f"<b>Year / Season</b><br>{row.year} / {row.season}<br><br>"
+                    f"<b>Year / Season / Ep</b><br>{row.year} / {row.season} / {row.episode}<br><br>"
                     f"<b>해상도</b><br>{row.resolution}<br><br>"
                     f"<b>상태</b><br>{row.status}<br><br>"
                     f"<b>대상 경로</b><br>{row.target_path}"
@@ -124,7 +126,7 @@ class DetailsPane(QFrame):
             f"<b>Parsed Title</b><br>{row.parsed_title}<br><br>"
             f"<b>Parse Group</b><br>{row.parse_group}<br><br>"
             f"<b>TMDB 한글</b><br>{row.tmdb_korean_title_group}<br><br>"
-            f"<b>Year / Season</b><br>{row.year} / {row.season}<br><br>"
+            f"<b>Year / Season / Ep</b><br>{row.year} / {row.season} / {row.episode}<br><br>"
             f"<b>해상도</b><br>{row.resolution}<br><br>"
             f"<b>상태</b><br>{row.status}<br><br>"
             f"<b>대상 경로</b><br>{row.target_path}"

@@ -6,6 +6,8 @@ Author: Pom Kim
 """
 
 from collections.abc import Callable, Sequence
+from dataclasses import asdict
+from pathlib import Path
 from threading import Event
 from typing import Any, cast
 
@@ -13,11 +15,15 @@ from PySide6.QtCore import QObject, Qt, QThread, QTimer, Slot
 from PySide6.QtWidgets import QDialog, QMessageBox, QWidget
 
 from anivault.application.dto.match_result import MatchFileRow, MatchInput, MatchResult
-from anivault.application.dto.parse import ParseInput, ParseResult
+from anivault.application.dto.parse import ParsedInfo, ParseInput, ParseResult
 from anivault.application.dto.plan import ApplyInput, ApplyResult, PlanInput, PlanResult
-from anivault.application.dto.progress import ProgressEvent
+from anivault.application.dto.progress import ProgressEvent, progress_dialog_value_and_maximum
 from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.application.dto.tmdb import TmdbSearchInput, TmdbSeriesCandidateDTO
+from anivault.application.parse_debug_snapshot import (
+    build_parse_debug_snapshot,
+    try_write_parse_debug_json,
+)
 from anivault.application.use_cases.match_series import apply_tmdb_candidate_to_file_rows
 from anivault.interfaces.gui.components.molecules import ProgressDialog
 from anivault.interfaces.gui.dialogs.dry_run_dialog import DryRunDialog
@@ -278,10 +284,11 @@ class OrganizerPresenter(QObject):
         if dialog is not None and not dialog.is_progress_token_valid(token):
             return
         if dialog is not None:
+            value, maximum = progress_dialog_value_and_maximum(event)
             dialog.update_progress(
                 message=event.message,
-                value=event.percent if event.total > 0 else None,
-                maximum=event.total if event.total > 0 else 100,
+                value=value,
+                maximum=maximum,
             )
 
     def _on_scan_result(self, result: ScanResult) -> None:
@@ -451,6 +458,7 @@ class OrganizerPresenter(QObject):
                         poster_url=row.poster_url,
                         backdrop_url=row.backdrop_url,
                         target_path=row.target_path,
+                        episode=row.episode,
                     )
                 )
             else:
@@ -471,10 +479,36 @@ class OrganizerPresenter(QObject):
                         poster_url=row.poster_url,
                         backdrop_url=row.backdrop_url,
                         target_path=row.target_path,
+                        episode=p.episode,
                     )
                 )
         self._model.set_rows(group_pipeline_rows(merged))
+        self._write_parse_debug_json(merged, parsed_list)
         self._notify_dry_run(False)
+
+    def _write_parse_debug_json(
+        self,
+        merged: list[PipelineRow],
+        parsed_list: list[ParsedInfo],
+    ) -> None:
+        """파싱 직후 스냅샷을 작업 디렉터리에 JSON으로 남긴다(디버깅용).
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            merged: 파싱 병합 후 파일 행 목록.
+            parsed_list: ``ParseResult.parsed``와 동일 순서.
+
+        Returns:
+            None.
+        """
+        paths = [r.original_file for r in merged]
+        snap = build_parse_debug_snapshot(
+            working_directory=str(Path.cwd()),
+            paths=paths,
+            parsed_infos=parsed_list,
+            merged_row_dicts=[asdict(r) for r in merged],
+        )
+        try_write_parse_debug_json(Path.cwd() / "anivault-parse-debug.json", snap)
 
     def _on_scan_error(self, exc: Exception) -> None:
         """오류 시 모델은 유지하고 진행 다이얼로그만 숨긴다.
@@ -605,6 +639,7 @@ class OrganizerPresenter(QObject):
             poster_url=m.poster_url,
             backdrop_url=m.backdrop_url,
             target_path=m.target_path,
+            episode=m.episode,
         )
 
     def _on_match_result(self, result: MatchResult) -> None:
@@ -1034,6 +1069,9 @@ class OrganizerPresenter(QObject):
             self._notify_dry_run(True)
             return
         merge_plan_into_pipeline_rows(self._model, plan)
+        panel = self._pipeline_panel
+        if panel is not None:
+            panel.sync_views_from_model()
         if isinstance(parent, QWidget):
             QMessageBox.information(
                 parent,

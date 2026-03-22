@@ -7,6 +7,7 @@ Author: Pom Kim
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from anivault.application.dto.match_result import MatchFileRow
@@ -38,6 +39,7 @@ def pipeline_row_to_match_file(row: PipelineRow) -> MatchFileRow:
         poster_url=row.poster_url,
         backdrop_url=row.backdrop_url,
         target_path=row.target_path,
+        episode=row.episode,
     )
 
 
@@ -77,6 +79,21 @@ def try_build_plan_input_from_settings(
     )
 
 
+def _merge_path_key(path: str) -> str:
+    """플랜 병합 시 경로 동일성 판별용 정규화 키를 만든다.
+
+    Args:
+        path: 원본 경로 문자열.
+
+    Returns:
+        정규화된 비교 키(실패 시 입력을 그대로 반환).
+    """
+    try:
+        return os.path.normcase(os.path.normpath(path))
+    except (TypeError, ValueError):
+        return path
+
+
 def merge_plan_into_pipeline_rows(model: PipelineTableModel, plan: PlanResult) -> None:
     """적용된 이동을 파이프라인 행의 target_path·status에 반영한다.
 
@@ -87,11 +104,14 @@ def merge_plan_into_pipeline_rows(model: PipelineTableModel, plan: PlanResult) -
     Returns:
         None.
     """
-    src_to_dest = {op.source_path: op.destination_path for op in plan.moves}
+    src_to_dest: dict[str, str] = {}
+    for op in plan.moves:
+        src_to_dest[_merge_path_key(op.source_path)] = op.destination_path
     rows = model.flat_rows()
     merged: list[PipelineRow] = []
     for row in rows:
-        if row.original_file in src_to_dest:
+        lookup = _merge_path_key(row.original_file)
+        if lookup in src_to_dest:
             merged.append(
                 PipelineRow(
                     original_file=row.original_file,
@@ -107,7 +127,8 @@ def merge_plan_into_pipeline_rows(model: PipelineTableModel, plan: PlanResult) -
                     status="이동됨",
                     poster_url=row.poster_url,
                     backdrop_url=row.backdrop_url,
-                    target_path=src_to_dest[row.original_file],
+                    target_path=src_to_dest[lookup],
+                    episode=row.episode,
                 )
             )
         else:

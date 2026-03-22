@@ -639,6 +639,17 @@ class PipelineResultPanel(QFrame):
         """
         self._pending_selected_index = index
 
+    def sync_views_from_model(self) -> None:
+        """모델 내용을 테이블·리스트·콘텐츠·포스터 뷰에 다시 반영한다.
+
+        Args:
+            self: 이 패널 인스턴스.
+
+        Returns:
+            None.
+        """
+        self._sync_views_from_model()
+
     def set_rows(self, rows: list[PipelineGroupRow]) -> None:
         """그룹 행을 모델에 설정한다(modelReset으로 뷰 동기화가 이어짐).
 

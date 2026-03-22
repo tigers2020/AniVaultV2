@@ -142,6 +142,7 @@ def _sample_rows() -> list[PipelineRow]:
             poster_url="",
             backdrop_url="",
             target_path=r"G:\AniSorted\1080p\2023\장송의 프리렌\Season01\ep01.mkv",
+            episode="",
         ),
         PipelineRow(
             original_file="[SubsPlease] Kusuriya - 03 (1080p).mkv",
@@ -158,6 +159,7 @@ def _sample_rows() -> list[PipelineRow]:
             poster_url="",
             backdrop_url="",
             target_path=r"G:\AniSorted\1080p\2023\약사의 혼잣말\Season01\ep03.mkv",
+            episode="",
         ),
     ]
 

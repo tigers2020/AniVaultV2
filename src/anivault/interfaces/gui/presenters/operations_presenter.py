@@ -16,7 +16,7 @@ from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import QMessageBox, QWidget
 
 from anivault.application.dto.plan import ApplyInput, ApplyResult, PlanResult
-from anivault.application.dto.progress import ProgressEvent
+from anivault.application.dto.progress import ProgressEvent, progress_dialog_value_and_maximum
 from anivault.application.use_cases.ensure_plan_directories import (
     EnsureDirsInput,
     EnsureDirsResult,
@@ -531,10 +531,11 @@ class OperationsPresenter(QObject):
         if dialog is not None and not dialog.is_progress_token_valid(token):
             return
         if dialog is not None:
+            value, maximum = progress_dialog_value_and_maximum(event)
             dialog.update_progress(
                 message=event.message,
-                value=event.percent if event.total > 0 else None,
-                maximum=event.total if event.total > 0 else 100,
+                value=value,
+                maximum=maximum,
             )
 
     def _on_worker_error(self, exc: Exception) -> None:

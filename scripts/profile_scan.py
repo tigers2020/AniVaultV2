@@ -77,6 +77,7 @@ def _run_workload(root: Path, *, sort: bool) -> None:
                 poster_url="",
                 backdrop_url="",
                 target_path="",
+                episode="",
             )
         )
     _ = group_pipeline_rows(rows)

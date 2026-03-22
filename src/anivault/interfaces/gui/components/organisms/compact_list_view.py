@@ -56,7 +56,7 @@ def _list_item_meta(group: PipelineGroupRow) -> str:
     parts: list[str] = []
     if len(group.members) > 1:
         parts.append(f"{len(group.members)}개 파일")
-    for p in (group.year, group.season, group.resolution):
+    for p in (group.year, group.season, group.episode, group.resolution):
         s = (p or "").strip()
         if s:
             parts.append(s)

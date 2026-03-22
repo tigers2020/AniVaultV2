@@ -27,6 +27,7 @@ class PipelineRow:
     poster_url: str
     backdrop_url: str
     target_path: str
+    episode: str = ""
 
 
 def _aggregate_str(members: tuple[PipelineRow, ...], attr: str, *, mixed: str = "—") -> str:
@@ -162,6 +163,18 @@ class PipelineGroupRow:
             공통 또는 mixed.
         """
         return _aggregate_str(self.members, "season")
+
+    @property
+    def episode(self) -> str:
+        """에피소드(화차) 집계.
+
+        Args:
+            self: 이 그룹 행.
+
+        Returns:
+            공통 또는 mixed.
+        """
+        return _aggregate_str(self.members, "episode")
 
     @property
     def resolution(self) -> str:

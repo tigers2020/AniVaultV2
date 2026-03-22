@@ -20,6 +20,7 @@ COLUMNS = [
     ("TMDB Korean Title Group", "tmdb_korean_title_group"),
     ("Year", "year"),
     ("Season", "season"),
+    ("Ep", "episode"),
     ("Res", "resolution"),
     ("Status", "status"),
 ]
