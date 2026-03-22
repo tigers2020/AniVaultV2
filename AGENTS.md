@@ -97,6 +97,18 @@ tests/  unit/  integration/  golden/
 
 ---
 
+## Qt GUI 설계 원칙 (요약)
+
+- **구조**: Atomic Design — `interfaces/gui/components/`의 atoms → molecules → organisms → templates (`@persona/gina-gui.md`).
+- **시각**: Material Design **전체 이식 금지**. spacing, hierarchy, feedback, semantic color 등 **토큰·규칙만** 차용 (`theme/`·QSS와 연결).
+- **구현**: **Desktop-first** — 적절한 정보 밀도, `QFormLayout`/`QGridLayout`, splitter·dock·toolbar, 표·리스트·트리 생산성 스타일. **State-driven** — idle, loading, empty, error 등 화면별로 정의.
+- **QSS**: 색·여백·상태 스타일용; 레이아웃·크기 문제는 `QVBoxLayout` 등 레이아웃 위젯으로 해결.
+- **Atomic 과용 금지**: 사소한 위젯까지 클래스만 늘리지 말 것(실용 우선).
+
+상세: `@anivault-qt-gui`, `documents/QT_Architecture_Spec.md`.
+
+---
+
 ## 문서
 
 - `protocols/`, `persona/` — 패르소나 형식
