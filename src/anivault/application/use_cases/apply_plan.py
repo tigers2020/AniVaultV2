@@ -1,24 +1,107 @@
 """apply_plan.py
 
-계획에 따라 파일을 이동한다. Phase 3 스텁은 빈 결과를 반환한다.
+계획을 로그에 저장한 뒤 dry_run이 아니면 파일을 이동한다.
 
 Author: Pom Kim
 """
 
+from __future__ import annotations
+
+from collections.abc import Callable
+from pathlib import Path
 from threading import Event
+from typing import cast
+
+from anivault.application.dto.plan import ApplyInput, ApplyResult
+from anivault.application.dto.progress import ProgressEvent
+from anivault.application.ports.file_repository import FileRepository
+from anivault.application.ports.operation_log_port import OperationLogRepository
+
+ApplyProgressCallback = Callable[[ProgressEvent], None]
 
 
-def execute(
-    cancel_token: Event,
-) -> object:
-    """계획을 적용한다(스텁: 빈 dict).
+def make_apply_execute(
+    file_repo: FileRepository,
+    operation_log_factory: Callable[[Path], OperationLogRepository],
+) -> Callable[[ApplyInput, ApplyProgressCallback | None, Event], ApplyResult]:
+    """FileRepository와 OperationLog 팩토리가 주입된 적용 실행 함수를 만든다.
 
     Args:
-        cancel_token: 설정 시 빈 dict 반환.
+        file_repo: 파일 이동 포트.
+        operation_log_factory: log_root Path로 OperationLogRepository를 만드는 함수.
 
     Returns:
-        빈 dict. Phase 3에서 실제 적용 결과로 대체 예정.
+        (ApplyInput, progress_callback, cancel_token) -> ApplyResult 클로저.
     """
-    if cancel_token.is_set():
-        return {}
-    return {}
+
+    def execute(
+        input_dto: ApplyInput,
+        progress_callback: ApplyProgressCallback | None,
+        cancel_token: Event,
+    ) -> ApplyResult:
+        """계획을 적용한다.
+
+        Args:
+            input_dto: 작업 목록·dry_run·로그 루트.
+            progress_callback: ProgressEvent 콜백.
+            cancel_token: 취소 시 중단.
+
+        Returns:
+            로그 경로·이동 건수·오류 메시지.
+        """
+        ops = list(input_dto.operations)
+        if not ops:
+            return ApplyResult(log_path=None, moved_count=0, error="적용할 작업이 없습니다.")
+
+        log_root = (input_dto.log_root or "").strip()
+        if not log_root:
+            return ApplyResult(
+                log_path=None, moved_count=0, error="로그 루트 경로가 비어 있습니다."
+            )
+
+        op_log = operation_log_factory(Path(log_root))
+        try:
+            log_path = op_log.save_plan(cast(list[object], ops))
+        except OSError as e:
+            return ApplyResult(log_path=None, moved_count=0, error=str(e))
+
+        if input_dto.dry_run:
+            return ApplyResult(log_path=log_path, moved_count=0)
+
+        total = len(ops)
+        moved = 0
+        for i, op in enumerate(ops):
+            if cancel_token.is_set():
+                return ApplyResult(
+                    log_path=log_path,
+                    moved_count=moved,
+                    error="취소되었습니다.",
+                )
+            dest = Path(op.destination_path)
+            src = Path(op.source_path)
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                file_repo.move(src, dest)
+            except OSError as e:
+                return ApplyResult(
+                    log_path=log_path,
+                    moved_count=moved,
+                    error=str(e),
+                )
+            moved += 1
+            if progress_callback is not None:
+                cur = i + 1
+                progress_callback(
+                    ProgressEvent(
+                        stage="apply",
+                        current=cur,
+                        total=total,
+                        message=f"파일 이동 중 ({cur}/{total})",
+                        percent=int(100 * cur / total),
+                        item_path=str(dest),
+                    )
+                )
+
+        return ApplyResult(log_path=log_path, moved_count=moved)
+
+    return execute
