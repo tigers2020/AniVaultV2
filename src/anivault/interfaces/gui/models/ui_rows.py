@@ -241,8 +241,26 @@ class PipelineGroupRow:
         return self.members[0]
 
 
+def _pipeline_row_group_key(row: PipelineRow) -> str:
+    """표시 그룹 버킷 키. TMDB ID가 있으면 그걸 우선한다.
+
+    Args:
+        row: 파이프라인 파일 행.
+
+    Returns:
+        버킷 키 문자열.
+    """
+    tid = (row.tmdb_series_id or "").strip()
+    if tid:
+        return f"tmdb:{tid}"
+    pt = (row.parsed_title or "").strip()
+    if pt:
+        return pt
+    return row.original_file
+
+
 def group_pipeline_rows(rows: list[PipelineRow]) -> list[PipelineGroupRow]:
-    """parsed_title(빈 경우 original_file)으로 그룹화한다.
+    """TMDB 시리즈 ID(있으면) 또는 parsed_title(빈 경우 original_file)로 그룹화한다.
 
     Args:
         rows: 파일 행 목록.
@@ -252,9 +270,7 @@ def group_pipeline_rows(rows: list[PipelineRow]) -> list[PipelineGroupRow]:
     """
     buckets: OrderedDict[str, list[PipelineRow]] = OrderedDict()
     for r in rows:
-        key = (r.parsed_title or "").strip()
-        if not key:
-            key = r.original_file
+        key = _pipeline_row_group_key(r)
         buckets.setdefault(key, []).append(r)
     out: list[PipelineGroupRow] = []
     for members in buckets.values():
