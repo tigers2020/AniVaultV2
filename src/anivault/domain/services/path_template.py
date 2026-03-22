@@ -95,7 +95,7 @@ def _context_values(
     res = (row.resolution or "").strip() or unknown_resolution.strip() or "Unknown"
     year = (row.year or "").strip() or "Unknown"
     group = (row.korean_title_group or "").strip() or unknown_group_folder.strip() or "Unknown"
-    season_raw = (row.season or "").strip() or "0"
+    season_raw = (row.season or "").strip() or "1"
     base = Path(row.original_file.replace("\\", "/")).name
     return {
         "target": (target_root or "").strip(),
