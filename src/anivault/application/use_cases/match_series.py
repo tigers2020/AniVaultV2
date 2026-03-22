@@ -264,6 +264,41 @@ def _notify_match_progress_step(
     )
 
 
+def apply_tmdb_candidate_to_file_rows(
+    files: list[MatchFileRow],
+    indices: list[int],
+    candidate: TmdbSeriesCandidateDTO,
+) -> None:
+    """TMDB 시리즈 후보로 지정 인덱스의 파일 행을 갱신한다(자동·수동 매칭 공통).
+
+    Args:
+        files: 전체 파일 행 목록(제자리 수정).
+        indices: 갱신할 행 인덱스 목록.
+        candidate: 선택된 TMDB 시리즈 후보.
+
+    Returns:
+        None.
+    """
+    korean = (candidate.name_ko or "").strip()
+    poster_path_raw = (candidate.poster_path or "").strip()
+    poster = _poster_url(poster_path_raw)
+    backdrop_path_raw = (candidate.backdrop_path or "").strip()
+    backdrop = _backdrop_url(backdrop_path_raw)
+    tid = str(candidate.tmdb_id)
+    tmdb_year = _year_prefix(candidate.first_air_date)
+    _apply_tmdb_to_file_rows(
+        files,
+        indices,
+        korean,
+        poster_path_raw,
+        backdrop_path_raw,
+        poster,
+        backdrop,
+        tid,
+        tmdb_year,
+    )
+
+
 def _apply_tmdb_to_file_rows(
     files: list[MatchFileRow],
     indices: list[int],
@@ -346,24 +381,7 @@ def _match_single_group(
 
     korean = (best.name_ko or "").strip()
     original = (best.original_name or "").strip()
-    poster_path_raw = (best.poster_path or "").strip()
-    poster = _poster_url(poster_path_raw)
-    backdrop_path_raw = (best.backdrop_path or "").strip()
-    backdrop = _backdrop_url(backdrop_path_raw)
-    tid = str(best.tmdb_id)
-    tmdb_year = _year_prefix(best.first_air_date)
-
-    _apply_tmdb_to_file_rows(
-        files,
-        indices,
-        korean,
-        poster_path_raw,
-        backdrop_path_raw,
-        poster,
-        backdrop,
-        tid,
-        tmdb_year,
-    )
+    apply_tmdb_candidate_to_file_rows(files, indices, best)
 
     return GroupMatchResultDTO(
         group_key=group_key,

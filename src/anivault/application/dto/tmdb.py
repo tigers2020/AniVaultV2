@@ -9,6 +9,14 @@ from dataclasses import dataclass
 
 
 @dataclass(slots=True)
+class TmdbSearchInput:
+    """TMDB 시리즈 검색(수동 매칭 다이얼로그 등) 입력."""
+
+    query: str
+    year: int | None = None
+
+
+@dataclass(slots=True)
 class TmdbSeriesCandidateDTO:
     """TV 시리즈 검색 후보 한 건(어댑터가 요청한 현지화 필드)."""
 
