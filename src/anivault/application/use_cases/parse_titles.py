@@ -12,6 +12,8 @@ from threading import Event
 from anivault.application.dto.parse import ParsedInfo, ParseInput, ParseResult
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.ports.filename_parser import FilenameParser
+from anivault.domain.rules.anime_title_refine import apply_anime_title_refine
+from anivault.domain.rules.parent_folder_title import augment_parsed_info_with_parent_folder
 
 
 def make_execute(
@@ -60,7 +62,10 @@ def make_execute(
             if cancel_token.is_set():
                 return ParseResult(parsed=parsed)
             name = Path(path).name
+            stem = Path(path).stem
             info = parser.parse(name)
+            info = apply_anime_title_refine(stem, info)
+            info = augment_parsed_info_with_parent_folder(path, info)
             parsed.append(info)
             if callable(progress_callback) and total:
                 pct = int((i + 1) * 100 / total) if total else 100

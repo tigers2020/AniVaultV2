@@ -47,18 +47,67 @@ def _clean_title(stem: str, tokens: set[str]) -> str:
 
 
 def _extract_season(stem: str) -> str:
-    """stem에서 시즌 또는 화 번호 문자열을 추출한다.
+    """stem에서 시즌 번호 문자열을 추출한다.
+
+    ``S02``/``Season 3``/``1st``/``16th`` 등은 시즌으로 본다.
+    ``N화``는 회차(에피소드)이므로 시즌으로 쓰지 않는다.
+
+    ``S01E05``처럼 붙은 형태는 :func:`_extract_season_episode`에서 처리한다.
+    단독 ``S##``는 여기서 ``\\bS(\\d+)\\b``로 잡는다(``S01E05``의 ``S01``은 경계 때문에 미매칭).
 
     Args:
         stem: 파일명 stem.
 
     Returns:
-        시즌/화 숫자 문자열. 없으면 빈 문자열.
+        시즌 숫자 문자열. 없으면 빈 문자열.
     """
-    m = re.search(r"(?:season|s)\s*(\d+)|(\d+)\s*화", stem, re.I)
+    m = re.search(r"(?:season\s*(\d+)|\bS(\d+)\b)", stem, re.I)
     if m:
-        return m.group(1) or m.group(2) or ""
+        g = (m.group(1) or m.group(2) or "").strip()
+        if g.isdigit():
+            return str(int(g))
+        return g
+    m = re.search(r"\b(\d+)(?:st|nd|rd|th)\b", stem, re.I)
+    if m:
+        return str(int(m.group(1)))
     return ""
+
+
+def _extract_season_episode(stem: str) -> tuple[str, str]:
+    """stem에서 시즌·에피소드를 추출한다.
+
+    최우선 ``S##E##``(사이에 공백·``.``·``-``·``_`` 허용). 없으면 기존 시즌 규칙과
+    단독 ``EP##`` / ``E##`` 에피 패턴을 쓴다.
+
+    Args:
+        stem: 파일명 stem.
+
+    Returns:
+        ``(season, episode)``. 없으면 해당 항목은 빈 문자열.
+    """
+    m_se = re.search(r"(?i)S(\d+)[\s.\-_]*E(\d+)", stem)
+    if m_se:
+        return str(int(m_se.group(1))), str(int(m_se.group(2)))
+    season = _extract_season(stem)
+    episode = ""
+    m_ep = re.search(r"(?i)\bEP(\d+)\b", stem)
+    if m_ep:
+        episode = str(int(m_ep.group(1)))
+    else:
+        m_e = re.search(r"(?i)\bE(\d+)\b", stem)
+        if m_e:
+            episode = str(int(m_e.group(1)))
+    return season, episode
+
+
+def _episode_from_anitopy(value: object) -> str:
+    """anitopy ``episode_number`` 등을 표시용 에피 문자열로 만든다."""
+    s = _anitopy_field_str(value)
+    if not s:
+        return ""
+    if s.isdigit():
+        return str(int(s))
+    return s.strip()
 
 
 def _extract_year(stem: str) -> str:
@@ -72,6 +121,26 @@ def _extract_year(stem: str) -> str:
     """
     m = re.search(r"\b(19\d{2}|20\d{2})\b", stem)
     return m.group(1) if m else ""
+
+
+def _anitopy_field_str(value: object) -> str:
+    """anitopy 필드값을 단일 문자열로 정규화한다.
+
+    anitopy는 ``video_resolution`` 등 일부 키에 list를 넣는 경우가 있어
+    ``str.strip()`` 호출 전에 처리한다.
+
+    Args:
+        value: anitopy가 반환한 임의 값.
+
+    Returns:
+        공백 정리된 문자열. None·빈 값이면 빈 문자열.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        parts = [_anitopy_field_str(v) for v in value]
+        return " ".join(p for p in parts if p).strip()
+    return str(value).strip()
 
 
 def _get_stem(filename: str) -> str:
@@ -116,11 +185,13 @@ class MinimalTitleParser(FilenameParser):
         """
         stem = _get_stem(filename)
         title = _clean_title(stem, self._tokens) or stem
+        season, episode = _extract_season_episode(stem)
         return ParsedInfo(
             title=title,
             parse_group=title,
             year=_extract_year(stem),
-            season=_extract_season(stem),
+            season=season,
+            episode=episode,
             resolution=resolution_from_filename(filename),
         )
 
@@ -155,13 +226,16 @@ class AnitopyTitleParser(FilenameParser):
             data = anitopy.parse(stem)
         except Exception:
             return self._fallback.parse(filename)
-        title_raw = (data.get("anime_title") or "").strip()
+        title_raw = _anitopy_field_str(data.get("anime_title"))
         if not title_raw:
             return self._fallback.parse(filename)
         title = title_raw
-        year = (data.get("anime_year") or "").strip() or _extract_year(stem)
-        season = _extract_season(stem)  # anitopy has no season field
-        res_raw = (data.get("video_resolution") or "").strip()
+        year = _anitopy_field_str(data.get("anime_year")) or _extract_year(stem)
+        stem_season, stem_episode = _extract_season_episode(stem)
+        anitopy_episode = _episode_from_anitopy(data.get("episode_number"))
+        season = stem_season
+        episode = stem_episode or anitopy_episode
+        res_raw = _anitopy_field_str(data.get("video_resolution"))
         resolution = (
             normalize_resolution_from_raw(res_raw)
             if res_raw
@@ -172,5 +246,6 @@ class AnitopyTitleParser(FilenameParser):
             parse_group=title,
             year=year,
             season=season,
+            episode=episode,
             resolution=resolution,
         )
