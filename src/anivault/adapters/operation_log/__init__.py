@@ -4,3 +4,7 @@
 
 Author: Pom Kim
 """
+
+from anivault.adapters.operation_log.fs_operation_log import FsOperationLogRepository
+
+__all__ = ["FsOperationLogRepository"]
