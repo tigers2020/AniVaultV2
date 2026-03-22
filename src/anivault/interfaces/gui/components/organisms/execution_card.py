@@ -11,12 +11,15 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Button, Pill
 from anivault.interfaces.gui.components.molecules import PanelHeader
+from anivault.interfaces.gui.themes import get_current_density_key
+from anivault.interfaces.gui.themes.responsive import get_profile, scaled_int
 
 
 class ExecutionCard(QFrame):
     """실행 패널: 요약 텍스트, Pill, 버튼."""
 
-    apply_clicked = Signal()
+    move_files_clicked = Signal()
+    create_folder_tree_clicked = Signal()
     rollback_clicked = Signal()
 
     def __init__(self, parent=None):
@@ -30,18 +33,21 @@ class ExecutionCard(QFrame):
             None.
         """
         super().__init__(parent)
+        profile = get_profile(get_current_density_key())
+        body_margin = scaled_int(18, profile.grid_spacing_scale, minimum=12, maximum=28)
+        actions_spacing = scaled_int(10, profile.grid_spacing_scale, minimum=8, maximum=14)
+        self._status_pill = Pill("Ready", "green")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(
             PanelHeader(
                 "Execution",
                 "최종 이동 실행과 최근 작업 되돌리기를 같은 탭에서 관리",
-                pill_text="Ready",
-                pill_color="green",
+                right_widget=self._status_pill,
             )
         )
         body = QVBoxLayout()
-        body.setContentsMargins(18, 18, 18, 18)
+        body.setContentsMargins(body_margin, body_margin, body_margin, body_margin)
         summary_title = QLabel("Move Summary")
         summary_title.setStyleSheet(theme.list_item_strong())
         body.addWidget(summary_title)
@@ -53,21 +59,34 @@ class ExecutionCard(QFrame):
         body.addWidget(summary_text)
         pills = QWidget()
         pills_layout = QHBoxLayout(pills)
-        pills_layout.setContentsMargins(0, 8, 0, 0)
+        pills_layout.setContentsMargins(0, scaled_int(8, profile.grid_spacing_scale), 0, 0)
         pills_layout.addWidget(Pill("Preview Complete", "green"))
         pills_layout.addWidget(Pill("73 Review Files", "yellow"))
         body.addWidget(pills)
         actions = QHBoxLayout()
-        actions.setSpacing(10)
-        actions.setContentsMargins(0, 16, 0, 0)
+        actions.setSpacing(actions_spacing)
+        actions.setContentsMargins(0, scaled_int(16, profile.grid_spacing_scale), 0, 0)
         apply_btn = Button("Move Files", "primary")
-        apply_btn.clicked.connect(self.apply_clicked.emit)
+        apply_btn.clicked.connect(self.move_files_clicked.emit)
         actions.addWidget(apply_btn)
         create_tree_btn = Button("Create Folder Tree Only", "success")
-        create_tree_btn.clicked.connect(self.apply_clicked.emit)
+        create_tree_btn.clicked.connect(self.create_folder_tree_clicked.emit)
         actions.addWidget(create_tree_btn)
         undo_btn = Button("Undo Last Move", "danger")
         undo_btn.clicked.connect(self.rollback_clicked.emit)
         actions.addWidget(undo_btn)
         layout.addLayout(body)
         self.setStyleSheet(theme.card_panel())
+
+    def set_status_pill(self, text: str, color: str) -> None:
+        """우측 Pill(Ready/Planning 등)을 갱신한다.
+
+        Args:
+            self: 이 위젯.
+            text: 표시 문자열.
+            color: Pill 색 키.
+
+        Returns:
+            None.
+        """
+        self._status_pill.set_text_and_color(text, color)

@@ -27,3 +27,17 @@ class Pill(QLabel):
         """
         super().__init__(text, parent)
         self.setStyleSheet(theme.pill(color))
+
+    def set_text_and_color(self, text: str, color: str) -> None:
+        """표시 문자열과 색 키를 바꾼다.
+
+        Args:
+            self: 이 Pill.
+            text: 새 라벨.
+            color: blue | green | yellow | red.
+
+        Returns:
+            None.
+        """
+        self.setText(text)
+        self.setStyleSheet(theme.pill(color))

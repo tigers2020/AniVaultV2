@@ -18,6 +18,7 @@ class FolderScanBar(QFrame):
 
     scan_clicked = Signal(str)
     match_clicked = Signal()
+    dry_run_clicked = Signal()
     path_changed = Signal(str)
 
     def __init__(self, parent=None):
@@ -43,11 +44,27 @@ class FolderScanBar(QFrame):
         match_btn = Button("TMDB 매칭")
         match_btn.clicked.connect(self.match_clicked.emit)
         layout.addWidget(match_btn)
+        self._dry_run_btn = Button("Dry Run")
+        self._dry_run_btn.setEnabled(False)
+        self._dry_run_btn.clicked.connect(self.dry_run_clicked.emit)
+        layout.addWidget(self._dry_run_btn)
         self.setStyleSheet(theme.card_panel())
 
         # Prevent vertical stretching when embedded in a resizable scroll area.
         self.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed))
         self._sync_fixed_height()
+
+    def set_dry_run_enabled(self, enabled: bool) -> None:
+        """TMDB 매칭 완료 후 Dry Run 버튼 활성화 여부를 설정한다.
+
+        Args:
+            self: 이 바 인스턴스.
+            enabled: True면 클릭 가능.
+
+        Returns:
+            None.
+        """
+        self._dry_run_btn.setEnabled(enabled)
 
     def set_path(self, path: str) -> None:
         """설정에서 복원한 경로를 PathSelectField에 반영한다.

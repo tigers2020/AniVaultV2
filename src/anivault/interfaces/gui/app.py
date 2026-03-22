@@ -53,10 +53,25 @@ class MainWindow(QMainWindow):
             create_organizer_page,
             create_settings_page,
         )
+        from anivault.interfaces.gui.models import PipelineTableModel
+        from anivault.interfaces.gui.state import GuiState
 
         self._progress_dialog = ProgressDialog(parent=self)
-        self._shell.add_page(create_organizer_page(progress_dialog=self._progress_dialog))
-        self._shell.add_page(create_operations_page())
+        self._gui_state = GuiState()
+        self._pipeline_model = PipelineTableModel()
+        self._shell.add_page(
+            create_organizer_page(
+                pipeline_model=self._pipeline_model,
+                progress_dialog=self._progress_dialog,
+            )
+        )
+        self._shell.add_page(
+            create_operations_page(
+                pipeline_model=self._pipeline_model,
+                progress_dialog=self._progress_dialog,
+                gui_state=self._gui_state,
+            )
+        )
         self._shell.add_page(create_settings_page())
         self._shell.tab_clicked.connect(self._on_tab_clicked)
         organizer_idx = 0

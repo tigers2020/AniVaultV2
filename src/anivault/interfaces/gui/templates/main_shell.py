@@ -8,6 +8,7 @@ Author: Pom Kim
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QStackedWidget, QVBoxLayout, QWidget
 
+from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import Sidebar, Topbar
 
 
@@ -35,7 +36,8 @@ class MainShell(QWidget):
         layout.addWidget(self._sidebar)
         main = QFrame()
         main_layout = QVBoxLayout(main)
-        main_layout.setContentsMargins(26, 26, 26, 26)
+        pad = theme.layout_main_padding()
+        main_layout.setContentsMargins(pad, pad, pad, pad)
         self._topbar = Topbar()
         main_layout.addWidget(self._topbar)
         self._stack = QStackedWidget()

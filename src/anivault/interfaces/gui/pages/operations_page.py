@@ -15,7 +15,26 @@ from anivault.interfaces.gui.components.organisms import (
     FolderStructurePreview,
     LogList,
 )
+from anivault.interfaces.gui.models import PipelineTableModel
 from anivault.interfaces.gui.presenters import OperationsPresenter
+
+
+def _phase_to_pill_color(phase: str) -> str:
+    """OperationsPhase 문자열을 Pill 색 키로 매핑한다.
+
+    Args:
+        phase: idle | planning | applying 등.
+
+    Returns:
+        blue | green | yellow | red.
+    """
+    if phase == "error":
+        return "red"
+    if phase in ("planning", "rolling_back", "mkdir"):
+        return "yellow"
+    if phase in ("applying",):
+        return "blue"
+    return "green"
 
 
 class OperationsPage(QWidget):
@@ -27,19 +46,28 @@ class OperationsPage(QWidget):
         Args:
             self: 이 위젯.
             parent: 부모 위젯(선택).
-            presenter: 외부 주입 Presenter. None이면 자체 생성.
+            presenter: 외부 주입 Presenter. None이면 로컬 모델로 생성(유스케이스 없음).
 
         Returns:
             None.
         """
         super().__init__(parent)
-        self._presenter = presenter if presenter is not None else OperationsPresenter(parent=self)
-        if presenter is not None:
+        if presenter is None:
+            local_model = PipelineTableModel()
+            self._presenter = OperationsPresenter(pipeline_model=local_model, parent=self)
+        else:
+            self._presenter = presenter
             self._presenter.setParent(self)
-        exec_card = ExecutionCard()
-        exec_card.apply_clicked.connect(self._presenter.on_apply_clicked)
-        exec_card.rollback_clicked.connect(self._presenter.on_rollback_clicked)
+        self._exec_card = ExecutionCard()
+        self._exec_card.move_files_clicked.connect(self._presenter.on_move_files_clicked)
+        self._exec_card.create_folder_tree_clicked.connect(
+            self._presenter.on_create_folder_tree_clicked
+        )
+        self._exec_card.rollback_clicked.connect(self._presenter.on_rollback_clicked)
+        self._presenter.execution_phase_changed.connect(self._on_execution_phase)
 
+        spacing_md = theme.layout_spacing_md()
+        spacing_lg = theme.layout_spacing_lg()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
@@ -47,24 +75,37 @@ class OperationsPage(QWidget):
         content = QWidget()
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(16)
+        content_layout.setSpacing(spacing_md)
         content_layout.addWidget(FolderStructurePreview())
         context_row = QWidget()
         context_row_layout = QHBoxLayout(context_row)
         context_row_layout.setContentsMargins(0, 0, 0, 0)
-        context_row_layout.setSpacing(16)
+        context_row_layout.setSpacing(spacing_md)
         context_row_layout.addWidget(self._build_pipeline_context_card(), 3)
         context_row_layout.addWidget(self._build_output_pattern_card(), 2)
         content_layout.addWidget(context_row)
         two_col = QWidget()
         two_col_layout = QHBoxLayout(two_col)
         two_col_layout.setContentsMargins(0, 0, 0, 0)
-        two_col_layout.setSpacing(18)
-        two_col_layout.addWidget(exec_card, 12)
+        two_col_layout.setSpacing(spacing_lg)
+        two_col_layout.addWidget(self._exec_card, 12)
         two_col_layout.addWidget(LogList(), 8)
         content_layout.addWidget(two_col)
         scroll.setWidget(content)
         layout.addWidget(scroll)
+
+    def _on_execution_phase(self, phase: str, label: str) -> None:
+        """Presenter 단계에 맞춰 실행 카드 Pill을 갱신한다.
+
+        Args:
+            self: 이 위젯.
+            phase: OperationsPhase 값.
+            label: Pill 텍스트.
+
+        Returns:
+            None.
+        """
+        self._exec_card.set_status_pill(label, _phase_to_pill_color(phase))
 
     def _build_pipeline_context_card(self) -> QFrame:
         """파이프라인 단계 StepRow 카드를 만든다.

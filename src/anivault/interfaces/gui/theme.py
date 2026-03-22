@@ -78,6 +78,9 @@ __all__ = [
     "sidebar_width_px",
     "poster_min_card_width_px",
     "poster_grid_spacing_px",
+    "layout_spacing_md",
+    "layout_spacing_lg",
+    "layout_main_padding",
 ]
 
 
@@ -696,3 +699,42 @@ def poster_grid_spacing_px() -> int:
         minimum=7,
         maximum=22,
     )
+
+
+def layout_spacing_md() -> int:
+    """페이지 본문 세로 간격(기준 16px).
+
+    Args:
+        없음.
+
+    Returns:
+        스케일된 픽셀.
+    """
+    p = _p()
+    return scaled_int(16, p.grid_spacing_scale, minimum=10, maximum=24)
+
+
+def layout_spacing_lg() -> int:
+    """가로 두 열·카드 행 간 간격(기준 18px).
+
+    Args:
+        없음.
+
+    Returns:
+        스케일된 픽셀.
+    """
+    p = _p()
+    return scaled_int(18, p.grid_spacing_scale, minimum=12, maximum=26)
+
+
+def layout_main_padding() -> int:
+    """메인 셸 콘텐츠 영역 패딩(기준 26px).
+
+    Args:
+        없음.
+
+    Returns:
+        스케일된 픽셀.
+    """
+    p = _p()
+    return scaled_int(26, p.scale, minimum=18, maximum=36)
