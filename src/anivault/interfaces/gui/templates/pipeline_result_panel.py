@@ -226,6 +226,29 @@ class PipelineResultPanel(QFrame):
         self._model.modelReset.connect(self._sync_views_from_model)
         self._restore_ui_state()
 
+    def _apply_list_content_for_view_key(self, key: str, rows: list[PipelineGroupRow]) -> None:
+        """보기 키에 맞게만 리스트·콘텐츠 뷰를 채운다.
+
+        테이블·아이콘 보기일 때 비가시 뷰에 수천 행 위젯을 만들지 않아 modelReset 시 메인 스레드 점유를 줄인다.
+
+        Args:
+            self: 이 패널 인스턴스.
+            key: 현재 또는 전환할 보기 키.
+            rows: 모델 그룹 행.
+
+        Returns:
+            None.
+        """
+        if key == VIEW_LIST:
+            self._list_view.set_rows(rows)
+            self._content_view.set_rows([])
+        elif key == VIEW_CONTENT:
+            self._content_view.set_rows(rows)
+            self._list_view.set_rows([])
+        else:
+            self._list_view.set_rows([])
+            self._content_view.set_rows([])
+
     def _on_view_changed(self, key: str) -> None:
         """보기 키에 맞게 스택 인덱스·포스터 그리드·이미지를 동기화하고 상태를 저장한다.
 
@@ -240,6 +263,7 @@ class PipelineResultPanel(QFrame):
             self._stack.setCurrentIndex(VIEW_TO_INDEX[key])
         self._view_bar.set_current_view(key)
         rows = list(self._model.rows())
+        self._apply_list_content_for_view_key(key, rows)
         grid_cards = self._ensure_poster_grid_for_view_key(key, rows)
         combined = list(self._content_view.poster_cards())
         combined.extend(grid_cards)
@@ -467,8 +491,7 @@ class PipelineResultPanel(QFrame):
         self._rows = list(rows)
 
         self._clear_all_poster_grids()
-        self._list_view.set_rows(rows)
-        self._content_view.set_rows(rows)
+        self._apply_list_content_for_view_key(self._view_bar.current_view(), rows)
         all_poster_cards: list[PosterCard] = []
         all_poster_cards.extend(self._content_view.poster_cards())
         vk = self._view_bar.current_view()

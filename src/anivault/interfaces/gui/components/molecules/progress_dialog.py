@@ -32,6 +32,55 @@ class ProgressDialog(QProgressDialog):
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("진행 중")
         self.canceled.connect(self._on_canceled)
+        self.setAutoClose(False)
+        self.setAutoReset(False)
+        self._progress_session_id: int = 0
+
+    @property
+    def progress_session_id(self) -> int:
+        """Presenter에서 progress 토큰과 비교할 때 쓰는 세션 ID.
+
+        Args:
+            self: 이 대화상자.
+
+        Returns:
+            세션 정수.
+        """
+        return self._progress_session_id
+
+    def mark_work_started(self) -> int:
+        """현재 진행 세션 ID를 반환한다. 워커 시작 직후 progress 연결에 캡처한다.
+
+        Args:
+            self: 이 대화상자.
+
+        Returns:
+            이번 작업에 매칭할 세션 정수.
+        """
+        return self._progress_session_id
+
+    def mark_work_finished(self) -> None:
+        """작업 종료 시 호출해 세션을 올린다. 큐에 남은 stale progress를 무효화한다.
+
+        Args:
+            self: 이 대화상자.
+
+        Returns:
+            None.
+        """
+        self._progress_session_id += 1
+
+    def is_progress_token_valid(self, token: int) -> bool:
+        """Progress 슬롯이 아직 유효한 세션인지 본다.
+
+        Args:
+            self: 이 대화상자.
+            token: mark_work_started에서 캡처한 값.
+
+        Returns:
+            유효하면 True.
+        """
+        return token == self._progress_session_id
 
     def _on_canceled(self) -> None:
         """취소 시 finished를보낸다.
