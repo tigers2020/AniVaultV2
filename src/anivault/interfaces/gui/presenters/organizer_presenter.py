@@ -7,20 +7,40 @@ Author: Pom Kim
 
 from collections.abc import Callable
 from threading import Event
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from PySide6.QtCore import QObject, QThread
+from PySide6.QtCore import QObject, QThread, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
 
 from anivault.application.dto.match_result import MatchFileRow, MatchInput, MatchResult
 from anivault.application.dto.parse import ParseInput, ParseResult
+from anivault.application.dto.plan import ApplyInput, ApplyResult, PlanInput, PlanResult
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.scan import ScanInput, ScanResult
-from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel, group_pipeline_rows
+from anivault.interfaces.gui.components.molecules import ProgressDialog
+from anivault.interfaces.gui.dialogs.dry_run_dialog import DryRunDialog
+from anivault.interfaces.gui.models import (
+    PipelineGroupRow,
+    PipelineRow,
+    PipelineTableModel,
+    group_pipeline_rows,
+)
+from anivault.interfaces.gui.presenters.plan_helpers import (
+    merge_plan_into_pipeline_rows,
+    pipeline_row_to_match_file,
+    try_build_plan_input_from_settings,
+)
+from anivault.interfaces.gui.settings_storage import load_all
 from anivault.interfaces.gui.workers import UseCaseWorker, WorkerSignals, run_worker
 
-if TYPE_CHECKING:
-    from anivault.interfaces.gui.components.molecules import ProgressDialog
+PlanExecuteFn = Callable[
+    [PlanInput, Callable[[ProgressEvent], None] | None, Event],
+    PlanResult,
+]
+ApplyExecuteFn = Callable[
+    [ApplyInput, Callable[[ProgressEvent], None] | None, Event],
+    ApplyResult,
+]
 
 
 class OrganizerPresenter(QObject):
@@ -38,7 +58,9 @@ class OrganizerPresenter(QObject):
             ]
             | None
         ) = None,
-        progress_dialog: "ProgressDialog | None" = None,
+        plan_execute: PlanExecuteFn | None = None,
+        apply_execute: ApplyExecuteFn | None = None,
+        progress_dialog: ProgressDialog | None = None,
         parent: QObject | None = None,
     ) -> None:
         """파이프라인 모델과 유스케이스 실행 콜백·진행 다이얼로그를 연결한다.
@@ -49,6 +71,8 @@ class OrganizerPresenter(QObject):
             scan_execute: 스캔 유스케이스 실행 함수. None이면 스캔 비활성.
             parse_execute: 파싱 유스케이스 실행 함수. None이면 파싱 비활성.
             match_execute: 매칭 유스케이스 실행 함수. None이면 매칭 비활성.
+            plan_execute: 이동 계획 유스케이스. None이면 Dry Run 비활성.
+            apply_execute: 계획 적용 유스케이스. None이면 실제 이동 불가.
             progress_dialog: 진행률 UI. None이면 다이얼로그 없음.
             parent: Qt 부모 객체.
 
@@ -60,8 +84,28 @@ class OrganizerPresenter(QObject):
         self._scan_execute = scan_execute
         self._parse_execute = parse_execute
         self._match_execute = match_execute
+        self._plan_execute = plan_execute
+        self._apply_execute = apply_execute
         self._progress_dialog = progress_dialog
         self._worker_thread: QThread | None = None
+        self._dry_run_enabled_handler: Callable[[bool], None] | None = None
+        self._pending_plan: PlanResult | None = None
+        self._scan_progress_handoff_done: bool = False
+
+    def _finish_worker_session(self, dialog: ProgressDialog, hide: bool) -> None:
+        """워커 finished 시 세션을 닫고(무효화) 필요 시 진행 창을 숨긴다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            dialog: 공유 ProgressDialog.
+            hide: True면 hide_progress까지 호출한다.
+
+        Returns:
+            None.
+        """
+        dialog.mark_work_finished()
+        if hide:
+            dialog.hide_progress()
 
     def on_scan_clicked(self, path: str) -> None:
         """스캔 버튼 클릭: 경로 검증 후 워커를 시작하고 결과로 모델을 갱신한다.
@@ -83,8 +127,10 @@ class OrganizerPresenter(QObject):
                     "스캔할 폴더를 먼저 선택해 주세요.",
                 )
             return
+        self._notify_dry_run(False)
         if self._scan_execute is None:
             return
+        self._scan_progress_handoff_done = False
         signals = WorkerSignals()
         worker = UseCaseWorker(
             execute_fn=self._scan_execute,
@@ -95,10 +141,14 @@ class OrganizerPresenter(QObject):
         signals.error.connect(self._on_scan_error)
         dialog = self._progress_dialog
         if dialog is not None:
+            token = dialog.mark_work_started()
             signals.started.connect(
                 lambda: dialog.show_progress("스캔 중", "폴더 스캔 중...", True)
             )
-            signals.progress.connect(self._on_progress)
+            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
+            signals.finished.connect(
+                lambda: self._on_scan_thread_finished(dialog),
+            )
             signals.cancelled.connect(dialog.hide_progress)
             dialog.canceled.connect(worker.cancel)
 
@@ -120,18 +170,36 @@ class OrganizerPresenter(QObject):
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
         self._worker_thread = thread
 
-    def _on_progress(self, event: ProgressEvent) -> None:
+    def _on_scan_thread_finished(self, dialog: ProgressDialog) -> None:
+        """스캔 워커 스레드 finished: 이미 파싱으로 넘겼으면 mark 생략(이중 세션 방지).
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            dialog: 진행 대화상자.
+
+        Returns:
+            None.
+        """
+        if self._scan_progress_handoff_done:
+            return
+        self._finish_worker_session(dialog, hide=False)
+
+    def _on_progress(self, event: ProgressEvent, token: int) -> None:
         """ProgressEvent로 진행 다이얼로그를 갱신한다.
 
         Args:
             self: 이 프레젠터 인스턴스.
             event: 진행률 이벤트 DTO.
+            token: mark_work_started에서 캡처한 세션 토큰.
 
         Returns:
             None.
         """
-        if self._progress_dialog is not None:
-            self._progress_dialog.update_progress(
+        dialog = self._progress_dialog
+        if dialog is not None and not dialog.is_progress_token_valid(token):
+            return
+        if dialog is not None:
+            dialog.update_progress(
                 message=event.message,
                 value=event.percent if event.total > 0 else None,
                 maximum=event.total if event.total > 0 else 100,
@@ -148,12 +216,30 @@ class OrganizerPresenter(QObject):
             None.
         """
         rows = self._scan_result_to_rows(result)
-        self._model.set_rows(group_pipeline_rows(rows))
+        merged = group_pipeline_rows(rows)
         if not rows or self._parse_execute is None:
+            self._model.set_rows(merged)
+            self._scan_progress_handoff_done = True
             if self._progress_dialog is not None:
-                self._progress_dialog.hide_progress()
+                self._finish_worker_session(self._progress_dialog, True)
             return
-        self._start_parse_worker(rows)
+        self._start_parse_worker(rows, merged)
+
+    def _apply_scan_rows_to_model(self, merged: list[PipelineGroupRow]) -> None:
+        """스캔 결과 그룹을 모델에 반영한다.
+
+        Parse 워커의 ``started``가 메인에서 처리된 뒤 ``QTimer.singleShot(0)``으로
+        한 틱 더 미룬 뒤 호출된다. 그렇지 않으면 ``QTimer(0)``가 워커 ``started``보다
+        먼저 실행되어 대량 ``set_rows``가 메인을 점유하고 진행 창이 늦게 뜬다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            merged: group_pipeline_rows 결과.
+
+        Returns:
+            None.
+        """
+        self._model.set_rows(merged)
 
     def _scan_result_to_rows(self, result: ScanResult) -> list[PipelineRow]:
         """ScanResult를 PipelineRow 목록으로 변환한다(경로·해상도 힌트 단계).
@@ -189,12 +275,17 @@ class OrganizerPresenter(QObject):
             )
         return rows
 
-    def _start_parse_worker(self, scan_rows: list[PipelineRow]) -> None:
+    def _start_parse_worker(
+        self,
+        scan_rows: list[PipelineRow],
+        merged_groups: list[PipelineGroupRow],
+    ) -> None:
         """Parse 워커를 시작하고, 완료 시 파싱 정보를 행에 병합해 모델을 갱신한다.
 
         Args:
             self: 이 프레젠터 인스턴스.
             scan_rows: 스캔 직후의 파이프라인 행 목록.
+            merged_groups: 스캔 직후 파이프라인에 반영할 그룹 행(워커 ``started`` 이후 적용).
 
         Returns:
             None.
@@ -212,12 +303,23 @@ class OrganizerPresenter(QObject):
         signals.result.connect(self._on_parse_result)
         signals.error.connect(self._on_scan_error)
         dialog = self._progress_dialog
-        if dialog is not None:
-            signals.started.connect(
-                lambda: dialog.show_progress("Parse 중", "파일명 파싱 중...", False)
+
+        def _on_parse_worker_started() -> None:
+            """워커 run 진입 후 진행 UI를 먼저 띄우고, 다음 이벤트 루프 틱에 모델을 반영한다."""
+            if dialog is not None:
+                dialog.show_progress("Parse 중", "파일명 파싱 중...", False)
+            QTimer.singleShot(
+                0,
+                lambda m=merged_groups: self._apply_scan_rows_to_model(m),
             )
-            signals.progress.connect(self._on_progress)
-            signals.finished.connect(dialog.hide_progress)
+
+        signals.started.connect(_on_parse_worker_started)
+        if dialog is not None:
+            self._scan_progress_handoff_done = True
+            dialog.mark_work_finished()
+            token = dialog.mark_work_started()
+            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
+            signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
             dialog.canceled.connect(worker.cancel)
 
             def _disconnect_cancel() -> None:
@@ -293,6 +395,7 @@ class OrganizerPresenter(QObject):
                     )
                 )
         self._model.set_rows(group_pipeline_rows(merged))
+        self._notify_dry_run(False)
 
     def _on_scan_error(self, exc: Exception) -> None:
         """오류 시 모델은 유지하고 진행 다이얼로그만 숨긴다.
@@ -350,6 +453,7 @@ class OrganizerPresenter(QObject):
                     "Settings → Parse/TMDB에서 API 키를 저장하거나 .env에 TMDB_API_KEY를 설정하세요.",
                 )
             return
+        self._notify_dry_run(False)
         rows = self._model.flat_rows()
         if not rows:
             parent = self.parent()
@@ -360,7 +464,7 @@ class OrganizerPresenter(QObject):
                     "먼저 폴더를 스캔하고 파싱이 끝난 뒤 다시 시도하세요.",
                 )
             return
-        files = tuple(self._pipeline_row_to_match_file(r) for r in rows)
+        files = tuple(pipeline_row_to_match_file(r) for r in rows)
         signals = WorkerSignals()
         worker = UseCaseWorker(
             execute_fn=match_execute,
@@ -371,11 +475,12 @@ class OrganizerPresenter(QObject):
         signals.error.connect(self._on_scan_error)
         dialog = self._progress_dialog
         if dialog is not None:
+            token = dialog.mark_work_started()
             signals.started.connect(
                 lambda: dialog.show_progress("TMDB 매칭", "한글 제목 조회 중…", False)
             )
-            signals.progress.connect(self._on_progress)
-            signals.finished.connect(dialog.hide_progress)
+            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
+            signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
             dialog.canceled.connect(worker.cancel)
 
             def _disconnect_cancel() -> None:
@@ -395,33 +500,6 @@ class OrganizerPresenter(QObject):
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
         self._worker_thread = thread
-
-    def _pipeline_row_to_match_file(self, row: PipelineRow) -> MatchFileRow:
-        """PipelineRow를 MatchFileRow DTO로 변환한다.
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            row: 파이프라인 테이블 행.
-
-        Returns:
-            매칭 입력용 파일 행.
-        """
-        return MatchFileRow(
-            original_file=row.original_file,
-            parsed_title=row.parsed_title,
-            parse_group=row.parse_group,
-            tmdb_korean_title_group=row.tmdb_korean_title_group,
-            tmdb_series_id=row.tmdb_series_id,
-            tmdb_poster_path=row.tmdb_poster_path,
-            tmdb_backdrop_path=row.tmdb_backdrop_path,
-            year=row.year,
-            season=row.season,
-            resolution=row.resolution,
-            status=row.status,
-            poster_url=row.poster_url,
-            backdrop_url=row.backdrop_url,
-            target_path=row.target_path,
-        )
 
     def _match_file_to_pipeline_row(self, m: MatchFileRow) -> PipelineRow:
         """MatchFileRow를 PipelineRow로 변환한다.
@@ -462,6 +540,242 @@ class OrganizerPresenter(QObject):
         """
         merged = [self._match_file_to_pipeline_row(m) for m in result.files]
         self._model.set_rows(group_pipeline_rows(merged))
+        self._notify_dry_run(True)
+
+    def set_dry_run_enabled_handler(self, handler: Callable[[bool], None] | None) -> None:
+        """Dry Run 버튼 활성화를 뷰에 위임한다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            handler: True/False로 버튼 상태를 바꾸는 콜백.
+
+        Returns:
+            None.
+        """
+        self._dry_run_enabled_handler = handler
+
+    def _notify_dry_run(self, enabled: bool) -> None:
+        """Dry Run 버튼 상태를 갱신한다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            enabled: 활성 여부.
+
+        Returns:
+            None.
+        """
+        if self._dry_run_enabled_handler is not None:
+            self._dry_run_enabled_handler(enabled)
+
+    def on_dry_run_clicked(self) -> None:
+        """Dry Run: 이동 계획 워커를 실행한 뒤 미리보기 대화상자를 연다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+
+        Returns:
+            None.
+        """
+        if self._plan_execute is None:
+            return
+        rows = self._model.flat_rows()
+        settings = load_all()
+        pr = settings.get("path_rules") or {}
+        if not isinstance(pr, dict):
+            pr = {}
+        plan_input, err = try_build_plan_input_from_settings(rows, pr)
+        parent = self.parent()
+        if err == "empty":
+            if isinstance(parent, QWidget):
+                QMessageBox.information(
+                    parent,
+                    "항목 없음",
+                    "먼저 스캔·매칭을 완료하세요.",
+                )
+            return
+        if err == "path_rules" or plan_input is None:
+            if isinstance(parent, QWidget):
+                QMessageBox.warning(
+                    parent,
+                    "경로 규칙",
+                    "Settings → Path Rules에서 Target root와 Path template을 설정하세요.",
+                )
+            return
+        signals = WorkerSignals()
+        worker = UseCaseWorker(
+            execute_fn=self._plan_execute,
+            input_dto=plan_input,
+            signals=signals,
+        )
+        signals.result.connect(self._on_plan_worker_result)
+        signals.error.connect(self._on_scan_error)
+        dialog = self._progress_dialog
+        if dialog is not None:
+            token = dialog.mark_work_started()
+            signals.started.connect(
+                lambda: dialog.show_progress("플랜 생성", "경로 계획 중…", False)
+            )
+            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
+            signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
+            dialog.canceled.connect(worker.cancel)
+
+            def _disconnect_cancel() -> None:
+                """스레드 종료 시 취소 시그널 연결을 끊는다.
+
+                Args:
+                    없음.
+
+                Returns:
+                    None.
+                """
+                dialog.canceled.disconnect(worker.cancel)
+
+            thread = run_worker(worker)
+            thread.finished.connect(_disconnect_cancel)
+        else:
+            thread = run_worker(worker)
+        thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
+        self._worker_thread = thread
+
+    def _on_plan_worker_result(self, result: PlanResult) -> None:
+        """플랜 결과로 Dry Run 대화상자를 띄운다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            result: 계획 유스케이스 결과.
+
+        Returns:
+            None.
+        """
+        if self._progress_dialog is not None:
+            self._progress_dialog.hide_progress()
+        parent = self.parent()
+        if result.error:
+            if isinstance(parent, QWidget):
+                QMessageBox.warning(parent, "플랜 오류", result.error)
+            self._notify_dry_run(True)
+            return
+        if not result.moves:
+            if isinstance(parent, QWidget):
+                QMessageBox.information(parent, "Dry Run", "이동할 항목이 없습니다.")
+            self._notify_dry_run(True)
+            return
+        self._pending_plan = result
+        dlg = DryRunDialog(
+            [(m.source_path, m.destination_path) for m in result.moves],
+            parent=parent if isinstance(parent, QWidget) else None,
+        )
+        dlg.apply_requested.connect(lambda: self._on_dry_run_apply_clicked(dlg))
+        dlg.exec()
+        self._pending_plan = None
+
+    def _on_dry_run_apply_clicked(self, dlg: DryRunDialog) -> None:
+        """미리보기에서 실제 이동을 요청한다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            dlg: Dry Run 대화상자.
+
+        Returns:
+            None.
+        """
+        plan = self._pending_plan
+        dlg.accept()
+        if not plan or self._apply_execute is None:
+            return
+        self._start_apply_worker(plan)
+
+    def _start_apply_worker(self, plan: PlanResult) -> None:
+        """apply 유스케이스 워커를 시작한다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            plan: 실행할 계획.
+
+        Returns:
+            None.
+        """
+        if self._apply_execute is None:
+            return
+        settings = load_all()
+        src_root = (settings.get("scan_build") or {}).get("source_path") or ""
+        path_rules = settings.get("path_rules") or {}
+        log_root = (str(src_root).strip() or path_rules.get("target_root") or "").strip()
+        if not log_root:
+            parent = self.parent()
+            if isinstance(parent, QWidget):
+                QMessageBox.warning(
+                    parent,
+                    "로그 경로",
+                    "스캔 소스 경로 또는 Target root를 설정해야 합니다.",
+                )
+            return
+        apply_input = ApplyInput(
+            operations=plan.moves,
+            dry_run=False,
+            log_root=log_root,
+        )
+        signals = WorkerSignals()
+        worker = UseCaseWorker(
+            execute_fn=self._apply_execute,
+            input_dto=apply_input,
+            signals=signals,
+        )
+        signals.result.connect(lambda r: self._on_apply_worker_result(r, plan))
+        signals.error.connect(self._on_scan_error)
+        dialog = self._progress_dialog
+        if dialog is not None:
+            token = dialog.mark_work_started()
+            signals.started.connect(lambda: dialog.show_progress("파일 이동", "이동 중…", False))
+            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
+            signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
+            dialog.canceled.connect(worker.cancel)
+
+            def _disconnect_cancel_apply() -> None:
+                """스레드 종료 시 취소 시그널 연결을 끊는다.
+
+                Args:
+                    없음.
+
+                Returns:
+                    None.
+                """
+                dialog.canceled.disconnect(worker.cancel)
+
+            thread = run_worker(worker)
+            thread.finished.connect(_disconnect_cancel_apply)
+        else:
+            thread = run_worker(worker)
+        thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
+        self._worker_thread = thread
+
+    def _on_apply_worker_result(self, result: ApplyResult, plan: PlanResult) -> None:
+        """적용 워커 완료 시 모델·알림을 갱신한다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            result: 적용 유스케이스 결과.
+            plan: 이번에 적용한 계획.
+
+        Returns:
+            None.
+        """
+        if self._progress_dialog is not None:
+            self._progress_dialog.hide_progress()
+        parent = self.parent()
+        if result.error:
+            if isinstance(parent, QWidget):
+                QMessageBox.critical(parent, "이동 오류", result.error)
+            self._notify_dry_run(True)
+            return
+        merge_plan_into_pipeline_rows(self._model, plan)
+        if isinstance(parent, QWidget):
+            QMessageBox.information(
+                parent,
+                "완료",
+                f"{result.moved_count}개 파일을 이동했습니다.",
+            )
+        self._notify_dry_run(False)
 
     def on_build_plan_clicked(self) -> None:
         """플랜 생성 버튼 클릭(Phase 4 예약). 현재는 동작 없음.
