@@ -6,13 +6,18 @@ Author: Pom Kim
 """
 
 import os
+from collections.abc import Callable
 from pathlib import Path
+from threading import Event
 from typing import TYPE_CHECKING
 
 from anivault.adapters.fs import FsFileRepository
 from anivault.adapters.metadata.tmdb import TmdbApiClient, TmdbMetadataProvider
 from anivault.adapters.operation_log import FsOperationLogRepository
 from anivault.adapters.parser import AnitopyTitleParser
+from anivault.application.dto.progress import ProgressEvent
+from anivault.application.dto.tmdb import TmdbSearchInput, TmdbSeriesCandidateDTO
+from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.ports.operation_log_port import OperationLogRepository
 from anivault.application.use_cases.apply_plan import make_apply_execute
 from anivault.application.use_cases.match_series import make_execute as make_match_execute
@@ -32,6 +37,48 @@ from anivault.interfaces.gui.state import GuiState
 
 if TYPE_CHECKING:
     from anivault.interfaces.gui.components.molecules import ProgressDialog
+
+
+def make_tmdb_search_execute(
+    provider: MetadataProvider,
+) -> Callable[
+    [TmdbSearchInput, Callable[[ProgressEvent], None] | None, Event],
+    tuple[TmdbSeriesCandidateDTO, ...],
+]:
+    """MetadataProvider로 TMDB 시리즈 검색을 백그라운드에서 실행하는 `execute`를 만든다.
+
+    Args:
+        provider: 메타데이터 검색 포트.
+
+    Returns:
+        (input_dto, progress_callback, cancel_token) -> 후보 튜플.
+    """
+
+    def execute(
+        input_dto: TmdbSearchInput,
+        progress_callback: Callable[[ProgressEvent], None] | None,
+        cancel_token: Event,
+    ) -> tuple[TmdbSeriesCandidateDTO, ...]:
+        """검색어로 시리즈 후보를 조회한다.
+
+        Args:
+            input_dto: 검색어·연도.
+            progress_callback: 미사용(시그니처 호환).
+            cancel_token: 설정 시 빈 튜플.
+
+        Returns:
+            TMDB 후보 튜플.
+        """
+        del progress_callback
+        if cancel_token.is_set():
+            return ()
+        q = (input_dto.query or "").strip()
+        if not q:
+            return ()
+        out = tuple(provider.search_series(q, year=input_dto.year))
+        return out
+
+    return execute
 
 
 def create_organizer_page(
@@ -56,10 +103,12 @@ def create_organizer_page(
     parse_execute = make_parse_execute(parser)
     api_key = (os.environ.get("TMDB_API_KEY") or read_tmdb_api_key() or "").strip()
     match_execute = None
+    tmdb_search_execute = None
     if api_key:
         tmdb_client = TmdbApiClient(api_key, language="ko-KR")
         metadata = TmdbMetadataProvider(tmdb_client)
         match_execute = make_match_execute(metadata)
+        tmdb_search_execute = make_tmdb_search_execute(metadata)
 
     def _make_op_log(root: Path) -> OperationLogRepository:
         """log_root별 OperationLogRepository를 만든다.
@@ -79,6 +128,7 @@ def create_organizer_page(
         scan_execute=scan_execute,
         parse_execute=parse_execute,
         match_execute=match_execute,
+        tmdb_search_execute=tmdb_search_execute,
         plan_execute=plan_execute,
         apply_execute=apply_execute,
         progress_dialog=progress_dialog,

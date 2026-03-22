@@ -9,7 +9,7 @@ from collections.abc import Callable
 from threading import Event
 from typing import Any
 
-from PySide6.QtCore import QObject, QThread
+from PySide6.QtCore import QObject, QThread, Slot
 
 from anivault.application.dto.progress import ProgressEvent
 from anivault.interfaces.gui.workers.worker_signals import WorkerSignals
@@ -65,6 +65,7 @@ class UseCaseWorker(QObject):
         """
         self._cancel.set()
 
+    @Slot()
     def run(self) -> None:
         """스레드 시작 시 호출되는 진입점. 실행 후 finished를 emit한다.
 
