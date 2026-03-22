@@ -7,10 +7,11 @@ Author: Pom Kim
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QLabel, QScrollArea, QVBoxLayout
 
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.components.atoms import Button
 from anivault.interfaces.gui.models import PipelineGroupRow, PipelineRow
 
 
@@ -36,6 +37,8 @@ def _member_lines(group: PipelineGroupRow) -> str:
 
 class DetailsPane(QFrame):
     """선택 파일 또는 그룹의 상세 HTML."""
+
+    manual_match_requested = Signal()
 
     def __init__(self, parent=None):
         """스크롤 영역과 내용 라벨을 구성한다.
@@ -65,6 +68,11 @@ class DetailsPane(QFrame):
         scroll.setWidget(self._content)
         layout.addWidget(scroll)
 
+        self._manual_btn = Button("TMDB 수동 매칭", "default")
+        self._manual_btn.setEnabled(False)
+        self._manual_btn.clicked.connect(self.manual_match_requested.emit)
+        layout.addWidget(self._manual_btn)
+
         self.setStyleSheet(theme.card_panel())
 
     def set_row(self, row: PipelineRow | PipelineGroupRow | None) -> None:
@@ -79,7 +87,9 @@ class DetailsPane(QFrame):
         """
         if row is None:
             self._content.setText("항목을 선택하세요")
+            self._manual_btn.setEnabled(False)
             return
+        self._manual_btn.setEnabled(True)
         if isinstance(row, PipelineGroupRow):
             if len(row.members) > 1:
                 files_block = _member_lines(row)

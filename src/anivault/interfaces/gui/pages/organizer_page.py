@@ -64,6 +64,10 @@ class OrganizerPage(QWidget):
         self._scan_bar.dry_run_clicked.connect(self._presenter.on_dry_run_clicked)
         self._scan_bar.path_changed.connect(self._on_scan_path_changed)
         self._presenter.set_dry_run_enabled_handler(self._scan_bar.set_dry_run_enabled)
+        self._presenter.set_pipeline_result_panel(self._result_panel)
+        self._result_panel.manual_match_requested.connect(
+            self._presenter.on_manual_tmdb_match_clicked
+        )
         content_layout.addWidget(self._scan_bar)
         self._stats_grid = StatsGrid()
         content_layout.addWidget(self._stats_grid)

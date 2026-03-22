@@ -108,6 +108,7 @@ class PipelineResultPanel(QFrame):
     """보기 전환과 선택 가능한 우측 패널을 갖춘 통합 파이프라인 결과 위젯."""
 
     selection_changed = Signal(int)
+    manual_match_requested = Signal()
 
     def __init__(
         self,
@@ -200,6 +201,7 @@ class PipelineResultPanel(QFrame):
         self._pane_stack.addWidget(self._details_pane)
         self._pane_stack.addWidget(self._preview_pane)
         main_splitter.addWidget(self._pane_stack)
+        self._details_pane.manual_match_requested.connect(self.manual_match_requested.emit)
         self._main_splitter = main_splitter
         self._main_splitter.setSizePolicy(
             QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -285,6 +287,7 @@ class PipelineResultPanel(QFrame):
         row = self._rows[index] if 0 <= index < len(self._rows) else None
         self._details_pane.set_row(row)
         self._preview_pane.set_row(row)
+        self._table.select_row(index)
         self._persist_ui_state()
 
     def _on_details_pane(self, checked: bool) -> None:
@@ -612,6 +615,29 @@ class PipelineResultPanel(QFrame):
             PipelineTableModel 인스턴스.
         """
         return self._model
+
+    def selected_group_index(self) -> int:
+        """현재 선택된 파이프라인 그룹 인덱스를 반환한다.
+
+        Args:
+            self: 이 패널 인스턴스.
+
+        Returns:
+            행 인덱스. 없으면 -1.
+        """
+        return self._selected_index
+
+    def set_pending_selected_group_index(self, index: int) -> None:
+        """modelReset 직후 `_sync_views_from_model`에서 쓸 선택 인덱스를 예약한다.
+
+        Args:
+            self: 이 패널 인스턴스.
+            index: 그룹 행 인덱스.
+
+        Returns:
+            None.
+        """
+        self._pending_selected_index = index
 
     def set_rows(self, rows: list[PipelineGroupRow]) -> None:
         """그룹 행을 모델에 설정한다(modelReset으로 뷰 동기화가 이어짐).

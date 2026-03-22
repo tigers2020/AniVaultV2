@@ -94,3 +94,19 @@ class PipelineTable(QFrame):
             테이블 모델 인스턴스.
         """
         return self._model
+
+    def select_row(self, row: int) -> None:
+        """지정 행을 선택한다. 범위 밖이면 선택을 해제한다.
+
+        Args:
+            self: 이 테이블 위젯.
+            row: 행 인덱스.
+
+        Returns:
+            None.
+        """
+        n = self._model.rowCount()
+        if row < 0 or row >= n:
+            self._view.clearSelection()
+            return
+        self._view.selectRow(row)
