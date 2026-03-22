@@ -25,6 +25,7 @@ from anivault.application.use_cases.parse_titles import make_execute as make_par
 from anivault.application.use_cases.plan_moves import make_execute as make_plan_execute
 from anivault.application.use_cases.scan_library import make_execute
 from anivault.bootstrap.env_file import read_tmdb_api_key
+from anivault.domain.rules.tmdb_search_query import iter_strip_last_word_chain
 from anivault.interfaces.gui.models import PipelineTableModel
 from anivault.interfaces.gui.pages import OperationsPage, OrganizerPage, SettingsPage
 from anivault.interfaces.gui.presenters import (
@@ -75,8 +76,11 @@ def make_tmdb_search_execute(
         q = (input_dto.query or "").strip()
         if not q:
             return ()
-        out = tuple(provider.search_series(q, year=input_dto.year))
-        return out
+        for attempt in iter_strip_last_word_chain(q):
+            found = tuple(provider.search_series(attempt, year=input_dto.year))
+            if found:
+                return found
+        return ()
 
     return execute
 

@@ -19,6 +19,10 @@ from anivault.application.dto.match_result import (
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.ports.metadata_provider import MetadataProvider
+from anivault.domain.rules.tmdb_search_query import (
+    iter_strip_last_word_chain,
+    iter_tmdb_search_queries,
+)
 
 _MAX_CANDIDATES = 5
 
@@ -169,23 +173,6 @@ def _select_best_candidate(
         return candidates[0], 0.5, "first_result"
     conf = min(1.0, max(0.0, best_score / 15.0))
     return best, conf, reason
-
-
-def _rep_year_for_indices(files: list[MatchFileRow], indices: list[int]) -> str:
-    """인덱스 목록에서 첫 숫자 연도 문자열을 찾는다.
-
-    Args:
-        files: 전체 파일 행 목록.
-        indices: 같은 그룹에 속한 인덱스.
-
-    Returns:
-        숫자만 있는 year 필드. 없으면 빈 문자열.
-    """
-    for i in indices:
-        y = (files[i].year or "").strip()
-        if y.isdigit():
-            return y
-    return ""
 
 
 def _index_files_by_group_key(files: list[MatchFileRow]) -> dict[str, list[int]]:
@@ -343,7 +330,36 @@ def _apply_tmdb_to_file_rows(
             poster_url=poster or prev.poster_url,
             backdrop_url=backdrop or prev.backdrop_url,
             target_path=prev.target_path,
+            episode=prev.episode,
         )
+
+
+def _search_series_candidates_for_group(
+    group_key: str,
+    provider: MetadataProvider,
+) -> list[TmdbSeriesCandidateDTO]:
+    """그룹 키에 대해 변형 검색어·끝단어 제거 체인으로 TMDB 후보를 찾는다.
+
+    연도 필터는 쓰지 않는다(파일 연도와 TMDB 첫 방영 연도 불일치로 0건이 나오는 것을 피함).
+
+    Args:
+        group_key: 파싱 그룹 식별 문자열.
+        provider: 메타데이터 검색 포트.
+
+    Returns:
+        첫 비어 있지 않은 검색 결과. 없으면 빈 목록.
+    """
+    seen_attempts: set[str] = set()
+    for q in iter_tmdb_search_queries(group_key):
+        for attempt in iter_strip_last_word_chain(q):
+            ak = attempt.lower()
+            if ak in seen_attempts:
+                continue
+            seen_attempts.add(ak)
+            raw_candidates = list(provider.search_series(attempt, year=None))
+            if raw_candidates:
+                return raw_candidates
+    return []
 
 
 def _match_single_group(
@@ -363,10 +379,8 @@ def _match_single_group(
     Returns:
         해당 그룹의 매칭 결과 DTO.
     """
-    year_str = _rep_year_for_indices(files, indices)
-    year_i = int(year_str) if year_str.isdigit() else None
-    raw_candidates = list(provider.search_series(group_key, year=year_i))
-    best, conf, reason = _select_best_candidate(raw_candidates, group_key, year_str)
+    raw_candidates = _search_series_candidates_for_group(group_key, provider)
+    best, conf, reason = _select_best_candidate(raw_candidates, group_key, "")
 
     if best is None or not best.tmdb_id:
         return GroupMatchResultDTO(
