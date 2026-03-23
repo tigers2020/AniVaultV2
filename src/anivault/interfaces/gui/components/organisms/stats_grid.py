@@ -1,6 +1,6 @@
 """stats_grid.py
 
-스캔·파싱·TMDB 매칭·플랜 건수를 네 장의 StatCard로 보여 주는 그리드.
+스캔·파싱·TMDB 매칭·그룹 수를 네 장의 StatCard로 보여 주는 그리드.
 
 Author: Pom Kim
 """
@@ -44,7 +44,7 @@ class StatsGrid(QWidget):
             StatCard("Scanned Files", _fmt(0)),
             StatCard("Parsed Titles", _fmt(0)),
             StatCard("TMDB Korean Matches", _fmt(0)),
-            StatCard("Planned Moves", _fmt(0)),
+            StatCard("그룹 수", _fmt(0)),
         ]
         for i, card in enumerate(self._cards):
             layout.addWidget(card, 0, i)
@@ -58,7 +58,7 @@ class StatsGrid(QWidget):
         scanned: int = 0,
         parsed: int = 0,
         tmdb_matches: int = 0,
-        planned: int = 0,
+        groups: int = 0,
     ) -> None:
         """파이프라인 집계 값으로 네 장의 카드 텍스트를 갱신한다.
 
@@ -67,7 +67,7 @@ class StatsGrid(QWidget):
             scanned: 스캔된 파일 수.
             parsed: 파싱된 타이틀 수.
             tmdb_matches: TMDB 매칭 수.
-            planned: 플랜된 이동 수.
+            groups: 파이프라인 그룹(행) 수.
 
         Returns:
             None.
@@ -75,7 +75,7 @@ class StatsGrid(QWidget):
         self._cards[0].set_value(_fmt(scanned))
         self._cards[1].set_value(_fmt(parsed))
         self._cards[2].set_value(_fmt(tmdb_matches))
-        self._cards[3].set_value(_fmt(planned))
+        self._cards[3].set_value(_fmt(groups))
 
     def _sync_fixed_height(self) -> None:
         """폰트·스타일에 맞춰 그리드 행 고정 높이를 sizeHint로 맞춘다.

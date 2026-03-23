@@ -1,24 +1,20 @@
 """topbar.py
 
-페이지 제목·설명·상단 액션 버튼 줄.
+페이지 제목·설명 줄.
 
 Author: Pom Kim
 """
 
-from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui import theme
-from anivault.interfaces.gui.components.atoms import Button
 
 
 class Topbar(QWidget):
-    """페이지 타이틀·부제·Simulate 등 액션."""
-
-    simulate_clicked = Signal()
+    """페이지 타이틀·부제."""
 
     def __init__(self, parent=None):
-        """레이아웃과 시그널을 구성한다.
+        """레이아웃을 구성한다.
 
         Args:
             self: 이 위젯.
@@ -42,16 +38,6 @@ class Topbar(QWidget):
         self._desc.setWordWrap(True)
         left.addWidget(self._desc)
         layout.addLayout(left, 1)
-        actions = QWidget()
-        actions_layout = QHBoxLayout(actions)
-        actions_layout.setContentsMargins(0, 0, 0, 0)
-        actions_layout.setSpacing(10)
-        actions_layout.addWidget(Button("Load Preset"))
-        actions_layout.addWidget(Button("Export Plan"))
-        self._simulate_btn = Button("Simulate Pipeline", "primary")
-        self._simulate_btn.clicked.connect(self.simulate_clicked.emit)
-        actions_layout.addWidget(self._simulate_btn)
-        layout.addWidget(actions)
 
     def set_page(self, title: str, description: str) -> None:
         """제목·설명 라벨을 바꾼다.

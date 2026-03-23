@@ -103,12 +103,12 @@ class OrganizerPage(QWidget):
         scanned = len(rows)
         parsed = sum(1 for r in rows if (r.parsed_title or "").strip())
         tmdb_matches = sum(1 for r in rows if (r.tmdb_korean_title_group or "").strip())
-        planned = sum(1 for r in rows if (r.target_path or "").strip())
+        groups = self._model.rowCount()
         self._stats_grid.set_stats(
             scanned=scanned,
             parsed=parsed,
             tmdb_matches=tmdb_matches,
-            planned=planned,
+            groups=groups,
         )
 
     def showEvent(self, event: QShowEvent) -> None:
