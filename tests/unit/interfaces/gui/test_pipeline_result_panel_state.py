@@ -1,5 +1,7 @@
 """State normalization helpers for PipelineResultPanel."""
 
+from unittest.mock import MagicMock
+
 from anivault.interfaces.gui.components.molecules.view_toggle_bar import VIEW_CONTENT
 from anivault.interfaces.gui.templates.pipeline_result_panel import PipelineResultPanel
 
@@ -53,3 +55,57 @@ def test_selectable_index_returns_zero_or_minus_one_for_out_of_range() -> None:
 
     assert non_empty == 0
     assert empty == -1
+
+
+def test_icon_grid_same_card_closes_details_pane() -> None:
+    """동일 행 재클릭 시 세부 정보 패널만 끈다(선택 유지)."""
+    panel = PipelineResultPanel.__new__(PipelineResultPanel)
+    view_bar = MagicMock()
+    view_bar.details_pane_checked.return_value = True
+    panel._view_bar = view_bar  # type: ignore[method-assign]
+    panel._pane_mode = "details"
+    panel._selected_index = 2
+    details_calls: list[bool] = []
+
+    def _on_details(checked: bool) -> None:
+        details_calls.append(checked)
+
+    panel._on_details_pane = _on_details  # type: ignore[method-assign]
+    selection_calls: list[int] = []
+    panel._on_selection = lambda i: selection_calls.append(i)  # type: ignore[method-assign]
+    panel._ensure_details_pane_visible = MagicMock()  # type: ignore[method-assign]
+
+    panel._on_icon_grid_card_clicked(2)  # type: ignore[attr-defined]
+
+    view_bar.set_details_pane_checked.assert_called_once_with(False)
+    assert details_calls == [False]
+    panel._ensure_details_pane_visible.assert_not_called()
+    assert selection_calls == []
+
+
+def test_icon_grid_different_card_opens_selection_without_close() -> None:
+    """다른 행이면 세부 창을 켜고(필요 시) 해당 행으로 선택한다."""
+    panel = PipelineResultPanel.__new__(PipelineResultPanel)
+    view_bar = MagicMock()
+    view_bar.details_pane_checked.return_value = False
+    panel._view_bar = view_bar  # type: ignore[method-assign]
+    panel._pane_mode = None
+    panel._selected_index = 0
+    ensure_calls = 0
+
+    def _ensure() -> None:
+        nonlocal ensure_calls
+        ensure_calls += 1
+
+    selection_calls: list[int] = []
+
+    def _on_sel(i: int) -> None:
+        selection_calls.append(i)
+
+    panel._ensure_details_pane_visible = _ensure  # type: ignore[method-assign]
+    panel._on_selection = _on_sel  # type: ignore[method-assign]
+
+    panel._on_icon_grid_card_clicked(3)  # type: ignore[attr-defined]
+
+    assert ensure_calls == 1
+    assert selection_calls == [3]

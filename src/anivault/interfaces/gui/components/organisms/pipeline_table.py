@@ -5,7 +5,7 @@ QTableView와 PipelineTableModel을 묶은 파이프라인 결과 테이블 orga
 Author: Pom Kim
 """
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QSignalBlocker, Signal
 from PySide6.QtWidgets import QFrame, QHeaderView, QTableView, QVBoxLayout
 
 from anivault.interfaces.gui import theme
@@ -106,7 +106,9 @@ class PipelineTable(QFrame):
             None.
         """
         n = self._model.rowCount()
-        if row < 0 or row >= n:
-            self._view.clearSelection()
-            return
-        self._view.selectRow(row)
+        sm = self._view.selectionModel()
+        with QSignalBlocker(sm):
+            if row < 0 or row >= n:
+                self._view.clearSelection()
+                return
+            self._view.selectRow(row)

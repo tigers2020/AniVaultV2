@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class PipelineRow:
-    """파이프라인 테이블 한 파일 행. 테이블·포스터·operations 공통."""
+    """파이프라인 테이블 한 파일 행. 테이블·포스터 등 파이프라인 UI 공통."""
 
     original_file: str
     parsed_title: str
@@ -28,6 +28,30 @@ class PipelineRow:
     backdrop_url: str
     target_path: str
     episode: str = ""
+
+
+def pipeline_row_ready_for_plan(row: PipelineRow) -> bool:
+    """TMDB 한글 그룹 제목이 있어 플랜·이동에 사용할 수 있는지 판별한다.
+
+    Args:
+        row: 파이프라인 파일 행.
+
+    Returns:
+        한글 그룹 제목이 비어 있지 않으면 True.
+    """
+    return bool((row.tmdb_korean_title_group or "").strip())
+
+
+def pipeline_rows_ready_for_plan(rows: list[PipelineRow]) -> list[PipelineRow]:
+    """플랜 입력에 넣을 수 있는 행만 골라 순서를 유지한다.
+
+    Args:
+        rows: 평탄화된 파이프라인 행.
+
+    Returns:
+        `pipeline_row_ready_for_plan`이 True인 행만 담은 목록.
+    """
+    return [r for r in rows if pipeline_row_ready_for_plan(r)]
 
 
 def _aggregate_str(members: tuple[PipelineRow, ...], attr: str, *, mixed: str = "—") -> str:

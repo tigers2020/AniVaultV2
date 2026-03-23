@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import PanelHeader, PosterCard
 from anivault.interfaces.gui.components.molecules.poster_card import (
+    CARD_LAYOUT_SPACING_COMPACT_PX,
     CARD_LAYOUT_SPACING_POSTER_PX,
     NON_COMPACT_BODY_HEIGHT_PX,
     POSTER_IMAGE_ASPECT_HW,
@@ -46,19 +47,28 @@ def _column_count(width: int, *, min_card: int, grid_spacing: int) -> int:
 class _GridContainer(QWidget):
     """너비·밀도 변경 시 그리드를 다시 배치하는 내부 컨테이너."""
 
-    def __init__(self, min_card_width: int | None = MIN_CARD_WIDTH, parent=None):
+    def __init__(
+        self,
+        min_card_width: int | None = MIN_CARD_WIDTH,
+        parent=None,
+        *,
+        body_below_image_px: int | None = None,
+    ):
         """그리드 레이아웃·밀도 변경 콜백을 초기화한다.
 
         Args:
             self: 이 컨테이너.
             min_card_width: 카드 최소 너비. None이면 테마 기본값 사용.
             parent: Qt 부모.
+            body_below_image_px: 이미지 아래 텍스트 영역 높이(컴팩트 카드용).
+                None이면 포스터 카드 기본(큰 본문 + 포스터 간격)을 쓴다.
 
         Returns:
             None.
         """
         super().__init__(parent)
         self._min_card_width = min_card_width
+        self._body_below_image_px = body_below_image_px
         # Outer column: grid (intrinsic height) + stretch below. Without this,
         # QGridLayout distributes extra viewport height *between* rows, making
         # row gaps much larger than horizontal GRID_SPACING when maximized.
@@ -123,11 +133,11 @@ class _GridContainer(QWidget):
         self._last_width = w
         # One size for all cards so height never "shrinks" by column
         card_w = max(mc, (w - (cols - 1) * grid_spacing) // cols)
-        card_h = (
-            int(card_w * POSTER_IMAGE_ASPECT_HW)
-            + CARD_LAYOUT_SPACING_POSTER_PX
-            + NON_COMPACT_BODY_HEIGHT_PX
-        )
+        if self._body_below_image_px is None:
+            below_img = CARD_LAYOUT_SPACING_POSTER_PX + NON_COMPACT_BODY_HEIGHT_PX
+        else:
+            below_img = CARD_LAYOUT_SPACING_COMPACT_PX + self._body_below_image_px
+        card_h = int(card_w * POSTER_IMAGE_ASPECT_HW) + below_img
         for c in range(cols):
             self._grid.setColumnStretch(c, 1)
         align = Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
@@ -187,6 +197,8 @@ class PosterGrid(QFrame):
         min_card_width: int | None = None,
         show_header: bool = True,
         parent=None,
+        *,
+        body_below_image_px: int | None = None,
     ):
         """스크롤 영역·내부 그리드 컨테이너·선택적 헤더를 구성한다.
 
@@ -195,6 +207,8 @@ class PosterGrid(QFrame):
             min_card_width: 카드 최소 너비. None이면 기본값.
             show_header: 상단 PanelHeader 표시 여부.
             parent: Qt 부모.
+            body_below_image_px: 이미지 아래 텍스트 영역 높이(컴팩트 카드와 맞출 때).
+                None이면 포스터 카드 기본 본문 높이를 쓴다.
 
         Returns:
             None.
@@ -222,7 +236,10 @@ class PosterGrid(QFrame):
         )
         scroll.setHorizontalScrollBarPolicy(scroll.horizontalScrollBarPolicy())
         scroll.setStyleSheet(theme.scroll_area_transparent())
-        self._container = _GridContainer(min_card_width=min_card_width)
+        self._container = _GridContainer(
+            min_card_width=min_card_width,
+            body_below_image_px=body_below_image_px,
+        )
         scroll.setWidget(self._container)
         layout.addWidget(scroll)
         self.setStyleSheet(theme.card_panel())

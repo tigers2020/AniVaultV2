@@ -12,7 +12,12 @@ from typing import Any
 
 from anivault.application.dto.match_result import MatchFileRow
 from anivault.application.dto.plan import PlanInput, PlanResult
-from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel, group_pipeline_rows
+from anivault.interfaces.gui.models import (
+    PipelineRow,
+    PipelineTableModel,
+    group_pipeline_rows,
+    pipeline_rows_ready_for_plan,
+)
 
 
 def pipeline_row_to_match_file(row: PipelineRow) -> MatchFileRow:
@@ -54,15 +59,18 @@ def try_build_plan_input_from_settings(
         path_rules: Settings의 path_rules 섹션.
 
     Returns:
-        (PlanInput, None) 또는 (None, 오류 키: empty | path_rules).
+        (PlanInput, None) 또는 (None, 오류 키: empty | no_matched | path_rules).
     """
     if not rows:
         return None, "empty"
+    ready = pipeline_rows_ready_for_plan(rows)
+    if not ready:
+        return None, "no_matched"
     tpl = (str(path_rules.get("path_template") or "")).strip()
     target_root = (str(path_rules.get("target_root") or "")).strip()
     if not tpl or not target_root:
         return None, "path_rules"
-    files = tuple(pipeline_row_to_match_file(r) for r in rows)
+    files = tuple(pipeline_row_to_match_file(r) for r in ready)
     return (
         PlanInput(
             files=files,

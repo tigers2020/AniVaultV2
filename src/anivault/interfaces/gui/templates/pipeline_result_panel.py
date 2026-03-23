@@ -13,6 +13,7 @@ from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFrame,
+    QLabel,
     QSizePolicy,
     QSplitter,
     QStackedWidget,
@@ -24,6 +25,9 @@ from anivault.interfaces.gui.components.molecules import (
     PanelHeader,
     PosterCard,
     ViewToggleBar,
+)
+from anivault.interfaces.gui.components.molecules.poster_card import (
+    COMPACT_TITLE_ONLY_BODY_HEIGHT_PX,
 )
 from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
     VIEW_CONTENT,
@@ -40,7 +44,12 @@ from anivault.interfaces.gui.components.organisms.details_pane import DetailsPan
 from anivault.interfaces.gui.components.organisms.pipeline_table import PipelineTable
 from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
 from anivault.interfaces.gui.components.organisms.preview_pane import PreviewPane
-from anivault.interfaces.gui.models import PipelineGroupRow, PipelineTableModel
+from anivault.interfaces.gui.models import (
+    PipelineGroupRow,
+    PipelineTableModel,
+    group_pipeline_rows,
+    pipeline_row_ready_for_plan,
+)
 from anivault.interfaces.gui.services.image_loader import ImageLoader
 from anivault.interfaces.gui.settings_storage import load_all, save_all
 
@@ -161,11 +170,38 @@ class PipelineResultPanel(QFrame):
         )
         self._stack.setMinimumHeight(0)
 
-        # 0: Details (table) — use shared model when provided
-        table = PipelineTable(show_header=False, model=self._model)
-        table.selection_changed.connect(self._on_selection)
-        self._stack.addWidget(table)
-        self._table = table
+        # 0: Details — TMDB 준비됨 / 미준비 세로 분할 테이블
+        self._matched_model = PipelineTableModel()
+        self._unmatched_model = PipelineTableModel()
+        self._matched_table = PipelineTable(show_header=False, model=self._matched_model)
+        self._unmatched_table = PipelineTable(show_header=False, model=self._unmatched_model)
+        self._matched_table.selection_changed.connect(
+            lambda r: self._on_split_table_selection("matched", r)
+        )
+        self._unmatched_table.selection_changed.connect(
+            lambda r: self._on_split_table_selection("unmatched", r)
+        )
+        details_splitter = QSplitter(Qt.Orientation.Vertical)
+        details_splitter.setChildrenCollapsible(False)
+        top_wrap = QWidget()
+        top_l = QVBoxLayout(top_wrap)
+        top_l.setContentsMargins(0, 0, 0, 0)
+        top_l.setSpacing(4)
+        _lbl_m = QLabel("TMDB 매칭됨")
+        top_l.addWidget(_lbl_m)
+        top_l.addWidget(self._matched_table, 1)
+        bottom_wrap = QWidget()
+        bottom_l = QVBoxLayout(bottom_wrap)
+        bottom_l.setContentsMargins(0, 0, 0, 0)
+        bottom_l.setSpacing(4)
+        _lbl_u = QLabel("미매칭·미진행")
+        bottom_l.addWidget(_lbl_u)
+        bottom_l.addWidget(self._unmatched_table, 1)
+        details_splitter.addWidget(top_wrap)
+        details_splitter.addWidget(bottom_wrap)
+        details_splitter.setStretchFactor(0, 1)
+        details_splitter.setStretchFactor(1, 1)
+        self._stack.addWidget(details_splitter)
 
         # 1: List
         list_view = CompactListView()
@@ -182,7 +218,11 @@ class PipelineResultPanel(QFrame):
         # 3-6: Icon grids (XL, L, M, S)
         self._poster_grids: dict[str, PosterGrid] = {}
         for key in (VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S):
-            grid = PosterGrid(min_card_width=ICON_SIZES[key], show_header=False)
+            grid = PosterGrid(
+                min_card_width=ICON_SIZES[key],
+                show_header=False,
+                body_below_image_px=COMPACT_TITLE_ONLY_BODY_HEIGHT_PX,
+            )
             self._stack.addWidget(grid)
             self._poster_grids[key] = grid
         self._poster_grid_dirty: dict[str, bool] = dict.fromkeys(self._poster_grids, True)
@@ -272,6 +312,89 @@ class PipelineResultPanel(QFrame):
         self._refresh_all_poster_pixmaps(combined)
         self._persist_ui_state()
 
+    def _unified_index_for_group(self, group: PipelineGroupRow) -> int:
+        """파생 테이블의 그룹이 통합 `_rows`에서 몇 번째인지 찾는다.
+
+        Args:
+            self: 이 패널 인스턴스.
+            group: 파이프라인 그룹 행.
+
+        Returns:
+            통합 인덱스. 없으면 -1.
+        """
+        if not group.members:
+            return -1
+        key = group.members[0].original_file
+        for i, g in enumerate(self._rows):
+            if any(m.original_file == key for m in g.members):
+                return i
+        return -1
+
+    def _on_split_table_selection(self, which: str, row: int) -> None:
+        """세부 테이블에서 선택 시 통합 그룹 인덱스로 변환해 반영한다.
+
+        Args:
+            self: 이 패널 인스턴스.
+            which: "matched" 또는 "unmatched".
+            row: 해당 파생 테이블의 행 인덱스.
+
+        Returns:
+            None.
+        """
+        model = self._matched_model if which == "matched" else self._unmatched_model
+        groups = model.rows()
+        if row < 0 or row >= len(groups):
+            return
+        uni = self._unified_index_for_group(groups[row])
+        if uni >= 0:
+            self._apply_unified_selection(uni)
+
+    def _sync_split_tables_selection(self, unified_index: int) -> None:
+        """통합 인덱스에 맞춰 상·하단 테이블 중 하나만 하이라이트한다.
+
+        Args:
+            self: 이 패널 인스턴스.
+            unified_index: 통합 그룹 인덱스. 범위 밖이면 선택 해제.
+
+        Returns:
+            None.
+        """
+        if unified_index < 0 or unified_index >= len(self._rows):
+            self._matched_table.select_row(-1)
+            self._unmatched_table.select_row(-1)
+            return
+        key = self._rows[unified_index].members[0].original_file
+        for i, g in enumerate(self._matched_model.rows()):
+            if any(m.original_file == key for m in g.members):
+                self._matched_table.select_row(i)
+                self._unmatched_table.select_row(-1)
+                return
+        for i, g in enumerate(self._unmatched_model.rows()):
+            if any(m.original_file == key for m in g.members):
+                self._unmatched_table.select_row(i)
+                self._matched_table.select_row(-1)
+                return
+        self._matched_table.select_row(-1)
+        self._unmatched_table.select_row(-1)
+
+    def _apply_unified_selection(self, index: int) -> None:
+        """통합 그룹 인덱스로 상세·미리보기·분할 테이블 선택을 맞춘다.
+
+        Args:
+            self: 이 패널 인스턴스.
+            index: 통합 그룹 인덱스.
+
+        Returns:
+            None.
+        """
+        self._selected_index = index
+        self.selection_changed.emit(index)
+        row = self._rows[index] if 0 <= index < len(self._rows) else None
+        self._details_pane.set_row(row)
+        self._preview_pane.set_row(row)
+        self._sync_split_tables_selection(index)
+        self._persist_ui_state()
+
     def _on_selection(self, index: int) -> None:
         """선택 인덱스를 반영하고 상세·미리보기 패널과 외부 시그널을 갱신한다.
 
@@ -282,13 +405,41 @@ class PipelineResultPanel(QFrame):
         Returns:
             None.
         """
-        self._selected_index = index
-        self.selection_changed.emit(index)
-        row = self._rows[index] if 0 <= index < len(self._rows) else None
-        self._details_pane.set_row(row)
-        self._preview_pane.set_row(row)
-        self._table.select_row(index)
-        self._persist_ui_state()
+        self._apply_unified_selection(index)
+
+    def _ensure_details_pane_visible(self) -> None:
+        """세부 정보 창이 꺼져 있으면 토글 ON과 동일하게 우측 패널을 연다.
+
+        Args:
+            self: 이 패널 인스턴스.
+
+        Returns:
+            None.
+        """
+        if not self._view_bar.details_pane_checked():
+            self._view_bar.set_details_pane_checked(True)
+            self._on_details_pane(True)
+
+    def _on_icon_grid_card_clicked(self, index: int) -> None:
+        """아이콘 카드 클릭: 동일 행+세부 패널 표시 중이면 닫고, 아니면 열고 선택한다.
+
+        Args:
+            self: 이 패널 인스턴스.
+            index: 그룹 행 인덱스.
+
+        Returns:
+            None.
+        """
+        if (
+            self._view_bar.details_pane_checked()
+            and self._pane_mode == "details"
+            and self._selected_index == index
+        ):
+            self._view_bar.set_details_pane_checked(False)
+            self._on_details_pane(False)
+            return
+        self._ensure_details_pane_visible()
+        self._on_selection(index)
 
     def _on_details_pane(self, checked: bool) -> None:
         """상세 패널 토글에 따라 우측 스택·스플리터 크기를 조정한다.
@@ -370,7 +521,11 @@ class PipelineResultPanel(QFrame):
             None.
         """
         card.setCursor(Qt.CursorShape.PointingHandCursor)
-        card.mousePressEvent = lambda e, idx=index: self._on_selection(idx)  # type: ignore[method-assign,misc]
+
+        def _on_press(_event: object) -> None:
+            self._on_icon_grid_card_clicked(index)
+
+        card.mousePressEvent = _on_press  # type: ignore[assignment]
 
     def _clear_all_poster_grids(self) -> None:
         """아이콘 그리드 위젯을 비우고 모두 재구성 필요로 표시한다.
@@ -386,7 +541,7 @@ class PipelineResultPanel(QFrame):
             self._poster_grid_dirty[key] = True
 
     def _make_compact_grid_cards(self, rows: list[PipelineGroupRow]) -> list[PosterCard]:
-        """파이프라인 그룹 행으로 아이콘 그리드용 컴팩트 PosterCard 목록을 만든다.
+        """파이프라인 그룹 행으로 아이콘 그리드용 포스터+제목만 PosterCard 목록을 만든다.
 
         Args:
             self: 이 패널.
@@ -398,19 +553,14 @@ class PipelineResultPanel(QFrame):
         cards: list[PosterCard] = []
         for g in rows:
             title = (g.tmdb_korean_title_group or "").strip() or (g.parsed_title or "").strip()
-            meta_lines = [
-                f"Parsed: {g.parsed_title}",
-                f"Year: {g.year} • {g.season} • {g.resolution}",
-            ]
-            if len(g.members) > 1:
-                meta_lines.insert(0, f"{len(g.members)} files")
             cards.append(
                 PosterCard(
                     title=title,
-                    meta="\n".join(meta_lines),
-                    path=g.target_path,
+                    meta="",
+                    path="",
                     image_url=g.poster_url,
                     variant="compact",
+                    title_only=True,
                 )
             )
         return cards
@@ -492,6 +642,12 @@ class PipelineResultPanel(QFrame):
         """
         rows = self._model.rows()
         self._rows = list(rows)
+
+        flat = self._model.flat_rows()
+        matched_flat = [r for r in flat if pipeline_row_ready_for_plan(r)]
+        unmatched_flat = [r for r in flat if not pipeline_row_ready_for_plan(r)]
+        self._matched_model.set_rows(group_pipeline_rows(matched_flat))
+        self._unmatched_model.set_rows(group_pipeline_rows(unmatched_flat))
 
         self._clear_all_poster_grids()
         self._apply_list_content_for_view_key(self._view_bar.current_view(), rows)

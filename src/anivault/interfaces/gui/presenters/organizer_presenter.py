@@ -27,6 +27,7 @@ from anivault.interfaces.gui.models import (
     PipelineRow,
     PipelineTableModel,
     group_pipeline_rows,
+    pipeline_rows_ready_for_plan,
 )
 from anivault.interfaces.gui.presenters.plan_helpers import (
     merge_plan_into_pipeline_rows,
@@ -623,7 +624,7 @@ class OrganizerPresenter(QObject):
         """
         merged = [self._match_file_to_pipeline_row(m) for m in result.files]
         self._model.set_rows(group_pipeline_rows(merged))
-        self._notify_dry_run(True)
+        self._notify_dry_run(self._dry_run_should_enable())
 
     def _parent_widget(self) -> QWidget | None:
         """Qt 부모가 QWidget이면 그 인스턴스를 반환한다.
@@ -715,7 +716,7 @@ class OrganizerPresenter(QObject):
                 break
         panel.set_pending_selected_group_index(pending_idx)
         self._model.set_rows(merged_groups)
-        self._notify_dry_run(True)
+        self._notify_dry_run(self._dry_run_should_enable())
 
     def on_manual_tmdb_match_clicked(self) -> None:
         """세부 정보 패널에서 TMDB 수동 매칭을 요청한다.
@@ -836,6 +837,17 @@ class OrganizerPresenter(QObject):
         if self._dry_run_enabled_handler is not None:
             self._dry_run_enabled_handler(enabled)
 
+    def _dry_run_should_enable(self) -> bool:
+        """TMDB 한글 그룹 제목이 있는 행이 하나라도 있으면 Dry Run을 켤 수 있다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+
+        Returns:
+            플랜 가능한 행이 있으면 True.
+        """
+        return bool(pipeline_rows_ready_for_plan(self._model.flat_rows()))
+
     def on_dry_run_clicked(self) -> None:
         """Dry Run: 이동 계획 워커를 실행한 뒤 미리보기 대화상자를 연다.
 
@@ -860,6 +872,14 @@ class OrganizerPresenter(QObject):
                     parent,
                     "항목 없음",
                     "먼저 스캔·매칭을 완료하세요.",
+                )
+            return
+        if err == "no_matched":
+            if isinstance(parent, QWidget):
+                QMessageBox.information(
+                    parent,
+                    "TMDB 매칭 없음",
+                    "TMDB 한글 제목이 있는 항목이 없습니다. 자동·수동 매칭으로 준비한 뒤 다시 시도하세요.",
                 )
             return
         if err == "path_rules" or plan_input is None:
@@ -922,12 +942,12 @@ class OrganizerPresenter(QObject):
         if result.error:
             if isinstance(parent, QWidget):
                 QMessageBox.warning(parent, "플랜 오류", result.error)
-            self._notify_dry_run(True)
+            self._notify_dry_run(self._dry_run_should_enable())
             return
         if not result.moves:
             if isinstance(parent, QWidget):
                 QMessageBox.information(parent, "Dry Run", "이동할 항목이 없습니다.")
-            self._notify_dry_run(True)
+            self._notify_dry_run(self._dry_run_should_enable())
             return
         self._pending_plan = result
         dlg = DryRunDialog(
@@ -1035,7 +1055,7 @@ class OrganizerPresenter(QObject):
         if result.error:
             if isinstance(parent, QWidget):
                 QMessageBox.critical(parent, "이동 오류", result.error)
-            self._notify_dry_run(True)
+            self._notify_dry_run(self._dry_run_should_enable())
             return
         merge_plan_into_pipeline_rows(self._model, plan)
         panel = self._pipeline_panel
@@ -1047,7 +1067,7 @@ class OrganizerPresenter(QObject):
                 "완료",
                 f"{result.moved_count}개 파일을 이동했습니다.",
             )
-        self._notify_dry_run(False)
+        self._notify_dry_run(self._dry_run_should_enable())
 
     def on_build_plan_clicked(self) -> None:
         """플랜 생성 버튼 클릭(Phase 4 예약). 현재는 동작 없음.

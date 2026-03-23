@@ -22,6 +22,7 @@ POSTER_IMAGE_ASPECT_HW = 3 / 2
 BACKDROP_IMAGE_ASPECT_HW = 2 / 5
 # Space for title + meta (+ path on non-compact) below the image
 COMPACT_BODY_HEIGHT_PX = 48
+COMPACT_TITLE_ONLY_BODY_HEIGHT_PX = 28
 NON_COMPACT_BODY_HEIGHT_PX = 100
 # Vertical gap between image row and title/meta row (must match layout.setSpacing)
 CARD_LAYOUT_SPACING_COMPACT_PX = 6
@@ -41,6 +42,7 @@ class PosterCard(QFrame):
         variant: Literal["poster", "compact"] = "poster",
         image_aspect: Literal["poster", "backdrop"] = "poster",
         text_panel_overlay: bool = False,
+        title_only: bool = False,
     ):
         """레이아웃·최소 크기·자식 위젯을 구성한다.
 
@@ -54,6 +56,7 @@ class PosterCard(QFrame):
             variant: poster | compact.
             image_aspect: poster | backdrop 비율.
             text_panel_overlay: 컴팩트일 때 텍스트 패널 오버레이 여부.
+            title_only: compact일 때 제목만 표시(메타 생략). poster에서는 무시.
 
         Returns:
             None.
@@ -62,6 +65,7 @@ class PosterCard(QFrame):
         is_compact = variant == "compact"
         use_text_panel = is_compact and text_panel_overlay
         self._is_compact = is_compact
+        self._title_only = bool(title_only and is_compact)
         self._aspect_hw_compact = (
             POSTER_IMAGE_ASPECT_HW if image_aspect == "poster" else BACKDROP_IMAGE_ASPECT_HW
         )
@@ -79,7 +83,7 @@ class PosterCard(QFrame):
         self._img_placeholder = "Backdrop" if image_aspect == "backdrop" else "Poster"
         self._setup_image_row(layout)
         body, body_frame = self._create_body_layout(use_text_panel, is_compact)
-        self._populate_body(body, title, meta, path, is_compact)
+        self._populate_body(body, title, meta, path, is_compact, self._title_only)
         self._attach_body_to_main(layout, body, body_frame, use_text_panel)
         layout.addStretch(1)
         self._image_url = image_url
@@ -95,11 +99,12 @@ class PosterCard(QFrame):
             None.
         """
         if is_compact:
+            body_px = (
+                COMPACT_TITLE_ONLY_BODY_HEIGHT_PX if self._title_only else COMPACT_BODY_HEIGHT_PX
+            )
             self.setMinimumWidth(120)
             self.setMinimumHeight(
-                int(120 * self._aspect_hw_compact)
-                + CARD_LAYOUT_SPACING_COMPACT_PX
-                + COMPACT_BODY_HEIGHT_PX,
+                int(120 * self._aspect_hw_compact) + CARD_LAYOUT_SPACING_COMPACT_PX + body_px,
             )
             return
         self.setMinimumWidth(140)
@@ -160,7 +165,13 @@ class PosterCard(QFrame):
         layout.addWidget(self._img_label, stretch=0, alignment=Qt.AlignmentFlag.AlignTop)
 
     def _populate_body(
-        self, body: QVBoxLayout, title: str, meta: str, path: str, is_compact: bool
+        self,
+        body: QVBoxLayout,
+        title: str,
+        meta: str,
+        path: str,
+        is_compact: bool,
+        title_only: bool,
     ) -> None:
         """제목·메타·경로 라벨을 본문에 채운다.
 
@@ -171,6 +182,7 @@ class PosterCard(QFrame):
             meta: 메타 문자열.
             path: 경로 문자열.
             is_compact: 컴팩트면 PathBox 생략.
+            title_only: 컴팩트일 때 메타 라벨을 붙이지 않는다.
 
         Returns:
             None.
@@ -182,10 +194,15 @@ class PosterCard(QFrame):
         self._title_lbl.setStyleSheet(theme.poster_card_title())
         body.addWidget(self._title_lbl)
 
-        self._meta_lbl = Label(meta, "muted")
-        self._meta_lbl.setWordWrap(not is_compact)
-        self._meta_lbl.setStyleSheet(theme.poster_card_meta())
-        body.addWidget(self._meta_lbl)
+        self._meta_lbl: Label | None
+        if is_compact and title_only:
+            self._meta_lbl = None
+        else:
+            meta_lbl = Label(meta, "muted")
+            meta_lbl.setWordWrap(not is_compact)
+            meta_lbl.setStyleSheet(theme.poster_card_meta())
+            body.addWidget(meta_lbl)
+            self._meta_lbl = meta_lbl
 
         self._path_box: PathBox | None = None
         if not is_compact:
@@ -238,12 +255,13 @@ class PosterCard(QFrame):
             QSize.
         """
         if self._is_compact:
+            body_px = (
+                COMPACT_TITLE_ONLY_BODY_HEIGHT_PX if self._title_only else COMPACT_BODY_HEIGHT_PX
+            )
             w = 140
             return QSize(
                 w,
-                int(w * self._aspect_hw_compact)
-                + CARD_LAYOUT_SPACING_COMPACT_PX
-                + COMPACT_BODY_HEIGHT_PX,
+                int(w * self._aspect_hw_compact) + CARD_LAYOUT_SPACING_COMPACT_PX + body_px,
             )
         w = 180
         return QSize(
@@ -277,11 +295,10 @@ class PosterCard(QFrame):
         if w <= 0:
             return self.minimumHeight()
         if self._is_compact:
-            return (
-                int(w * self._aspect_hw_compact)
-                + CARD_LAYOUT_SPACING_COMPACT_PX
-                + COMPACT_BODY_HEIGHT_PX
+            body_px = (
+                COMPACT_TITLE_ONLY_BODY_HEIGHT_PX if self._title_only else COMPACT_BODY_HEIGHT_PX
             )
+            return int(w * self._aspect_hw_compact) + CARD_LAYOUT_SPACING_COMPACT_PX + body_px
         return (
             int(w * POSTER_IMAGE_ASPECT_HW)
             + CARD_LAYOUT_SPACING_POSTER_PX
@@ -352,10 +369,9 @@ class PosterCard(QFrame):
         Returns:
             None.
         """
-        pairs = (
-            (self._title_lbl, self._title_text),
-            (self._meta_lbl, self._meta_text),
-        )
+        pairs: list[tuple[Label, str]] = [(self._title_lbl, self._title_text)]
+        if self._meta_lbl is not None:
+            pairs.append((self._meta_lbl, self._meta_text))
         for lbl, raw_text in pairs:
             metrics = QFontMetrics(lbl.font())
             available = max(0, lbl.width() - 2)
