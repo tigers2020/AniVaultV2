@@ -18,7 +18,7 @@ from anivault.interfaces.gui.themes import on_density_changed
 
 
 class Sidebar(QWidget):
-    """왼쪽: 브랜드와 Organizer/Operations/Settings 탭."""
+    """왼쪽: 브랜드와 Organizer/Settings 탭."""
 
     tab_clicked = Signal(str)
 
@@ -45,13 +45,12 @@ class Sidebar(QWidget):
         layout.addWidget(nav_title)
         self._organizer_btn = NavItem("Organizer", "organizer")
         self._organizer_btn.setChecked(True)
-        self._operations_btn = NavItem("Operations", "operations")
         self._settings_btn = NavItem("Settings", "settings")
         nav_buttons = QWidget()
         nav_buttons_layout = QVBoxLayout(nav_buttons)
         nav_buttons_layout.setContentsMargins(0, 0, 0, 0)
         nav_buttons_layout.setSpacing(8)
-        for btn in (self._organizer_btn, self._operations_btn, self._settings_btn):
+        for btn in (self._organizer_btn, self._settings_btn):
             btn.tab_clicked.connect(self.tab_clicked.emit)
             nav_buttons_layout.addWidget(btn)
         layout.addWidget(nav_buttons)
@@ -64,13 +63,12 @@ class Sidebar(QWidget):
 
         Args:
             self: 이 위젯.
-            tab_id: organizer | operations | settings.
+            tab_id: organizer | settings.
 
         Returns:
             None.
         """
         self._organizer_btn.setChecked(tab_id == "organizer")
-        self._operations_btn.setChecked(tab_id == "operations")
         self._settings_btn.setChecked(tab_id == "settings")
 
     def _apply_responsive_metrics(self) -> None:

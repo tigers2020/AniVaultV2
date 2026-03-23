@@ -262,7 +262,6 @@ def _molecules_preview() -> QWidget:
     toggles_layout.setContentsMargins(0, 0, 0, 0)
     toggles_layout.setSpacing(10)
     toggles_layout.addWidget(NavItem("Organizer", "organizer"))
-    toggles_layout.addWidget(NavItem("Operations", "operations"))
     toggles_layout.addWidget(NavItem("Settings", "settings"))
     toggles_layout.addWidget(ViewToggleBar(), 1)
     layout.addWidget(toggles)
