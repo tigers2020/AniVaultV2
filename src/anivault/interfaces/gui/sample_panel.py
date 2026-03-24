@@ -44,7 +44,6 @@ from anivault.interfaces.gui.components.molecules import (
 )
 from anivault.interfaces.gui.components.organisms import (
     AppearanceCard,
-    CompactListView,
     ContentView,
     DetailsPane,
     ExecutionCard,
@@ -313,10 +312,6 @@ def _organisms_preview() -> QWidget:
     rows = _sample_rows()
     groups = group_pipeline_rows(rows)
 
-    compact = CompactListView()
-    compact.set_rows(groups)
-    compact.setFixedHeight(190)
-
     content = ContentView()
     content.set_rows(groups)
     content.setFixedHeight(360)
@@ -359,7 +354,6 @@ def _organisms_preview() -> QWidget:
     layout.addWidget(PathRulesForm())
     layout.addWidget(ParseTmdbForm())
     layout.addWidget(pipeline)
-    layout.addWidget(compact)
     layout.addWidget(content)
     layout.addWidget(details)
     layout.addWidget(preview)

@@ -6,7 +6,6 @@ Author: Pom Kim
 """
 
 from anivault.interfaces.gui.components.organisms.appearance_card import AppearanceCard
-from anivault.interfaces.gui.components.organisms.compact_list_view import CompactListView
 from anivault.interfaces.gui.components.organisms.content_view import ContentView
 from anivault.interfaces.gui.components.organisms.details_pane import DetailsPane
 from anivault.interfaces.gui.components.organisms.execution_card import ExecutionCard
@@ -28,7 +27,6 @@ from anivault.interfaces.gui.components.organisms.topbar import Topbar
 
 __all__ = [
     "AppearanceCard",
-    "CompactListView",
     "FolderScanBar",
     "ContentView",
     "DetailsPane",

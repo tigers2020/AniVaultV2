@@ -1,6 +1,6 @@
 """pipeline_result_panel.py
 
-파이프라인 결과 영역: 보기 전환·테이블·목록·콘텐츠·포스터 그리드·상세/미리보기 패널을 통합한다.
+파이프라인 결과 영역: 보기 전환·테이블·콘텐츠·포스터 그리드·상세/미리보기 패널을 통합한다.
 
 Author: Pom Kim
 """
@@ -36,9 +36,7 @@ from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
     VIEW_ICON_M,
     VIEW_ICON_S,
     VIEW_ICON_XL,
-    VIEW_LIST,
 )
-from anivault.interfaces.gui.components.organisms.compact_list_view import CompactListView
 from anivault.interfaces.gui.components.organisms.content_view import ContentView
 from anivault.interfaces.gui.components.organisms.details_pane import DetailsPane
 from anivault.interfaces.gui.components.organisms.pipeline_table import PipelineTable
@@ -55,20 +53,19 @@ from anivault.interfaces.gui.settings_storage import load_all, save_all
 
 VIEW_TO_INDEX = {
     VIEW_DETAILS: 0,
-    VIEW_LIST: 1,
-    VIEW_CONTENT: 2,
-    VIEW_ICON_XL: 3,
-    VIEW_ICON_L: 4,
-    VIEW_ICON_M: 5,
-    VIEW_ICON_S: 6,
+    VIEW_CONTENT: 1,
+    VIEW_ICON_XL: 2,
+    VIEW_ICON_L: 3,
+    VIEW_ICON_M: 4,
+    VIEW_ICON_S: 5,
 }
 
-# Persisted ui_state may still reference removed "tiles" view.
-_LEGACY_VIEW_KEY_MAP = {"tiles": VIEW_CONTENT}
+# Persisted ui_state may still reference removed view keys.
+_LEGACY_VIEW_KEY_MAP = {"tiles": VIEW_CONTENT, "list": VIEW_DETAILS}
 
 
 class _ImageRowTarget(Protocol):
-    """비동기 이미지 URL과 픽스맵 적용 계약(PosterCard·컴팩트 리스트 행)."""
+    """비동기 이미지 URL과 픽스맵 적용 계약(PosterCard 등)."""
 
     @property
     def image_url(self) -> str:
@@ -151,7 +148,7 @@ class PipelineResultPanel(QFrame):
         self._view_bar = ViewToggleBar()
         self._header = PanelHeader(
             "Pipeline Result",
-            "테이블·목록·내용·아이콘 그리드로 결과를 볼 수 있습니다. 보기에서 레이아웃을 선택하세요.",
+            "테이블·내용·아이콘 그리드로 결과를 볼 수 있습니다. 보기에서 레이아웃을 선택하세요.",
             right_widget=self._view_bar,
         )
         layout.addWidget(self._header)
@@ -203,19 +200,13 @@ class PipelineResultPanel(QFrame):
         details_splitter.setStretchFactor(1, 1)
         self._stack.addWidget(details_splitter)
 
-        # 1: List
-        list_view = CompactListView()
-        list_view.selection_changed.connect(self._on_selection)
-        self._stack.addWidget(list_view)
-        self._list_view = list_view
-
-        # 2: Content
+        # 1: Content
         content_view = ContentView()
         content_view.selection_changed.connect(self._on_selection)
         self._stack.addWidget(content_view)
         self._content_view = content_view
 
-        # 3-6: Icon grids (XL, L, M, S)
+        # 2-5: Icon grids (XL, L, M, S)
         self._poster_grids: dict[str, PosterGrid] = {}
         for key in (VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S):
             grid = PosterGrid(
@@ -264,14 +255,14 @@ class PipelineResultPanel(QFrame):
         self._view_bar.details_pane_changed.connect(self._on_details_pane)
         self._view_bar.preview_pane_changed.connect(self._on_preview_pane)
 
-        # Sync list/content/poster grids when model changes
+        # Sync content/poster grids when model changes
         self._model.modelReset.connect(self._sync_views_from_model)
         self._restore_ui_state()
 
     def _apply_list_content_for_view_key(self, key: str, rows: list[PipelineGroupRow]) -> None:
-        """보기 키에 맞게만 리스트·콘텐츠 뷰를 채운다.
+        """보기 키에 맞게만 콘텐츠 뷰를 채운다.
 
-        테이블·아이콘 보기일 때 비가시 뷰에 수천 행 위젯을 만들지 않아 modelReset 시 메인 스레드 점유를 줄인다.
+        테이블·아이콘 보기일 때 비가시 콘텐츠 뷰에 수천 행 위젯을 만들지 않아 modelReset 시 메인 스레드 점유를 줄인다.
 
         Args:
             self: 이 패널 인스턴스.
@@ -281,14 +272,9 @@ class PipelineResultPanel(QFrame):
         Returns:
             None.
         """
-        if key == VIEW_LIST:
-            self._list_view.set_rows(rows)
-            self._content_view.set_rows([])
-        elif key == VIEW_CONTENT:
+        if key == VIEW_CONTENT:
             self._content_view.set_rows(rows)
-            self._list_view.set_rows([])
         else:
-            self._list_view.set_rows([])
             self._content_view.set_rows([])
 
     def _on_view_changed(self, key: str) -> None:
@@ -605,7 +591,7 @@ class PipelineResultPanel(QFrame):
             card.set_pixmap(pixmap if not pixmap.isNull() else None)
 
     def _refresh_all_poster_pixmaps(self, cards: list[PosterCard]) -> None:
-        """카드·리스트 행의 HTTP URL을 수집해 캐시 또는 비동기 로드로 픽스맵을 갱신한다.
+        """카드의 HTTP URL을 수집해 캐시 또는 비동기 로드로 픽스맵을 갱신한다.
 
         Args:
             self: 이 패널 인스턴스.
@@ -619,10 +605,6 @@ class PipelineResultPanel(QFrame):
             u = (card.image_url or "").strip()
             if u.startswith("http"):
                 self._cards_by_url.setdefault(u, []).append(card)
-        for row in self._list_view.pixmap_targets():
-            u = (row.image_url or "").strip()
-            if u.startswith("http"):
-                self._cards_by_url.setdefault(u, []).append(row)
         for url in self._cards_by_url:
             cached = self._image_loader.get(url)
             if cached is not None:
@@ -632,7 +614,7 @@ class PipelineResultPanel(QFrame):
                 self._image_loader.load(url)
 
     def _sync_views_from_model(self) -> None:
-        """modelReset 시 리스트·콘텐츠·그리드 뷰를 모델과 동기화한다.
+        """modelReset 시 콘텐츠·그리드 뷰를 모델과 동기화한다.
 
         Args:
             self: 이 패널 인스턴스.
@@ -796,7 +778,7 @@ class PipelineResultPanel(QFrame):
         self._pending_selected_index = index
 
     def sync_views_from_model(self) -> None:
-        """모델 내용을 테이블·리스트·콘텐츠·포스터 뷰에 다시 반영한다.
+        """모델 내용을 테이블·콘텐츠·포스터 뷰에 다시 반영한다.
 
         Args:
             self: 이 패널 인스턴스.
