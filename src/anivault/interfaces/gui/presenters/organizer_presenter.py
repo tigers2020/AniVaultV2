@@ -1040,12 +1040,12 @@ class OrganizerPresenter(QObject):
         self._worker_thread = thread
 
     def _on_apply_worker_result(self, result: ApplyResult, plan: PlanResult) -> None:
-        """적용 워커 완료 시 모델·알림을 갱신한다.
+        """적용 워커 완료 시 모델·알림을 갱신한다. 스캔 소스가 있으면 확인 후 재스캔한다.
 
         Args:
             self: 이 프레젠터 인스턴스.
             result: 적용 유스케이스 결과.
-            plan: 이번에 적용한 계획.
+            plan: 이번에 적용한 계획. 재스캔 시에는 merge에 쓰이지 않는다.
 
         Returns:
             None.
@@ -1057,6 +1057,18 @@ class OrganizerPresenter(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.critical(parent, "이동 오류", result.error)
             self._notify_dry_run(self._dry_run_should_enable())
+            return
+        settings = load_all()
+        scan_source = str((settings.get("scan_build") or {}).get("source_path") or "").strip()
+        if scan_source and self._scan_execute is not None:
+            if isinstance(parent, QWidget):
+                QMessageBox.information(
+                    parent,
+                    "완료",
+                    f"{result.moved_count}개 파일을 이동했습니다.",
+                )
+            self._notify_dry_run(self._dry_run_should_enable())
+            self.on_scan_clicked(scan_source)
             return
         merge_plan_into_pipeline_rows(self._model, plan)
         panel = self._pipeline_panel
