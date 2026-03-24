@@ -1003,6 +1003,7 @@ class OrganizerPresenter(QObject):
             operations=plan.moves,
             dry_run=False,
             log_root=log_root,
+            source_root=str(src_root).strip() or None,
         )
         signals = WorkerSignals()
         worker = UseCaseWorker(

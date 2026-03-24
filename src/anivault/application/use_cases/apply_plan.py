@@ -42,7 +42,7 @@ def make_apply_execute(
         """계획을 적용한다.
 
         Args:
-            input_dto: 작업 목록·dry_run·로그 루트.
+            input_dto: 작업 목록·dry_run·로그 루트·선택적 소스 루트(빈 폴더 정리).
             progress_callback: ProgressEvent 콜백.
             cancel_token: 취소 시 중단.
 
@@ -101,6 +101,10 @@ def make_apply_execute(
                         item_path=str(dest),
                     )
                 )
+
+        source_root = (input_dto.source_root or "").strip()
+        if source_root:
+            file_repo.prune_empty_dirs_under(Path(source_root))
 
         return ApplyResult(log_path=log_path, moved_count=moved)
 

@@ -5,6 +5,7 @@ FileRepository 프로토콜의 로컬 파일시스템 구현.
 Author: Pom Kim
 """
 
+import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -161,3 +162,32 @@ class FsFileRepository(FileRepository):
             shutil.copytree(source, destination)
         else:
             shutil.copy2(source, destination)
+
+    def prune_empty_dirs_under(self, root: Path) -> None:
+        """root 아래의 빈 디렉터리만 깊은 쪽부터 제거한다. root 자체는 삭제하지 않는다.
+
+        Args:
+            self: 이 저장소.
+            root: 상위 루트. 존재하지 않거나 디렉터리가 아니면 아무 것도 하지 않는다.
+
+        Returns:
+            None.
+        """
+        try:
+            resolved_root = root.resolve()
+        except OSError:
+            return
+        if not resolved_root.is_dir():
+            return
+        for dirpath, _dirnames, _filenames in os.walk(resolved_root, topdown=False):
+            current = Path(dirpath)
+            try:
+                if current.resolve() == resolved_root:
+                    continue
+            except OSError:
+                continue
+            try:
+                if not any(current.iterdir()):
+                    current.rmdir()
+            except OSError:
+                pass

@@ -56,6 +56,7 @@ class ApplyInput:
     operations: tuple[FileOperation, ...]
     dry_run: bool
     log_root: str
+    source_root: str | None = None
 
 
 @dataclass(slots=True)

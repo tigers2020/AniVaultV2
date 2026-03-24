@@ -63,3 +63,15 @@ class FileRepository(Protocol):
             None.
         """
         ...
+
+    def prune_empty_dirs_under(self, root: Path) -> None:
+        """root 아래의 빈 디렉터리만 깊은 쪽부터 제거한다. root 자체는 삭제하지 않는다.
+
+        Args:
+            self: 파일 저장소 인스턴스.
+            root: 스캔 소스 등 상위 루트. 존재하지 않거나 디렉터리가 아니면 아무 것도 하지 않는다.
+
+        Returns:
+            None.
+        """
+        ...
