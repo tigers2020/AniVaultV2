@@ -43,6 +43,9 @@ anivault = "anivault.interfaces.gui.main:run"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"anivault.adapters.persistence.sqlite.migrations" = ["*.sql"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
