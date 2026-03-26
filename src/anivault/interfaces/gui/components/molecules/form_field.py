@@ -75,6 +75,7 @@ class FormField(QWidget):
                 line.textChanged.connect(lambda t: self._label.setText(label_updater(t)))
             layout.addWidget(line)
             self._input = line
+            line.textChanged.connect(self.value_changed.emit)
             line.editingFinished.connect(self.value_changed.emit)
 
     def value(self) -> str:

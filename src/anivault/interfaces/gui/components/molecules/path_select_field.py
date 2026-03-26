@@ -37,7 +37,19 @@ class PathSelectField(QWidget):
         browse = Button("폴더 선택")
         browse.clicked.connect(self._on_browse)
         layout.addWidget(browse)
-        self._edit.editingFinished.connect(lambda: self.path_changed.emit(self.path()))
+        self._edit.textChanged.connect(lambda _t: self._emit_path_changed())
+        self._edit.editingFinished.connect(self._emit_path_changed)
+
+    def _emit_path_changed(self) -> None:
+        """편집 확정·입력 중 모두에서 strip 반영값으로 path_changed를 내보낸다.
+
+        Args:
+            self: 이 위젯.
+
+        Returns:
+            None.
+        """
+        self.path_changed.emit(self.path())
 
     def _on_browse(self) -> None:
         """폴더 대화상자에서 선택한 경로를 반영한다.
@@ -51,7 +63,7 @@ class PathSelectField(QWidget):
         path = QFileDialog.getExistingDirectory(self, "폴더 선택")
         if path:
             self._edit.setText(path)
-            self.path_changed.emit(path)
+            self._emit_path_changed()
 
     def path(self) -> str:
         """편집란 텍스트를 앞뒤 공백 제거 후 반환한다.

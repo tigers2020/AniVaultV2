@@ -17,6 +17,10 @@ PAGE_META = {
         "Organizer",
         "폴더 스캔부터 한글 제목 그룹 확정과 최종 경로 미리보기까지 한 화면에서 처리",
     ),
+    "subtitles": (
+        "자막만",
+        "자막 파일만 스캔·매칭하여 구조화 이동(비디오 동반 자막 묶음 없음)",
+    ),
     "settings": (
         "Settings",
         "scan/build controls와 path, parse, TMDB 규칙 설정",
@@ -46,14 +50,22 @@ class MainWindow(QMainWindow):
         from anivault.interfaces.gui.composition import (
             create_organizer_page,
             create_settings_page,
+            create_subtitle_organizer_page,
         )
         from anivault.interfaces.gui.models import PipelineTableModel
 
         self._progress_dialog = ProgressDialog(parent=self)
         self._pipeline_model = PipelineTableModel()
+        self._pipeline_model_subtitles = PipelineTableModel()
         self._shell.add_page(
             create_organizer_page(
                 pipeline_model=self._pipeline_model,
+                progress_dialog=self._progress_dialog,
+            )
+        )
+        self._shell.add_page(
+            create_subtitle_organizer_page(
+                pipeline_model=self._pipeline_model_subtitles,
                 progress_dialog=self._progress_dialog,
             )
         )
@@ -61,7 +73,8 @@ class MainWindow(QMainWindow):
         self._shell.tab_clicked.connect(self._on_tab_clicked)
         self._tab_to_index = {
             "organizer": 0,
-            "settings": 1,
+            "subtitles": 1,
+            "settings": 2,
         }
 
         self._responsive_timer = QTimer(self)
@@ -74,7 +87,7 @@ class MainWindow(QMainWindow):
 
         Args:
             self: 이 창.
-            tab_id: organizer | settings.
+            tab_id: organizer | subtitles | settings.
 
         Returns:
             None.

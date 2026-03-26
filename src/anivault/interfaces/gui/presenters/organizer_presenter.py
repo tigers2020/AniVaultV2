@@ -125,6 +125,7 @@ class OrganizerPresenter(QObject):
         plan_execute: PlanExecuteFn | None = None,
         apply_execute: ApplyExecuteFn | None = None,
         progress_dialog: ProgressDialog | None = None,
+        include_companion_subtitles: bool = True,
         parent: QObject | None = None,
     ) -> None:
         """파이프라인 모델과 유스케이스 실행 콜백·진행 다이얼로그를 연결한다.
@@ -139,6 +140,7 @@ class OrganizerPresenter(QObject):
             plan_execute: 이동 계획 유스케이스. None이면 Dry Run 비활성.
             apply_execute: 계획 적용 유스케이스. None이면 실제 이동 불가.
             progress_dialog: 진행률 UI. None이면 다이얼로그 없음.
+            include_companion_subtitles: 플랜에 동반 자막 이동을 포함할지 여부.
             parent: Qt 부모 객체.
 
         Returns:
@@ -146,6 +148,7 @@ class OrganizerPresenter(QObject):
         """
         super().__init__(parent)
         self._model = pipeline_model
+        self._include_companion_subtitles = include_companion_subtitles
         self._scan_execute = scan_execute
         self._parse_execute = parse_execute
         self._match_execute = match_execute
@@ -304,7 +307,7 @@ class OrganizerPresenter(QObject):
             if self._progress_dialog is not None:
                 self._finish_worker_session(self._progress_dialog, True)
             return
-        self._start_parse_worker(rows, merged)
+        self._start_parse_worker(rows, merged, result.index_root_id)
 
     def _apply_scan_rows_to_model(self, merged: list[PipelineGroupRow]) -> None:
         """스캔 결과 그룹을 모델에 반영한다.
@@ -360,6 +363,7 @@ class OrganizerPresenter(QObject):
         self,
         scan_rows: list[PipelineRow],
         merged_groups: list[PipelineGroupRow],
+        index_root_id: int | None = None,
     ) -> None:
         """Parse 워커를 시작하고, 완료 시 파싱 정보를 행에 병합해 모델을 갱신한다.
 
@@ -367,6 +371,7 @@ class OrganizerPresenter(QObject):
             self: 이 프레젠터 인스턴스.
             scan_rows: 스캔 직후의 파이프라인 행 목록.
             merged_groups: 스캔 직후 파이프라인에 반영할 그룹 행(워커 ``started`` 이후 적용).
+            index_root_id: 스캔 인덱스 루트 ID. None이면 파싱 캐시 미사용.
 
         Returns:
             None.
@@ -378,7 +383,7 @@ class OrganizerPresenter(QObject):
         signals = WorkerSignals()
         worker = UseCaseWorker(
             execute_fn=parse_execute,
-            input_dto=ParseInput(paths=paths),
+            input_dto=ParseInput(paths=paths, index_root_id=index_root_id),
             signals=signals,
         )
         signals.result.connect(self._on_parse_result)
@@ -864,7 +869,11 @@ class OrganizerPresenter(QObject):
         pr = settings.get("path_rules") or {}
         if not isinstance(pr, dict):
             pr = {}
-        plan_input, err = try_build_plan_input_from_settings(rows, pr)
+        plan_input, err = try_build_plan_input_from_settings(
+            rows,
+            pr,
+            include_companion_subtitles=self._include_companion_subtitles,
+        )
         parent = self.parent()
         if err == "empty":
             if isinstance(parent, QWidget):
