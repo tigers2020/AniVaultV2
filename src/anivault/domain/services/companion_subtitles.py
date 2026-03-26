@@ -11,19 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from anivault.domain.media.extensions import SUBTITLE_EXTENSIONS
 from anivault.domain.models import FileOperation, OperationType
-
-# Common sidecar subtitle extensions (lowercase, with dot).
-SUBTITLE_EXTENSIONS = frozenset(
-    {
-        ".srt",
-        ".ass",
-        ".ssa",
-        ".vtt",
-        ".smi",
-        ".sub",
-    }
-)
 
 
 def companion_subtitle_operations(

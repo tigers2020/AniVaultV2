@@ -39,6 +39,7 @@ class PlanInput:
     target_root: str
     unknown_resolution: str
     unknown_group_folder: str
+    include_companion_subtitles: bool = True
 
 
 @dataclass(slots=True)

@@ -50,7 +50,7 @@ def _plan_input_error_message(input_dto: PlanInput) -> str | None:
     return None
 
 
-def _append_video_and_subtitle_moves(
+def _append_primary_and_optional_companion_moves(
     moves: list[FileOperation],
     row: MatchFileRow,
     *,
@@ -58,8 +58,9 @@ def _append_video_and_subtitle_moves(
     target_root: str,
     unk_res: str,
     unk_grp: str,
+    include_companion_subtitles: bool,
 ) -> None:
-    """한 매칭 행에 대해 비디오 이동과 동반 자막 이동을 moves 에 추가한다.
+    """한 매칭 행에 대해 주 파일 이동과(선택) 동반 자막 이동을 moves 에 추가한다.
 
     Args:
         moves: 누적 작업 목록.
@@ -68,6 +69,7 @@ def _append_video_and_subtitle_moves(
         target_root: Target root.
         unk_res: 미지정 해상도 폴더명.
         unk_grp: 미지정 그룹 폴더명.
+        include_companion_subtitles: True면 비디오 옆 같은 stem 자막도 이동.
 
     Returns:
         None.
@@ -87,7 +89,8 @@ def _append_video_and_subtitle_moves(
             destination_path=dest,
         )
     )
-    moves.extend(companion_subtitle_operations(row.original_file, dest))
+    if include_companion_subtitles:
+        moves.extend(companion_subtitle_operations(row.original_file, dest))
 
 
 def make_execute() -> Callable[[PlanInput, PlanProgressCallback | None, Event], PlanResult]:
@@ -131,13 +134,14 @@ def make_execute() -> Callable[[PlanInput, PlanProgressCallback | None, Event], 
         for i, row in enumerate(files):
             if cancel_token.is_set():
                 return PlanResult(moves=tuple(moves))
-            _append_video_and_subtitle_moves(
+            _append_primary_and_optional_companion_moves(
                 moves,
                 row,
                 tpl=tpl,
                 target_root=target_root,
                 unk_res=unk_res,
                 unk_grp=unk_grp,
+                include_companion_subtitles=input_dto.include_companion_subtitles,
             )
             if progress_callback is not None and total > 0:
                 cur = i + 1
