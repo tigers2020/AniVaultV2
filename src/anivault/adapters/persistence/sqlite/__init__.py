@@ -17,12 +17,16 @@ from anivault.adapters.persistence.sqlite.sqlite_parse_cache_repository import (
 from anivault.adapters.persistence.sqlite.sqlite_title_group_repository import (
     SqliteTitleGroupRepository,
 )
+from anivault.adapters.persistence.sqlite.sqlite_title_match_repository import (
+    SqliteTitleMatchRepository,
+)
 
 __all__ = [
     "SqliteCacheRepository",
     "SqliteLibraryIndexRepository",
     "SqliteParseCacheRepository",
     "SqliteTitleGroupRepository",
+    "SqliteTitleMatchRepository",
     "create_connection",
     "default_anivault_db_path",
 ]
