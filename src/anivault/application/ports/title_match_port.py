@@ -145,3 +145,51 @@ class TitleMatchRepository(Protocol):
             None.
         """
         ...
+
+    def get_poster_local_path(
+        self,
+        tmdb_id: int,
+        image_kind: str,
+        remote_path: str,
+    ) -> str | None:
+        """로컬 포스터 파일 절대 경로를 반환한다(엄격 계약).
+
+        반환 조건: 행 존재, `status == ready`, `local_path` 비어 있지 않음, 파일 존재.
+        `ready`인데 파일이 없으면 저장소가 `missing`으로 갱신할 수 있다.
+
+        Args:
+            self: 저장소.
+            tmdb_id: TMDB TV id.
+            image_kind: poster 또는 backdrop.
+            remote_path: 정규화된 TMDB 상대 경로.
+
+        Returns:
+            절대 경로. 조건 불만족 시 None.
+        """
+        ...
+
+    def save_poster_asset(
+        self,
+        tmdb_id: int,
+        image_kind: str,
+        remote_path: str,
+        *,
+        local_path: str,
+        status: str,
+        verified_at: str | None,
+    ) -> None:
+        """poster_assets 행을 UPSERT한다.
+
+        Args:
+            self: 저장소.
+            tmdb_id: TMDB TV id.
+            image_kind: poster 또는 backdrop.
+            remote_path: TMDB 상대 경로(정규화된 값).
+            local_path: 로컬 절대 경로(실패 시 빈 문자열 허용).
+            status: ready / stale / missing / failed.
+            verified_at: ready일 때 UTC ISO. 그 외 None.
+
+        Returns:
+            None.
+        """
+        ...

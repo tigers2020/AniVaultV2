@@ -12,6 +12,7 @@ from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.ports.operation_log_port import OperationLogRepository
 from anivault.application.ports.parse_cache_port import ParseCacheRepository
+from anivault.application.ports.poster_sync_port import PosterAssetSyncPort
 from anivault.application.ports.title_match_port import TitleMatchRepository
 
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     "MetadataProvider",
     "OperationLogRepository",
     "ParseCacheRepository",
+    "PosterAssetSyncPort",
     "TitleMatchRepository",
 ]

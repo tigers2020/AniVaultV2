@@ -26,6 +26,7 @@ from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.ports.title_group_port import TitleGroupRepository
 from anivault.application.ports.title_match_port import TitleMatchRepository
 from anivault.domain.path_norm import normalize_path_key
+from anivault.domain.rules.tmdb_image_url import tmdb_backdrop_cdn_url, tmdb_poster_cdn_url
 from anivault.domain.rules.tmdb_search_query import (
     iter_strip_last_word_chain,
     iter_tmdb_search_queries,
@@ -91,40 +92,6 @@ def _year_prefix(iso_date: str) -> str:
     """
     d = (iso_date or "").strip()
     return d[:4] if len(d) >= 4 else ""
-
-
-def _poster_url(poster_path: str) -> str:
-    """TMDB poster_path를 전체 URL로 만든다.
-
-    Args:
-        poster_path: API 상대 경로 또는 이미 절대 URL.
-
-    Returns:
-        이미지 URL. 비어 있으면 빈 문자열.
-    """
-    p = (poster_path or "").strip()
-    if not p:
-        return ""
-    if p.startswith("http"):
-        return p
-    return f"https://image.tmdb.org/t/p/w342{p}"
-
-
-def _backdrop_url(backdrop_path: str) -> str:
-    """TMDB backdrop_path를 전체 URL로 만든다.
-
-    Args:
-        backdrop_path: API 상대 경로 또는 이미 절대 URL.
-
-    Returns:
-        이미지 URL. 비어 있으면 빈 문자열.
-    """
-    p = (backdrop_path or "").strip()
-    if not p:
-        return ""
-    if p.startswith("http"):
-        return p
-    return f"https://image.tmdb.org/t/p/w780{p}"
 
 
 def _score_one_candidate(
@@ -289,9 +256,9 @@ def apply_tmdb_candidate_to_file_rows(
     """
     korean = (candidate.name_ko or "").strip()
     poster_path_raw = (candidate.poster_path or "").strip()
-    poster = _poster_url(poster_path_raw)
+    poster = tmdb_poster_cdn_url(poster_path_raw)
     backdrop_path_raw = (candidate.backdrop_path or "").strip()
-    backdrop = _backdrop_url(backdrop_path_raw)
+    backdrop = tmdb_backdrop_cdn_url(backdrop_path_raw)
     tid = str(candidate.tmdb_id)
     tmdb_year = _year_prefix(candidate.first_air_date)
     _apply_tmdb_to_file_rows(
@@ -352,6 +319,55 @@ def _apply_tmdb_to_file_rows(
             backdrop_url=backdrop or prev.backdrop_url,
             target_path=prev.target_path,
             episode=prev.episode,
+        )
+
+
+def persist_manual_tmdb_selection(
+    files: list[MatchFileRow],
+    indices: list[int],
+    chosen: TmdbSeriesCandidateDTO,
+    *,
+    root_id: int | None,
+    representative_path_norm: str | None,
+    title_match: TitleMatchRepository | None,
+    title_groups: TitleGroupRepository | None,
+) -> None:
+    """수동 매칭 선택을 tmdb_series·group_tmdb_matches에 반영한다.
+
+    Args:
+        files: 전체 파일 행(참조만).
+        indices: 갱신된 그룹 행 인덱스.
+        chosen: 선택된 시리즈 후보.
+        root_id: 라이브러리 루트 id.
+        representative_path_norm: 그룹 대표 파일 path_norm.
+        title_match: TMDB 매칭 저장소.
+        title_groups: title_groups 저장소.
+
+    Returns:
+        None.
+    """
+    if (
+        root_id is None
+        or not representative_path_norm
+        or title_match is None
+        or title_groups is None
+        or not indices
+        or max(indices) >= len(files)
+    ):
+        return
+    gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
+    if gid is None:
+        return
+    raw_json = json.dumps(asdict(chosen), ensure_ascii=False, separators=(",", ":"))
+    exp = _utc_plus_days_iso_z(7)
+    try:
+        title_match.upsert_series(chosen, raw_json=raw_json, expires_at=exp)
+        title_match.set_group_match(gid, int(chosen.tmdb_id), "confirmed", None)
+    except Exception:
+        logger.exception(
+            "수동 TMDB 영속 실패 group_id=%s tmdb_id=%s",
+            gid,
+            chosen.tmdb_id,
         )
 
 
@@ -492,6 +508,7 @@ def make_execute(
     *,
     title_match: TitleMatchRepository | None = None,
     title_groups: TitleGroupRepository | None = None,
+    poster_sync: Callable[[MatchResult], None] | None = None,
 ) -> Callable[[MatchInput, MatchProgressCallback | None, Event], MatchResult]:
     """MetadataProvider가 주입된 매칭 실행 함수를 만든다.
 
@@ -499,6 +516,7 @@ def make_execute(
         provider: 메타데이터 검색 포트.
         title_match: TMDB 캐시·그룹 매칭 저장소.
         title_groups: title_groups 조회.
+        poster_sync: 매칭 직후 로컬 포스터 동기화. None이면 생략.
 
     Returns:
         (MatchInput, progress_callback, cancel_token) -> MatchResult 클로저.
@@ -558,6 +576,9 @@ def make_execute(
                 ),
             )
 
-        return MatchResult(files=tuple(files), groups=tuple(group_results))
+        result = MatchResult(files=tuple(files), groups=tuple(group_results))
+        if poster_sync is not None:
+            poster_sync(result)
+        return result
 
     return execute
