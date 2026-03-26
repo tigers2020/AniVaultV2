@@ -5,6 +5,7 @@ Organizer 페이지에서 스캔·파싱·TMDB 매칭 워커를 조율하고 파
 Author: Pom Kim
 """
 
+import logging
 from collections.abc import Callable, Sequence
 from threading import Event
 from typing import Any, cast
@@ -37,6 +38,8 @@ from anivault.interfaces.gui.presenters.plan_helpers import (
 from anivault.interfaces.gui.settings_storage import load_all
 from anivault.interfaces.gui.templates.pipeline_result_panel import PipelineResultPanel
 from anivault.interfaces.gui.workers import UseCaseWorker, WorkerSignals, run_worker
+
+logger = logging.getLogger(__name__)
 
 PlanExecuteFn = Callable[
     [PlanInput, Callable[[ProgressEvent], None] | None, Event],
@@ -126,6 +129,7 @@ class OrganizerPresenter(QObject):
         apply_execute: ApplyExecuteFn | None = None,
         progress_dialog: ProgressDialog | None = None,
         include_companion_subtitles: bool = True,
+        sync_title_groups_execute: Callable[[int], None] | None = None,
         parent: QObject | None = None,
     ) -> None:
         """파이프라인 모델과 유스케이스 실행 콜백·진행 다이얼로그를 연결한다.
@@ -141,6 +145,7 @@ class OrganizerPresenter(QObject):
             apply_execute: 계획 적용 유스케이스. None이면 실제 이동 불가.
             progress_dialog: 진행률 UI. None이면 다이얼로그 없음.
             include_companion_subtitles: 플랜에 동반 자막 이동을 포함할지 여부.
+            sync_title_groups_execute: 파싱·캐시 완료 후 `root_id`로 title_groups 동기화. None이면 생략.
             parent: Qt 부모 객체.
 
         Returns:
@@ -156,6 +161,8 @@ class OrganizerPresenter(QObject):
         self._plan_execute = plan_execute
         self._apply_execute = apply_execute
         self._progress_dialog = progress_dialog
+        self._sync_title_groups_execute = sync_title_groups_execute
+        self._parse_index_root_id: int | None = None
         self._worker_thread: QThread | None = None
         self._dry_run_enabled_handler: Callable[[bool], None] | None = None
         self._pending_plan: PlanResult | None = None
@@ -379,6 +386,7 @@ class OrganizerPresenter(QObject):
         parse_execute = self._parse_execute
         if parse_execute is None:
             return
+        self._parse_index_root_id = index_root_id
         paths = [r.original_file for r in scan_rows]
         signals = WorkerSignals()
         worker = UseCaseWorker(
@@ -484,6 +492,14 @@ class OrganizerPresenter(QObject):
                 )
         self._model.set_rows(group_pipeline_rows(merged))
         self._notify_dry_run(False)
+        root_for_sync = self._parse_index_root_id
+        sync_fn = self._sync_title_groups_execute
+        self._parse_index_root_id = None
+        if root_for_sync is not None and sync_fn is not None:
+            try:
+                sync_fn(root_for_sync)
+            except Exception:
+                logger.exception("title_groups 동기화 실패")
 
     def _on_scan_error(self, exc: Exception) -> None:
         """오류 시 모델은 유지하고 진행 다이얼로그만 숨긴다.
@@ -495,6 +511,7 @@ class OrganizerPresenter(QObject):
         Returns:
             None.
         """
+        self._parse_index_root_id = None
         if self._progress_dialog is not None:
             self._progress_dialog.hide_progress()
 

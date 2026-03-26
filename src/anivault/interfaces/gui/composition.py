@@ -19,6 +19,7 @@ from anivault.adapters.parser import AnitopyTitleParser
 from anivault.adapters.persistence.sqlite import (
     SqliteLibraryIndexRepository,
     SqliteParseCacheRepository,
+    SqliteTitleGroupRepository,
     create_connection,
 )
 from anivault.application.dto.progress import ProgressEvent
@@ -30,6 +31,9 @@ from anivault.application.use_cases.match_series import make_execute as make_mat
 from anivault.application.use_cases.parse_titles import make_execute as make_parse_execute
 from anivault.application.use_cases.plan_moves import make_execute as make_plan_execute
 from anivault.application.use_cases.scan_library import make_execute
+from anivault.application.use_cases.sync_title_groups import (
+    make_execute as make_sync_title_groups_execute,
+)
 from anivault.bootstrap.env_file import read_tmdb_api_key
 from anivault.domain.media.extensions import SUBTITLE_SCAN_EXTENSIONS
 from anivault.domain.rules.tmdb_search_query import iter_strip_last_word_chain
@@ -106,6 +110,8 @@ def create_organizer_page(
     _db_lock = threading.Lock()
     _library_index = SqliteLibraryIndexRepository(_db_conn, _db_lock)
     _parse_cache = SqliteParseCacheRepository(_db_conn, _db_lock)
+    _title_groups = SqliteTitleGroupRepository(_db_conn, _db_lock)
+    _sync_title_groups = make_sync_title_groups_execute(_title_groups)
     scan_execute = make_execute(file_repo, library_index=_library_index)
     settings = load_all()
     ignore_tokens = settings.get("parse_tmdb", {}).get("ignore_tokens", "") or ""
@@ -146,6 +152,7 @@ def create_organizer_page(
         plan_execute=plan_execute,
         apply_execute=apply_execute,
         progress_dialog=progress_dialog,
+        sync_title_groups_execute=_sync_title_groups,
     )
     return OrganizerPage(model=model, presenter=presenter)
 
@@ -169,6 +176,8 @@ def create_subtitle_organizer_page(
     _db_lock = threading.Lock()
     _library_index = SqliteLibraryIndexRepository(_db_conn, _db_lock)
     _parse_cache = SqliteParseCacheRepository(_db_conn, _db_lock)
+    _title_groups = SqliteTitleGroupRepository(_db_conn, _db_lock)
+    _sync_title_groups = make_sync_title_groups_execute(_title_groups)
     scan_execute = make_execute(
         file_repo,
         extensions=SUBTITLE_SCAN_EXTENSIONS,
@@ -214,6 +223,7 @@ def create_subtitle_organizer_page(
         apply_execute=apply_execute,
         progress_dialog=progress_dialog,
         include_companion_subtitles=False,
+        sync_title_groups_execute=_sync_title_groups,
     )
     return OrganizerPage(model=model, presenter=presenter)
 
