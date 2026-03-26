@@ -23,3 +23,4 @@ class ScanResult:
 
     paths: list[str] = field(default_factory=list)
     resolutions: list[str] = field(default_factory=list)
+    index_root_id: int | None = None
