@@ -215,3 +215,60 @@ class SqliteTitleGroupRepository:
                 ),
             )
         return out
+
+    def get_group_id(self, root_id: int, group_key: str) -> int | None:
+        """루트·group_key로 title_groups.id를 조회한다.
+
+        Args:
+            self: 저장소.
+            root_id: 루트 id.
+            group_key: 그룹 키 문자열.
+
+        Returns:
+            그룹 id. 없으면 None.
+        """
+        gk = (group_key or "").strip()
+        if not gk:
+            return None
+        with self._lock:
+            cur = self._conn.execute(
+                """
+                SELECT id FROM title_groups
+                WHERE root_id = ? AND group_key = ?
+                LIMIT 1
+                """,
+                (int(root_id), gk),
+            )
+            row = cur.fetchone()
+            self._conn.commit()
+        return int(row[0]) if row is not None else None
+
+    def get_group_id_for_path_norm(self, root_id: int, path_norm: str) -> int | None:
+        """path_norm에 해당하는 멤버가 속한 그룹 id를 반환한다.
+
+        Args:
+            self: 저장소.
+            root_id: 루트 id.
+            path_norm: 인덱스 `path_norm`.
+
+        Returns:
+            그룹 id. 없으면 None.
+        """
+        pn = (path_norm or "").strip()
+        if not pn:
+            return None
+        with self._lock:
+            cur = self._conn.execute(
+                """
+                SELECT g.id
+                FROM title_groups g
+                INNER JOIN title_group_members m ON m.group_id = g.id
+                INNER JOIN media_files f ON f.id = m.media_file_id
+                WHERE g.root_id = ? AND f.path_norm = ?
+                LIMIT 1
+                """,
+                (int(root_id), pn),
+            )
+            row = cur.fetchone()
+            self._conn.commit()
+        return int(row[0]) if row is not None else None

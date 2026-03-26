@@ -74,3 +74,29 @@ class TitleGroupRepository(Protocol):
             `TitleGroupListRecord` 목록.
         """
         ...
+
+    def get_group_id(self, root_id: int, group_key: str) -> int | None:
+        """루트·`group_key`로 `title_groups.id`를 조회한다.
+
+        Args:
+            self: 저장소.
+            root_id: `library_roots.id`.
+            group_key: `title_groups.group_key` 와 동일 문자열.
+
+        Returns:
+            그룹 id. 없으면 None.
+        """
+        ...
+
+    def get_group_id_for_path_norm(self, root_id: int, path_norm: str) -> int | None:
+        """멤버 미디어의 `path_norm`으로 소속 그룹 id를 찾는다.
+
+        Args:
+            self: 저장소.
+            root_id: `library_roots.id`.
+            path_norm: `normalize_path_key` 결과.
+
+        Returns:
+            `title_groups.id`. 없으면 None.
+        """
+        ...
