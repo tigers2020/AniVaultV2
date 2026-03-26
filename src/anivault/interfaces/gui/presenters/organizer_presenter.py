@@ -163,6 +163,7 @@ class OrganizerPresenter(QObject):
         self._progress_dialog = progress_dialog
         self._sync_title_groups_execute = sync_title_groups_execute
         self._parse_index_root_id: int | None = None
+        self._current_library_root_id: int | None = None
         self._worker_thread: QThread | None = None
         self._dry_run_enabled_handler: Callable[[bool], None] | None = None
         self._pending_plan: PlanResult | None = None
@@ -217,6 +218,7 @@ class OrganizerPresenter(QObject):
                     "스캔할 폴더를 먼저 선택해 주세요.",
                 )
             return
+        self._current_library_root_id = None
         self._notify_dry_run(False)
         if self._scan_execute is None:
             return
@@ -306,6 +308,7 @@ class OrganizerPresenter(QObject):
         Returns:
             None.
         """
+        self._current_library_root_id = result.index_root_id
         rows = self._scan_result_to_rows(result)
         merged = group_pipeline_rows(rows)
         if not rows or self._parse_execute is None:
@@ -511,6 +514,7 @@ class OrganizerPresenter(QObject):
         Returns:
             None.
         """
+        self._current_library_root_id = None
         self._parse_index_root_id = None
         if self._progress_dialog is not None:
             self._progress_dialog.hide_progress()
@@ -573,7 +577,7 @@ class OrganizerPresenter(QObject):
         signals = WorkerSignals()
         worker = UseCaseWorker(
             execute_fn=match_execute,
-            input_dto=MatchInput(files=files),
+            input_dto=MatchInput(files=files, index_root_id=self._current_library_root_id),
             signals=signals,
         )
         signals.result.connect(self._on_match_result)

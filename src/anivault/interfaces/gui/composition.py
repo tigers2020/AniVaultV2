@@ -13,13 +13,18 @@ from threading import Event
 from typing import TYPE_CHECKING
 
 from anivault.adapters.fs import FsFileRepository
-from anivault.adapters.metadata.tmdb import TmdbApiClient, TmdbMetadataProvider
+from anivault.adapters.metadata.tmdb import (
+    CachingMetadataProvider,
+    TmdbApiClient,
+    TmdbMetadataProvider,
+)
 from anivault.adapters.operation_log import FsOperationLogRepository
 from anivault.adapters.parser import AnitopyTitleParser
 from anivault.adapters.persistence.sqlite import (
     SqliteLibraryIndexRepository,
     SqliteParseCacheRepository,
     SqliteTitleGroupRepository,
+    SqliteTitleMatchRepository,
     create_connection,
 )
 from anivault.application.dto.progress import ProgressEvent
@@ -111,6 +116,7 @@ def create_organizer_page(
     _library_index = SqliteLibraryIndexRepository(_db_conn, _db_lock)
     _parse_cache = SqliteParseCacheRepository(_db_conn, _db_lock)
     _title_groups = SqliteTitleGroupRepository(_db_conn, _db_lock)
+    _title_match = SqliteTitleMatchRepository(_db_conn, _db_lock)
     _sync_title_groups = make_sync_title_groups_execute(_title_groups)
     scan_execute = make_execute(file_repo, library_index=_library_index)
     settings = load_all()
@@ -126,8 +132,18 @@ def create_organizer_page(
     tmdb_search_execute = None
     if api_key:
         tmdb_client = TmdbApiClient(api_key, language="ko-KR")
-        metadata = TmdbMetadataProvider(tmdb_client)
-        match_execute = make_match_execute(metadata)
+        _tmdb_lang = "ko-KR"
+        _inner_meta = TmdbMetadataProvider(tmdb_client)
+        metadata = CachingMetadataProvider(
+            _inner_meta,
+            _title_match,
+            language=_tmdb_lang,
+        )
+        match_execute = make_match_execute(
+            metadata,
+            title_match=_title_match,
+            title_groups=_title_groups,
+        )
         tmdb_search_execute = make_tmdb_search_execute(metadata)
 
     def _make_op_log(root: Path) -> OperationLogRepository:
@@ -177,6 +193,7 @@ def create_subtitle_organizer_page(
     _library_index = SqliteLibraryIndexRepository(_db_conn, _db_lock)
     _parse_cache = SqliteParseCacheRepository(_db_conn, _db_lock)
     _title_groups = SqliteTitleGroupRepository(_db_conn, _db_lock)
+    _title_match = SqliteTitleMatchRepository(_db_conn, _db_lock)
     _sync_title_groups = make_sync_title_groups_execute(_title_groups)
     scan_execute = make_execute(
         file_repo,
@@ -196,8 +213,18 @@ def create_subtitle_organizer_page(
     tmdb_search_execute = None
     if api_key:
         tmdb_client = TmdbApiClient(api_key, language="ko-KR")
-        metadata = TmdbMetadataProvider(tmdb_client)
-        match_execute = make_match_execute(metadata)
+        _tmdb_lang = "ko-KR"
+        _inner_meta = TmdbMetadataProvider(tmdb_client)
+        metadata = CachingMetadataProvider(
+            _inner_meta,
+            _title_match,
+            language=_tmdb_lang,
+        )
+        match_execute = make_match_execute(
+            metadata,
+            title_match=_title_match,
+            title_groups=_title_groups,
+        )
         tmdb_search_execute = make_tmdb_search_execute(metadata)
 
     def _make_op_log(root: Path) -> OperationLogRepository:
