@@ -12,12 +12,33 @@ from typing import Any
 
 from anivault.application.dto.match_result import MatchFileRow
 from anivault.application.dto.plan import PlanInput, PlanResult
+from anivault.domain.rules.poster_display import resolve_final_poster_display_source
 from anivault.interfaces.gui.models import (
     PipelineRow,
     PipelineTableModel,
     group_pipeline_rows,
     pipeline_rows_ready_for_plan,
 )
+
+
+def resolve_pipeline_row_poster_url(
+    *,
+    local_absolute_path: str | None,
+    cdn_poster_url: str,
+) -> str:
+    """파이프라인 표시용 최종 포스터 소스(로컬 파일 → CDN → 빈).
+
+    `PipelineRow.poster_url`은 이 규칙으로 채운 **최종 이미지 소스**다
+    (http(s), 절대 로컬 경로, 또는 빈 문자열).
+
+    Args:
+        local_absolute_path: DB·디스크에서 확인한 로컬 절대 경로. None 가능.
+        cdn_poster_url: TMDB CDN 전체 URL.
+
+    Returns:
+        UI·ImageLoader에 넘길 문자열.
+    """
+    return resolve_final_poster_display_source(local_absolute_path, cdn_poster_url)
 
 
 def pipeline_row_to_match_file(row: PipelineRow) -> MatchFileRow:

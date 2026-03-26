@@ -19,7 +19,16 @@ from anivault.application.dto.plan import ApplyInput, ApplyResult, PlanInput, Pl
 from anivault.application.dto.progress import ProgressEvent, progress_dialog_value_and_maximum
 from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.application.dto.tmdb import TmdbSearchInput, TmdbSeriesCandidateDTO
-from anivault.application.use_cases.match_series import apply_tmdb_candidate_to_file_rows
+from anivault.application.ports.poster_sync_port import PosterAssetSyncPort
+from anivault.application.ports.title_group_port import TitleGroupRepository
+from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.application.use_cases.match_series import (
+    apply_tmdb_candidate_to_file_rows,
+    persist_manual_tmdb_selection,
+)
+from anivault.domain.path_norm import normalize_path_key
+from anivault.domain.rules.poster_display import resolve_final_poster_display_source
+from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
 from anivault.interfaces.gui.components.molecules import ProgressDialog
 from anivault.interfaces.gui.dialogs.dry_run_dialog import DryRunDialog
 from anivault.interfaces.gui.dialogs.tmdb_manual_match_dialog import TmdbManualMatchDialog
@@ -130,6 +139,9 @@ class OrganizerPresenter(QObject):
         progress_dialog: ProgressDialog | None = None,
         include_companion_subtitles: bool = True,
         sync_title_groups_execute: Callable[[int], None] | None = None,
+        title_match: TitleMatchRepository | None = None,
+        title_groups: TitleGroupRepository | None = None,
+        poster_sync: PosterAssetSyncPort | None = None,
         parent: QObject | None = None,
     ) -> None:
         """파이프라인 모델과 유스케이스 실행 콜백·진행 다이얼로그를 연결한다.
@@ -146,6 +158,9 @@ class OrganizerPresenter(QObject):
             progress_dialog: 진행률 UI. None이면 다이얼로그 없음.
             include_companion_subtitles: 플랜에 동반 자막 이동을 포함할지 여부.
             sync_title_groups_execute: 파싱·캐시 완료 후 `root_id`로 title_groups 동기화. None이면 생략.
+            title_match: 포스터 로컬 경로 조회·수동 매칭 영속. None이면 CDN만 표시.
+            title_groups: 수동 매칭 시 그룹–TMDB 영속. None이면 해당 생략.
+            poster_sync: 수동 매칭 후 포스터 다운로드. None이면 생략.
             parent: Qt 부모 객체.
 
         Returns:
@@ -162,6 +177,9 @@ class OrganizerPresenter(QObject):
         self._apply_execute = apply_execute
         self._progress_dialog = progress_dialog
         self._sync_title_groups_execute = sync_title_groups_execute
+        self._title_match = title_match
+        self._title_groups = title_groups
+        self._poster_sync = poster_sync
         self._parse_index_root_id: int | None = None
         self._current_library_root_id: int | None = None
         self._worker_thread: QThread | None = None
@@ -620,6 +638,17 @@ class OrganizerPresenter(QObject):
         Returns:
             파이프라인 테이블 행.
         """
+        local_poster: str | None = None
+        tm = self._title_match
+        if tm is not None:
+            tid_s = (m.tmdb_series_id or "").strip()
+            rp = normalize_tmdb_remote_image_path(m.tmdb_poster_path)
+            if tid_s and rp:
+                try:
+                    local_poster = tm.get_poster_local_path(int(tid_s), "poster", rp)
+                except (OSError, TypeError, ValueError):
+                    local_poster = None
+        poster_display = resolve_final_poster_display_source(local_poster, m.poster_url)
         return PipelineRow(
             original_file=m.original_file,
             parsed_title=m.parsed_title,
@@ -632,7 +661,7 @@ class OrganizerPresenter(QObject):
             season=m.season,
             resolution=m.resolution,
             status=m.status,
-            poster_url=m.poster_url,
+            poster_url=poster_display,
             backdrop_url=m.backdrop_url,
             target_path=m.target_path,
             episode=m.episode,
@@ -733,6 +762,21 @@ class OrganizerPresenter(QObject):
         if not indices:
             return
         apply_tmdb_candidate_to_file_rows(files_list, indices, chosen)
+        try:
+            rep_norm = normalize_path_key(files_list[indices[0]].original_file)
+        except OSError:
+            rep_norm = None
+        persist_manual_tmdb_selection(
+            files_list,
+            indices,
+            chosen,
+            root_id=self._current_library_root_id,
+            representative_path_norm=rep_norm,
+            title_match=self._title_match,
+            title_groups=self._title_groups,
+        )
+        if self._poster_sync is not None:
+            self._poster_sync.sync_from_files(files_list)
         merged_rows = [self._match_file_to_pipeline_row(m) for m in files_list]
         merged_groups = group_pipeline_rows(merged_rows)
         pending_idx = 0

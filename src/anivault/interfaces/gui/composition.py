@@ -18,6 +18,7 @@ from anivault.adapters.metadata.tmdb import (
     TmdbApiClient,
     TmdbMetadataProvider,
 )
+from anivault.adapters.metadata.tmdb.poster_asset_sync import TmdbPosterAssetSync
 from anivault.adapters.operation_log import FsOperationLogRepository
 from anivault.adapters.parser import AnitopyTitleParser
 from anivault.adapters.persistence.sqlite import (
@@ -27,6 +28,7 @@ from anivault.adapters.persistence.sqlite import (
     SqliteTitleMatchRepository,
     create_connection,
 )
+from anivault.adapters.persistence.sqlite.db_path import default_poster_cache_dir
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.tmdb import TmdbSearchInput, TmdbSeriesCandidateDTO
 from anivault.application.ports.metadata_provider import MetadataProvider
@@ -130,6 +132,7 @@ def create_organizer_page(
     api_key = (os.environ.get("TMDB_API_KEY") or read_tmdb_api_key() or "").strip()
     match_execute = None
     tmdb_search_execute = None
+    _poster_sync: TmdbPosterAssetSync | None = None
     if api_key:
         tmdb_client = TmdbApiClient(api_key, language="ko-KR")
         _tmdb_lang = "ko-KR"
@@ -139,10 +142,12 @@ def create_organizer_page(
             _title_match,
             language=_tmdb_lang,
         )
+        _poster_sync = TmdbPosterAssetSync(_title_match, default_poster_cache_dir())
         match_execute = make_match_execute(
             metadata,
             title_match=_title_match,
             title_groups=_title_groups,
+            poster_sync=_poster_sync.sync_from_match_result,
         )
         tmdb_search_execute = make_tmdb_search_execute(metadata)
 
@@ -169,6 +174,9 @@ def create_organizer_page(
         apply_execute=apply_execute,
         progress_dialog=progress_dialog,
         sync_title_groups_execute=_sync_title_groups,
+        title_match=_title_match,
+        title_groups=_title_groups,
+        poster_sync=_poster_sync,
     )
     return OrganizerPage(model=model, presenter=presenter)
 
@@ -211,6 +219,7 @@ def create_subtitle_organizer_page(
     api_key = (os.environ.get("TMDB_API_KEY") or read_tmdb_api_key() or "").strip()
     match_execute = None
     tmdb_search_execute = None
+    _poster_sync: TmdbPosterAssetSync | None = None
     if api_key:
         tmdb_client = TmdbApiClient(api_key, language="ko-KR")
         _tmdb_lang = "ko-KR"
@@ -220,10 +229,12 @@ def create_subtitle_organizer_page(
             _title_match,
             language=_tmdb_lang,
         )
+        _poster_sync = TmdbPosterAssetSync(_title_match, default_poster_cache_dir())
         match_execute = make_match_execute(
             metadata,
             title_match=_title_match,
             title_groups=_title_groups,
+            poster_sync=_poster_sync.sync_from_match_result,
         )
         tmdb_search_execute = make_tmdb_search_execute(metadata)
 
@@ -251,6 +262,9 @@ def create_subtitle_organizer_page(
         progress_dialog=progress_dialog,
         include_companion_subtitles=False,
         sync_title_groups_execute=_sync_title_groups,
+        title_match=_title_match,
+        title_groups=_title_groups,
+        poster_sync=_poster_sync,
     )
     return OrganizerPage(model=model, presenter=presenter)
 

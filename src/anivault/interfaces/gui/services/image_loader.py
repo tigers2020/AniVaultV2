@@ -7,6 +7,8 @@ Author: Pom Kim
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import QObject, QUrl, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
@@ -48,23 +50,47 @@ class ImageLoader(QObject):
         return self._cache.get(url)
 
     def load(self, url: str) -> None:
-        """캐시 히트면 즉시 emit하고, 아니면 GET 요청을 시작한다.
+        """캐시 히트면 즉시 emit하고, 로컬·file URL은 동기 로드, http(s)는 GET한다.
 
         Args:
             self: 이 로더.
-            url: http(s) URL.
+            url: http(s), file URL, 또는 절대 로컬 경로.
 
         Returns:
             None.
         """
-        if not url or not url.startswith("http"):
+        u = (url or "").strip()
+        if not u:
             return
-        if url in self._cache:
-            self.loaded.emit(url, self._cache[url])
+        if u in self._cache:
+            self.loaded.emit(u, self._cache[u])
             return
-        request = QNetworkRequest(QUrl(url))
+        if u.startswith("file:"):
+            q = QUrl(u)
+            local = q.toLocalFile()
+            if local:
+                pix = QPixmap(local)
+                if not pix.isNull():
+                    self._cache[u] = pix
+                self.loaded.emit(u, pix if not pix.isNull() else QPixmap())
+            else:
+                self.loaded.emit(u, QPixmap())
+            return
+        try:
+            p = Path(u)
+            if p.is_absolute() and p.is_file():
+                pix = QPixmap(str(p))
+                if not pix.isNull():
+                    self._cache[u] = pix
+                self.loaded.emit(u, pix if not pix.isNull() else QPixmap())
+                return
+        except OSError:
+            pass
+        if not u.startswith("http"):
+            return
+        request = QNetworkRequest(QUrl(u))
         reply = self._nam.get(request)
-        self._pending[reply] = url
+        self._pending[reply] = u
 
     def _on_finished(self, reply: QNetworkReply) -> None:
         """응답을 pixmap으로 디코딩해 캐시·emit한다.
