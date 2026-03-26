@@ -8,13 +8,17 @@ Author: Pom Kim
 from anivault.application.ports.cache_port import CacheRepository
 from anivault.application.ports.file_repository import FileRepository
 from anivault.application.ports.filename_parser import FilenameParser
+from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.ports.operation_log_port import OperationLogRepository
+from anivault.application.ports.parse_cache_port import ParseCacheRepository
 
 __all__ = [
     "CacheRepository",
     "FileRepository",
     "FilenameParser",
+    "LibraryIndexRepository",
     "MetadataProvider",
     "OperationLogRepository",
+    "ParseCacheRepository",
 ]

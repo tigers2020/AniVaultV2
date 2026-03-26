@@ -25,6 +25,7 @@ class ParseInput:
     """parse_titles 입력. 경로는 파이프라인 순서."""
 
     paths: list[str] = field(default_factory=list)
+    index_root_id: int | None = None
 
 
 @dataclass
