@@ -19,6 +19,7 @@ from anivault.domain.path_norm import (
     normalize_path_key,
     relative_posix_under_root,
 )
+from anivault.domain.services.sidecar_group_key import compute_sidecar_group_key
 
 _MARK_MISSING_INLINE_LIMIT = 500
 
@@ -211,6 +212,11 @@ class SqliteLibraryIndexRepository:
             rel = relative_posix_under_root(root_display, absolute_path)
             pnorm = normalize_path_key(absolute_path)
             dnorm = dir_norm_for_relative(rel)
+            sidecar_key = compute_sidecar_group_key(
+                media_kind=media_kind,
+                dir_norm=dnorm,
+                file_stem=file_stem,
+            )
             cur = self._conn.execute(
                 "SELECT id FROM media_files WHERE root_id = ? AND path_norm = ?",
                 (root_id, pnorm),
@@ -230,6 +236,7 @@ class SqliteLibraryIndexRepository:
                         mtime_ns = ?,
                         ctime_ns = ?,
                         inode_hint = ?,
+                        sidecar_group_key = ?,
                         is_deleted = 0,
                         first_seen_scan_id = COALESCE(first_seen_scan_id, ?),
                         last_seen_scan_id = ?,
@@ -247,6 +254,7 @@ class SqliteLibraryIndexRepository:
                         mtime_ns,
                         ctime_ns,
                         inode_hint,
+                        sidecar_key,
                         session_id,
                         session_id,
                         now,
@@ -269,7 +277,7 @@ class SqliteLibraryIndexRepository:
                     ?, ?, ?, ?,
                     ?, ?, ?, ?,
                     ?, ?, ?, ?,
-                    NULL, NULL,
+                    NULL, ?,
                     0, ?, ?,
                     ?, ?
                 )
@@ -287,6 +295,7 @@ class SqliteLibraryIndexRepository:
                     mtime_ns,
                     ctime_ns,
                     inode_hint,
+                    sidecar_key,
                     session_id,
                     session_id,
                     now,
