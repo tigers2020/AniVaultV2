@@ -30,3 +30,29 @@ def ensure_db_parent_dir(db_path: Path) -> None:
         None.
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def default_poster_cache_dir() -> Path:
+    """TMDB 포스터·백드롭 로컬 캐시 디렉터리를 반환한다.
+
+    Args:
+        없음.
+
+    Returns:
+        `~/.anivault/posters`.
+    """
+    return Path.home() / ".anivault" / "posters"
+
+
+def ensure_poster_cache_dir() -> Path:
+    """포스터 캐시 디렉터리가 없으면 만들고 절대 경로를 반환한다.
+
+    Args:
+        없음.
+
+    Returns:
+        `default_poster_cache_dir()`의 resolve 결과.
+    """
+    d = default_poster_cache_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    return d

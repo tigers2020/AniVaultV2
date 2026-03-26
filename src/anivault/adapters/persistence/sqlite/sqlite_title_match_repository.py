@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from pathlib import Path
 from threading import Lock
 
 from anivault.adapters.persistence.sqlite.sqlite_time import (
@@ -18,6 +19,7 @@ from anivault.adapters.persistence.sqlite.sqlite_time import (
 )
 from anivault.application.dto.title_match import GroupTmdbMatchRecord, MatchStatusDto
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
+from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,17 @@ ON CONFLICT(group_id) DO UPDATE SET
     tmdb_id = excluded.tmdb_id,
     match_status = excluded.match_status,
     match_score = excluded.match_score,
+    updated_at = excluded.updated_at
+"""
+
+_POSTER_ASSET_UPSERT = """
+INSERT INTO poster_assets (
+    tmdb_id, image_kind, remote_path, local_path, status, verified_at, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(tmdb_id, image_kind, remote_path) DO UPDATE SET
+    local_path = excluded.local_path,
+    status = excluded.status,
+    verified_at = excluded.verified_at,
     updated_at = excluded.updated_at
 """
 
@@ -193,21 +206,51 @@ class SqliteTitleMatchRepository:
         """
         now = utc_now_sqlite_text()
         tid = int(candidate.tmdb_id)
+        new_poster = normalize_tmdb_remote_image_path(candidate.poster_path)
         with self._lock:
             try:
+                cur = self._conn.execute(
+                    "SELECT poster_path FROM tmdb_series WHERE tmdb_id = ?",
+                    (tid,),
+                )
+                prev = cur.fetchone()
+                old_poster = normalize_tmdb_remote_image_path(
+                    str(prev[0]) if prev is not None else "",
+                )
                 self._conn.execute(
                     _SERIES_UPSERT,
                     (
                         tid,
                         (candidate.name_ko or "").strip(),
                         (candidate.original_name or "").strip(),
-                        (candidate.poster_path or "").strip(),
+                        new_poster,
                         raw_json,
                         expires_at,
                         now,
                         now,
                     ),
                 )
+                if old_poster != new_poster:
+                    ts = utc_now_sqlite_text()
+                    if not new_poster:
+                        self._conn.execute(
+                            """
+                            UPDATE poster_assets
+                            SET status = 'stale', updated_at = ?
+                            WHERE tmdb_id = ? AND image_kind = 'poster'
+                            """,
+                            (ts, tid),
+                        )
+                    else:
+                        self._conn.execute(
+                            """
+                            UPDATE poster_assets
+                            SET status = 'stale', updated_at = ?
+                            WHERE tmdb_id = ? AND image_kind = 'poster'
+                              AND remote_path != ?
+                            """,
+                            (ts, tid, new_poster),
+                        )
                 self._conn.commit()
             except sqlite3.Error as e:
                 logger.warning("tmdb_series upsert 실패 tmdb_id=%s: %s", tid, e)
@@ -362,6 +405,119 @@ class SqliteTitleMatchRepository:
                 )
                 self._conn.commit()
             except Exception:
+                self._conn.rollback()
+                raise
+
+    def get_poster_local_path(
+        self,
+        tmdb_id: int,
+        image_kind: str,
+        remote_path: str,
+    ) -> str | None:
+        """로컬 포스터 절대 경로를 strict 계약으로 반환한다.
+
+        Args:
+            self: 저장소.
+            tmdb_id: TMDB TV id.
+            image_kind: poster 또는 backdrop.
+            remote_path: TMDB 상대 경로.
+
+        Returns:
+            절대 경로 또는 None.
+        """
+        norm = normalize_tmdb_remote_image_path(remote_path)
+        if not norm:
+            return None
+        kind = (image_kind or "").strip()
+        if kind not in ("poster", "backdrop"):
+            return None
+        tid = int(tmdb_id)
+        with self._lock:
+            cur = self._conn.execute(
+                """
+                SELECT local_path, status FROM poster_assets
+                WHERE tmdb_id = ? AND image_kind = ? AND remote_path = ?
+                """,
+                (tid, kind, norm),
+            )
+            row = cur.fetchone()
+            if row is None:
+                self._conn.commit()
+                return None
+            local_path, st = str(row[0] or ""), str(row[1] or "")
+            if st != "ready" or not local_path.strip():
+                self._conn.commit()
+                return None
+            try:
+                p = Path(local_path)
+                if p.is_file():
+                    self._conn.commit()
+                    return str(p.resolve())
+            except OSError:
+                pass
+            ts = utc_now_sqlite_text()
+            self._conn.execute(
+                """
+                UPDATE poster_assets
+                SET status = 'missing', updated_at = ?
+                WHERE tmdb_id = ? AND image_kind = ? AND remote_path = ?
+                """,
+                (ts, tid, kind, norm),
+            )
+            self._conn.commit()
+        return None
+
+    def save_poster_asset(
+        self,
+        tmdb_id: int,
+        image_kind: str,
+        remote_path: str,
+        *,
+        local_path: str,
+        status: str,
+        verified_at: str | None,
+    ) -> None:
+        """poster_assets 행을 UPSERT한다.
+
+        Args:
+            self: 저장소.
+            tmdb_id: TMDB TV id.
+            image_kind: poster 또는 backdrop.
+            remote_path: TMDB 상대 경로.
+            local_path: 로컬 경로.
+            status: ready 등.
+            verified_at: 검증 시각.
+
+        Returns:
+            None.
+        """
+        norm = normalize_tmdb_remote_image_path(remote_path)
+        if not norm:
+            return
+        kind = (image_kind or "").strip()
+        if kind not in ("poster", "backdrop"):
+            return
+        st = (status or "").strip()
+        if st not in ("ready", "stale", "missing", "failed"):
+            return
+        tid = int(tmdb_id)
+        now = utc_now_sqlite_text()
+        lp = local_path or ""
+        va = verified_at
+        with self._lock:
+            try:
+                self._conn.execute(
+                    _POSTER_ASSET_UPSERT,
+                    (tid, kind, norm, lp, st, va, now, now),
+                )
+                self._conn.commit()
+            except sqlite3.Error as e:
+                logger.warning(
+                    "poster_assets upsert 실패 tmdb_id=%s kind=%s: %s",
+                    tid,
+                    kind,
+                    e,
+                )
                 self._conn.rollback()
                 raise
 
