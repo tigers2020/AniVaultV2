@@ -54,6 +54,20 @@ def _migration_003_sql() -> str:
     return ref.read_text(encoding="utf-8")
 
 
+def _migration_004_sql() -> str:
+    """004_tmdb_cache.sql 본문을 패키지 리소스에서 읽는다.
+
+    Args:
+        없음.
+
+    Returns:
+        SQL 스크립트 문자열.
+    """
+    pkg = "anivault.adapters.persistence.sqlite.migrations"
+    ref = resources.files(pkg).joinpath("004_tmdb_cache.sql")
+    return ref.read_text(encoding="utf-8")
+
+
 def _migrations() -> list[tuple[int, str, Callable[[], str]]]:
     """적용 순서대로 (버전, 이름, SQL 로더) 목록을 반환한다.
 
@@ -67,6 +81,7 @@ def _migrations() -> list[tuple[int, str, Callable[[], str]]]:
         (1, "001_initial", _migration_001_sql),
         (2, "002_parse_cache", _migration_002_sql),
         (3, "003_title_groups", _migration_003_sql),
+        (4, "004_tmdb_cache", _migration_004_sql),
     ]
 
 
