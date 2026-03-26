@@ -7,7 +7,11 @@ Author: Pom Kim
 
 from __future__ import annotations
 
+import json
+import logging
 from collections.abc import Callable
+from dataclasses import asdict
+from datetime import UTC, datetime, timedelta
 from threading import Event
 
 from anivault.application.dto.match_result import (
@@ -19,6 +23,9 @@ from anivault.application.dto.match_result import (
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.ports.metadata_provider import MetadataProvider
+from anivault.application.ports.title_group_port import TitleGroupRepository
+from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.tmdb_search_query import (
     iter_strip_last_word_chain,
     iter_tmdb_search_queries,
@@ -27,6 +34,20 @@ from anivault.domain.rules.tmdb_search_query import (
 _MAX_CANDIDATES = 5
 
 MatchProgressCallback = Callable[[ProgressEvent], None]
+
+logger = logging.getLogger(__name__)
+
+
+def _utc_plus_days_iso_z(days: int) -> str:
+    """UTC 기준 만료 시각 문자열(`…Z`)을 만든다.
+
+    Args:
+        days: 더할 일 수.
+
+    Returns:
+        SQLite·정책과 동일한 ISO 텍스트.
+    """
+    return (datetime.now(UTC) + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _group_key(row: MatchFileRow) -> str:
@@ -337,6 +358,11 @@ def _apply_tmdb_to_file_rows(
 def _search_series_candidates_for_group(
     group_key: str,
     provider: MetadataProvider,
+    *,
+    root_id: int | None = None,
+    representative_path_norm: str | None = None,
+    title_match: TitleMatchRepository | None = None,
+    title_groups: TitleGroupRepository | None = None,
 ) -> list[TmdbSeriesCandidateDTO]:
     """그룹 키에 대해 변형 검색어·끝단어 제거 체인으로 TMDB 후보를 찾는다.
 
@@ -345,10 +371,27 @@ def _search_series_candidates_for_group(
     Args:
         group_key: 파싱 그룹 식별 문자열.
         provider: 메타데이터 검색 포트.
+        root_id: 인덱스 루트. None이면 DB 단축 경로 없음.
+        representative_path_norm: 그룹 대표 파일 `path_norm`.
+        title_match: TMDB 매칭 저장소.
+        title_groups: 작품 그룹 저장소.
 
     Returns:
         첫 비어 있지 않은 검색 결과. 없으면 빈 목록.
     """
+    if (
+        root_id is not None
+        and representative_path_norm
+        and title_match is not None
+        and title_groups is not None
+    ):
+        gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
+        if gid is not None:
+            gm = title_match.get_group_match(gid)
+            if gm is not None and gm.match_status in ("auto_matched", "confirmed"):
+                cand = title_match.get_series_candidate(gm.tmdb_id)
+                if cand is not None:
+                    return [cand]
     seen_attempts: set[str] = set()
     for q in iter_tmdb_search_queries(group_key):
         for attempt in iter_strip_last_word_chain(q):
@@ -367,6 +410,11 @@ def _match_single_group(
     group_key: str,
     indices: list[int],
     provider: MetadataProvider,
+    *,
+    root_id: int | None = None,
+    representative_path_norm: str | None = None,
+    title_match: TitleMatchRepository | None = None,
+    title_groups: TitleGroupRepository | None = None,
 ) -> GroupMatchResultDTO:
     """한 그룹에 대해 TMDB 검색·선택 후 파일 행과 그룹 결과를 만든다.
 
@@ -375,11 +423,22 @@ def _match_single_group(
         group_key: 그룹 식별 키.
         indices: 그룹에 속한 행 인덱스.
         provider: 메타데이터 검색 포트.
+        root_id: DB 영속화용 루트 id.
+        representative_path_norm: 그룹 대표 경로 키.
+        title_match: TMDB 매칭 저장소.
+        title_groups: 작품 그룹 저장소.
 
     Returns:
         해당 그룹의 매칭 결과 DTO.
     """
-    raw_candidates = _search_series_candidates_for_group(group_key, provider)
+    raw_candidates = _search_series_candidates_for_group(
+        group_key,
+        provider,
+        root_id=root_id,
+        representative_path_norm=representative_path_norm,
+        title_match=title_match,
+        title_groups=title_groups,
+    )
     best, conf, reason = _select_best_candidate(raw_candidates, group_key, "")
 
     if best is None or not best.tmdb_id:
@@ -397,6 +456,26 @@ def _match_single_group(
     original = (best.original_name or "").strip()
     apply_tmdb_candidate_to_file_rows(files, indices, best)
 
+    if (
+        root_id is not None
+        and representative_path_norm
+        and title_match is not None
+        and title_groups is not None
+    ):
+        gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
+        if gid is not None:
+            raw_json = json.dumps(asdict(best), ensure_ascii=False, separators=(",", ":"))
+            exp = _utc_plus_days_iso_z(7)
+            try:
+                title_match.upsert_series(best, raw_json=raw_json, expires_at=exp)
+                title_match.set_group_match(gid, int(best.tmdb_id), "auto_matched", conf)
+            except Exception:
+                logger.exception(
+                    "group TMDB persist 실패 group_id=%s tmdb_id=%s",
+                    gid,
+                    best.tmdb_id,
+                )
+
     return GroupMatchResultDTO(
         group_key=group_key,
         matched=bool(korean),
@@ -410,11 +489,16 @@ def _match_single_group(
 
 def make_execute(
     provider: MetadataProvider,
+    *,
+    title_match: TitleMatchRepository | None = None,
+    title_groups: TitleGroupRepository | None = None,
 ) -> Callable[[MatchInput, MatchProgressCallback | None, Event], MatchResult]:
     """MetadataProvider가 주입된 매칭 실행 함수를 만든다.
 
     Args:
         provider: 메타데이터 검색 포트.
+        title_match: TMDB 캐시·그룹 매칭 저장소.
+        title_groups: title_groups 조회.
 
     Returns:
         (MatchInput, progress_callback, cancel_token) -> MatchResult 클로저.
@@ -445,6 +529,7 @@ def make_execute(
 
         _notify_match_progress_prepare(progress_callback, total)
 
+        root_scope = input_dto.index_root_id
         for n, (key, indices) in enumerate(key_to_indices.items()):
             if cancel_token.is_set():
                 break
@@ -454,7 +539,24 @@ def make_execute(
                 n + 1,
                 f"TMDB 검색 ({n + 1}/{total}): {key[:60]}",
             )
-            group_results.append(_match_single_group(files, key, indices, provider))
+            path_norm: str | None = None
+            if root_scope is not None and indices:
+                try:
+                    path_norm = normalize_path_key(files[indices[0]].original_file)
+                except OSError:
+                    path_norm = None
+            group_results.append(
+                _match_single_group(
+                    files,
+                    key,
+                    indices,
+                    provider,
+                    root_id=root_scope,
+                    representative_path_norm=path_norm,
+                    title_match=title_match,
+                    title_groups=title_groups,
+                ),
+            )
 
         return MatchResult(files=tuple(files), groups=tuple(group_results))
 

@@ -47,6 +47,7 @@ class MatchInput:
     """match_series 입력. 파일당 한 행, 파이프라인 순서."""
 
     files: tuple[MatchFileRow, ...] = field(default_factory=tuple)
+    index_root_id: int | None = None
 
 
 @dataclass(slots=True)
