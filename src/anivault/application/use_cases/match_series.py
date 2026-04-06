@@ -667,8 +667,14 @@ def _representative_path_norm_for_group(
 def _match_max_workers() -> int:
     """병렬 그룹 매칭 스레드 상한을 반환한다.
 
-    기본값은 1(직렬)이다. TMDB 요청 간격·SQLite 락 때문에 병렬 이득이 없을 때가 많아
-    복잡도만 늘리지 않도록 한다. 실험 시 ``ANIVAULT_MATCH_MAX_WORKERS``로 2~8을 설정한다.
+    기본값은 1(직렬)이다.
+
+    근거:
+    - TMDB 쿼리는 요청 간격/레이트 제한이 있고(공유 락/슬립 등), 그룹 단위 병렬이 항상 이득이 아니다.
+    - SQLite는 단일 연결 + 락(또는 직렬화)이 개입되므로, 병렬이 오히려 대기/경합만 늘 수 있다.
+    - GUI/worker 디버깅 복잡도를 불필요하게 키우지 않기 위해 기본은 직렬로 둔다.
+
+    병렬이 실제로 이득인 환경에서만 실험적으로 ``ANIVAULT_MATCH_MAX_WORKERS``를 2~8로 설정한다.
 
     Args:
         없음.
