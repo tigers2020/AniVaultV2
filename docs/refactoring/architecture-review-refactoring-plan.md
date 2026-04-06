@@ -241,7 +241,7 @@ AniVault V2의 현재 구조에서 가장 큰 리스크는 기능 부족보다 *
 
 ---
 
-## P1-A-2. `_GROUP_MATCH_UPSERT` 단일화
+## P1-A-2. `GROUP_TMDB_MATCH_UPSERT_SQL` 단일화 (검증 마감)
 
 ### 대상
 
@@ -260,7 +260,7 @@ AniVault V2의 현재 구조에서 가장 큰 리스크는 기능 부족보다 *
 
 ### 완료 기준
 
-- `_GROUP_MATCH_UPSERT` 정의가 1곳만 남음
+- `GROUP_TMDB_MATCH_UPSERT_SQL` 정의가 1곳만 남음(`adapters/persistence/sqlite/sql_queries.py`)
 - 두 repository는 import만 사용
 
 ### 리스크
