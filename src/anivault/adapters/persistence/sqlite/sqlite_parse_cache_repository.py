@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from threading import Lock
 
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
@@ -110,6 +112,37 @@ class SqliteParseCacheRepository:
         """
         self._conn = conn
         self._lock = lock
+        self._resolution_write_depth = 0
+
+    @contextmanager
+    def resolution_write_batch(self) -> Iterator[None]:
+        """`upsert_resolution` 다건을 한 트랜잭션으로 묶는다.
+
+        Args:
+            self: 이 저장소.
+
+        Yields:
+            None.
+
+        Returns:
+            None.
+        """
+        with self._lock:
+            self._resolution_write_depth += 1
+            if self._resolution_write_depth == 1:
+                self._conn.execute("BEGIN IMMEDIATE")
+        ok = False
+        try:
+            yield
+            ok = True
+        finally:
+            with self._lock:
+                self._resolution_write_depth -= 1
+                if self._resolution_write_depth == 0:
+                    if ok:
+                        self._conn.commit()
+                    else:
+                        self._conn.rollback()
 
     def get_valid_parse(self, media_file_id: int, signature: str) -> ParsedInfo | None:
         """ok·서명·JSON이 유효할 때만 ParsedInfo를 반환한다.
@@ -132,7 +165,6 @@ class SqliteParseCacheRepository:
                 (media_file_id,),
             )
             row = cur.fetchone()
-            self._conn.commit()
         if row is None:
             return None
         status, stored_sig, dto_json = str(row[0]), str(row[1]), str(row[2])
@@ -286,7 +318,6 @@ class SqliteParseCacheRepository:
                 (media_file_id,),
             )
             row = cur.fetchone()
-            self._conn.commit()
         if row is None:
             return None
         value = row[0]
@@ -334,7 +365,8 @@ class SqliteParseCacheRepository:
                         now,
                     ),
                 )
-                self._conn.commit()
+                if self._resolution_write_depth == 0:
+                    self._conn.commit()
             except sqlite3.Error as e:
                 self._conn.rollback()
                 logger.exception(

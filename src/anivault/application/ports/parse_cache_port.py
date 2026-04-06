@@ -7,6 +7,7 @@ Author: Pom Kim
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from typing import Protocol, runtime_checkable
 
 from anivault.application.dto.parse import ParsedInfo
@@ -90,6 +91,17 @@ class ParseCacheRepository(Protocol):
 
         Returns:
             None.
+        """
+        ...
+
+    def resolution_write_batch(self) -> AbstractContextManager[None]:
+        """스캔 루프에서 다수의 `upsert_resolution` 커밋을 묶을 때 사용한다.
+
+        Args:
+            self: 이 저장소.
+
+        Returns:
+            컨텍스트 매니저.
         """
         ...
 

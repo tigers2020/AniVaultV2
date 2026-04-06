@@ -8,6 +8,8 @@ Author: Pom Kim
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from threading import Lock
 
@@ -41,6 +43,38 @@ class SqliteLibraryIndexRepository:
         """
         self._conn = conn
         self._lock = lock
+        self._media_batch_depth = 0
+        self._root_path_display_by_id: dict[int, str] = {}
+
+    @contextmanager
+    def media_upsert_batch(self) -> Iterator[None]:
+        """`upsert_media_file` 다건을 한 트랜잭션으로 묶는다.
+
+        Args:
+            self: 이 저장소.
+
+        Yields:
+            None.
+
+        Returns:
+            None.
+        """
+        with self._lock:
+            self._media_batch_depth += 1
+            if self._media_batch_depth == 1:
+                self._conn.execute("BEGIN IMMEDIATE")
+        ok = False
+        try:
+            yield
+            ok = True
+        finally:
+            with self._lock:
+                self._media_batch_depth -= 1
+                if self._media_batch_depth == 0:
+                    if ok:
+                        self._conn.commit()
+                    else:
+                        self._conn.rollback()
 
     def upsert_root(self, root_path: str, *, display_name: str | None = None) -> int:
         """루트 행을 upsert하고 ID를 반환한다.
@@ -239,15 +273,21 @@ class SqliteLibraryIndexRepository:
         inode_hint = str(st.st_ino) if hasattr(st, "st_ino") else None
         now = utc_now_sqlite_text()
         with self._lock:
-            cur = self._conn.execute(
-                "SELECT root_path FROM library_roots WHERE id = ?",
-                (root_id,),
-            )
-            rr = cur.fetchone()
-            if rr is None:
-                self._conn.commit()
-                raise ValueError(f"unknown root_id: {root_id}")
-            root_display = str(rr[0])
+            cached_root = self._root_path_display_by_id.get(int(root_id))
+            if cached_root is not None:
+                root_display = cached_root
+            else:
+                cur = self._conn.execute(
+                    "SELECT root_path FROM library_roots WHERE id = ?",
+                    (root_id,),
+                )
+                rr = cur.fetchone()
+                if rr is None:
+                    if self._media_batch_depth == 0:
+                        self._conn.commit()
+                    raise ValueError(f"unknown root_id: {root_id}")
+                root_display = str(rr[0])
+                self._root_path_display_by_id[int(root_id)] = root_display
             rel = relative_posix_under_root(root_display, absolute_path)
             pnorm = normalize_path_key(absolute_path)
             dnorm = dir_norm_for_relative(rel)
@@ -301,7 +341,8 @@ class SqliteLibraryIndexRepository:
                         pnorm,
                     ),
                 )
-                self._conn.commit()
+                if self._media_batch_depth == 0:
+                    self._conn.commit()
                 return (False, True)
             self._conn.execute(
                 """
@@ -341,7 +382,8 @@ class SqliteLibraryIndexRepository:
                     now,
                 ),
             )
-            self._conn.commit()
+            if self._media_batch_depth == 0:
+                self._conn.commit()
             return (True, False)
 
     def mark_missing_deleted(self, root_id: int, session_id: int, seen_path_norms: set[str]) -> int:

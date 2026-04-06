@@ -114,7 +114,6 @@ class SqliteTitleMatchRepository:
                 (k,),
             )
             row = cur.fetchone()
-            self._conn.commit()
         if row is None:
             return None
         js, exp = str(row[0]), str(row[1])
@@ -277,7 +276,6 @@ class SqliteTitleMatchRepository:
                 (int(tmdb_id),),
             )
             row = cur.fetchone()
-            self._conn.commit()
         if row is None:
             return None
         raw, exp = str(row[0]), str(row[1])
@@ -323,7 +321,6 @@ class SqliteTitleMatchRepository:
                 (norm, norm),
             )
             rows = cur.fetchall()
-            self._conn.commit()
         scored = _rank_local_title_hits(rows, needle)
         scored.sort(key=lambda item: (item[0], item[1], int(item[2].tmdb_id)))
         return [item[2] for item in scored[:cap]]
@@ -348,7 +345,6 @@ class SqliteTitleMatchRepository:
                 (int(group_id),),
             )
             row = cur.fetchone()
-            self._conn.commit()
         if row is None:
             return None
         st = str(row[2])
@@ -485,16 +481,13 @@ class SqliteTitleMatchRepository:
             )
             row = cur.fetchone()
             if row is None:
-                self._conn.commit()
                 return None
             local_path, st = str(row[0] or ""), str(row[1] or "")
             if st != "ready" or not local_path.strip():
-                self._conn.commit()
                 return None
             try:
                 p = Path(local_path)
                 if p.is_file():
-                    self._conn.commit()
                     return str(p.resolve())
             except OSError:
                 pass

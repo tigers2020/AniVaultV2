@@ -7,6 +7,7 @@ Author: Pom Kim
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from typing import Literal, Protocol, runtime_checkable
 
 from anivault.application.dto.library_index import IndexedMediaForParse, MediaFileRecord
@@ -91,6 +92,19 @@ class LibraryIndexRepository(Protocol):
 
         Returns:
             `(is_new, is_updated)` — 신규 삽입이면 `(True, False)`, 기존 갱신이면 `(False, True)`.
+        """
+        ...
+
+    def media_upsert_batch(self) -> AbstractContextManager[None]:
+        """스캔 루프에서 다수의 `upsert_media_file` 호출을 한 트랜잭션으로 묶을 때 사용한다.
+
+        구현체가 지원하지 않으면 단일 파일마다 커밋하는 동작과 동일한 no-op 컨텍스트를 쓴다.
+
+        Args:
+            self: 이 저장소.
+
+        Returns:
+            컨텍스트 매니저. 블록을 빠져나올 때 한 번 커밋하는 구현이 일반적이다.
         """
         ...
 
