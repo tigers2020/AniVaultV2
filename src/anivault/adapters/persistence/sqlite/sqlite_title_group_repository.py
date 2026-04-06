@@ -18,6 +18,17 @@ from anivault.application.dto.title_groups import (
 )
 from anivault.domain.services.title_grouping import TitleGroupingInputRow
 
+_GROUP_MATCH_UPSERT = """
+INSERT INTO group_tmdb_matches (
+    group_id, tmdb_id, match_status, match_score, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(group_id) DO UPDATE SET
+    tmdb_id = excluded.tmdb_id,
+    match_status = excluded.match_status,
+    match_score = excluded.match_score,
+    updated_at = excluded.updated_at
+"""
+
 
 class SqliteTitleGroupRepository:
     """title_groups·title_group_members 테이블."""
@@ -95,6 +106,24 @@ class SqliteTitleGroupRepository:
         with self._lock:
             self._conn.execute("BEGIN")
             try:
+                cur_snap = self._conn.execute(
+                    """
+                    SELECT tg.group_key, gtm.tmdb_id, gtm.match_status, gtm.match_score
+                    FROM group_tmdb_matches gtm
+                    INNER JOIN title_groups tg ON tg.id = gtm.group_id
+                    WHERE tg.root_id = ?
+                    """,
+                    (int(root_id),),
+                )
+                preserved = [
+                    (
+                        str(r[0]),
+                        int(r[1]),
+                        str(r[2]),
+                        float(r[3]) if r[3] is not None else None,
+                    )
+                    for r in cur_snap.fetchall()
+                ]
                 self._conn.execute("DELETE FROM title_groups WHERE root_id = ?", (root_id,))
                 for b in bundles:
                     n = len(b.members)
@@ -132,6 +161,49 @@ class SqliteTitleGroupRepository:
                         """,
                         [(gid, m.media_file_id, m.member_role, m.score) for m in b.members],
                     )
+                ts_restore = utc_now_sqlite_text()
+                for gkey, tmdb_id, match_status, match_score in preserved:
+                    cur_gid = self._conn.execute(
+                        """
+                        SELECT id FROM title_groups
+                        WHERE root_id = ? AND group_key = ?
+                        LIMIT 1
+                        """,
+                        (int(root_id), gkey),
+                    )
+                    row_gid = cur_gid.fetchone()
+                    if row_gid is None:
+                        continue
+                    new_gid = int(row_gid[0])
+                    self._conn.execute(
+                        _GROUP_MATCH_UPSERT,
+                        (
+                            new_gid,
+                            tmdb_id,
+                            match_status,
+                            match_score,
+                            ts_restore,
+                            ts_restore,
+                        ),
+                    )
+                    if match_status == "rejected":
+                        self._conn.execute(
+                            """
+                            UPDATE title_groups
+                            SET tmdb_series_id = NULL, updated_at = ?
+                            WHERE id = ?
+                            """,
+                            (ts_restore, new_gid),
+                        )
+                    else:
+                        self._conn.execute(
+                            """
+                            UPDATE title_groups
+                            SET tmdb_series_id = ?, updated_at = ?
+                            WHERE id = ?
+                            """,
+                            (tmdb_id, ts_restore, new_gid),
+                        )
                 self._conn.commit()
             except Exception:
                 self._conn.rollback()
