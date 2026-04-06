@@ -7,19 +7,22 @@ from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
     VIEW_DETAILS,
 )
 from anivault.interfaces.gui.templates.pipeline_result_panel import PipelineResultPanel
+from anivault.interfaces.gui.templates.pipeline_result_ui_state import (
+    DEFAULT_UI_STATE,
+    normalize_pipeline_ui_state,
+    restore_pipeline_result_panel_ui_state,
+)
 
 
 def test_normalize_ui_state_maps_legacy_tiles_to_content() -> None:
-    panel = PipelineResultPanel.__new__(PipelineResultPanel)
-    normalized = panel._normalize_ui_state(  # type: ignore[attr-defined]
+    normalized = normalize_pipeline_ui_state(
         {"view_key": "tiles", "details_pane": False, "preview_pane": False, "selected_index": 0}
     )
     assert normalized["view_key"] == VIEW_CONTENT
 
 
 def test_normalize_ui_state_maps_legacy_list_to_details() -> None:
-    panel = PipelineResultPanel.__new__(PipelineResultPanel)
-    normalized = panel._normalize_ui_state(  # type: ignore[attr-defined]
+    normalized = normalize_pipeline_ui_state(
         {"view_key": "list", "details_pane": False, "preview_pane": False, "selected_index": 0}
     )
     assert normalized["view_key"] == VIEW_DETAILS
@@ -27,8 +30,7 @@ def test_normalize_ui_state_maps_legacy_list_to_details() -> None:
 
 def test_normalize_ui_state_applies_fallbacks() -> None:
     """Unknown keys/types should be normalized to safe defaults."""
-    panel = PipelineResultPanel.__new__(PipelineResultPanel)
-    normalized = panel._normalize_ui_state(  # type: ignore[attr-defined]
+    normalized = normalize_pipeline_ui_state(
         {
             "view_key": "unknown",
             "details_pane": "yes",
@@ -120,3 +122,26 @@ def test_icon_grid_different_card_opens_selection_without_close() -> None:
 
     assert ensure_calls == 1
     assert selection_calls == [3]
+
+
+def test_restore_pipeline_result_panel_ui_state_invokes_callbacks_in_order() -> None:
+    """복원 헬퍼는 플래그·인덱스·보기·패널 순으로 콜백을 호출하고 복원을 끝낸다."""
+
+    normalized = {**DEFAULT_UI_STATE, "selected_index": 2}
+    log: list[str] = []
+
+    restore_pipeline_result_panel_ui_state(
+        normalized,
+        set_restoring=lambda v: log.append(f"r:{v}"),
+        set_pending_selected_index=lambda i: log.append(f"p:{i}"),
+        apply_view_key=lambda k: log.append(f"v:{k}"),
+        apply_details_pane=lambda c: log.append(f"d:{c}"),
+        apply_preview_pane=lambda c: log.append(f"pr:{c}"),
+    )
+
+    assert log[0] == "r:True"
+    assert log[1] == "p:2"
+    assert log[2] == f"v:{DEFAULT_UI_STATE['view_key']}"
+    assert log[3] == "d:False"
+    assert log[4] == "pr:False"
+    assert log[5] == "r:False"

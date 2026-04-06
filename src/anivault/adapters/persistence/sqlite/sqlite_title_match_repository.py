@@ -13,6 +13,7 @@ import sqlite3
 from pathlib import Path
 from threading import Lock
 
+from anivault.adapters.persistence.sqlite.sql_queries import GROUP_TMDB_MATCH_UPSERT_SQL
 from anivault.adapters.persistence.sqlite.sqlite_time import (
     is_utc_sqlite_text_expired,
     utc_now_sqlite_text,
@@ -52,17 +53,6 @@ ON CONFLICT(tmdb_id) DO UPDATE SET
     poster_path = excluded.poster_path,
     raw_json = excluded.raw_json,
     expires_at = excluded.expires_at,
-    updated_at = excluded.updated_at
-"""
-
-_GROUP_MATCH_UPSERT = """
-INSERT INTO group_tmdb_matches (
-    group_id, tmdb_id, match_status, match_score, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(group_id) DO UPDATE SET
-    tmdb_id = excluded.tmdb_id,
-    match_status = excluded.match_status,
-    match_score = excluded.match_score,
     updated_at = excluded.updated_at
 """
 
@@ -389,7 +379,7 @@ class SqliteTitleMatchRepository:
             self._conn.execute("BEGIN")
             try:
                 self._conn.execute(
-                    _GROUP_MATCH_UPSERT,
+                    GROUP_TMDB_MATCH_UPSERT_SQL,
                     (gid, tid, match_status, match_score, now, now),
                 )
                 if match_status == "rejected":

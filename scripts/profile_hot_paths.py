@@ -121,7 +121,7 @@ def main() -> int:
     parser.add_argument(
         "--match-workers",
         type=int,
-        default=int(os.environ.get("ANIVAULT_MATCH_MAX_WORKERS", "4")),
+        default=int(os.environ.get("ANIVAULT_MATCH_MAX_WORKERS", "1")),
         help="Match ThreadPool size (env ANIVAULT_MATCH_MAX_WORKERS)",
     )
     args = parser.parse_args()

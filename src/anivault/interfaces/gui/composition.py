@@ -10,7 +10,7 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 from threading import Event
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from anivault.adapters.fs import FsFileRepository
 from anivault.adapters.media import FfprobeStreamResolution
@@ -53,6 +53,8 @@ from anivault.interfaces.gui.settings_storage import load_all
 
 if TYPE_CHECKING:
     from anivault.interfaces.gui.components.molecules import ProgressDialog
+
+OrganizerPageMode = Literal["video", "subtitle"]
 
 
 def make_tmdb_search_execute(
@@ -103,12 +105,15 @@ def make_tmdb_search_execute(
 def create_organizer_page(
     pipeline_model: PipelineTableModel | None = None,
     progress_dialog: "ProgressDialog | None" = None,
+    *,
+    mode: OrganizerPageMode = "video",
 ) -> OrganizerPage:
     """스캔·파싱·매칭 유스케이스와 OrganizerPresenter를 주입한 페이지를 만든다.
 
     Args:
         pipeline_model: Organizer 파이프라인 모델. None이면 새로 만든다.
         progress_dialog: 진행 대화상자(선택).
+        mode: ``video`` — 일반 미디어 스캔. ``subtitle`` — 자막 확장자만, 동반 자막 플랜 비활성.
 
     Returns:
         OrganizerPage.
@@ -124,12 +129,21 @@ def create_organizer_page(
     _organize_plans = SqliteOrganizePlanRepository(_db_conn, _db_lock)
     _sync_title_groups = make_sync_title_groups_execute(_title_groups)
     _stream_resolution = FfprobeStreamResolution()
-    scan_execute = make_execute(
-        file_repo,
-        library_index=_library_index,
-        parse_cache=_parse_cache,
-        resolution_probe=_stream_resolution,
-    )
+    if mode == "subtitle":
+        scan_execute = make_execute(
+            file_repo,
+            extensions=SUBTITLE_SCAN_EXTENSIONS,
+            library_index=_library_index,
+            parse_cache=_parse_cache,
+            resolution_probe=_stream_resolution,
+        )
+    else:
+        scan_execute = make_execute(
+            file_repo,
+            library_index=_library_index,
+            parse_cache=_parse_cache,
+            resolution_probe=_stream_resolution,
+        )
     settings = load_all()
     ignore_tokens = settings.get("parse_tmdb", {}).get("ignore_tokens", "") or ""
     parser = AnitopyTitleParser(ignore_tokens=ignore_tokens)
@@ -178,6 +192,7 @@ def create_organizer_page(
         library_index=_library_index,
         organize_plan=_organize_plans,
     )
+    include_companion = mode == "video"
     presenter = OrganizerPresenter(
         pipeline_model=model,
         scan_execute=scan_execute,
@@ -187,103 +202,7 @@ def create_organizer_page(
         plan_execute=plan_execute,
         apply_execute=apply_execute,
         progress_dialog=progress_dialog,
-        sync_title_groups_execute=_sync_title_groups,
-        title_match=_title_match,
-        title_groups=_title_groups,
-        poster_sync=_poster_sync,
-    )
-    return OrganizerPage(model=model, presenter=presenter)
-
-
-def create_subtitle_organizer_page(
-    pipeline_model: PipelineTableModel | None = None,
-    progress_dialog: "ProgressDialog | None" = None,
-) -> OrganizerPage:
-    """자막 확장자만 스캔하고 동반 자막 플랜을 끈 Organizer 페이지를 만든다.
-
-    Args:
-        pipeline_model: 파이프라인 모델. None이면 새로 만든다.
-        progress_dialog: 진행 대화상자(선택).
-
-    Returns:
-        OrganizerPage.
-    """
-    model = pipeline_model if pipeline_model is not None else PipelineTableModel()
-    file_repo = FsFileRepository()
-    _db_conn = create_connection()
-    _db_lock = threading.Lock()
-    _library_index = SqliteLibraryIndexRepository(_db_conn, _db_lock)
-    _parse_cache = SqliteParseCacheRepository(_db_conn, _db_lock)
-    _title_groups = SqliteTitleGroupRepository(_db_conn, _db_lock)
-    _title_match = SqliteTitleMatchRepository(_db_conn, _db_lock)
-    _organize_plans = SqliteOrganizePlanRepository(_db_conn, _db_lock)
-    _sync_title_groups = make_sync_title_groups_execute(_title_groups)
-    _stream_resolution = FfprobeStreamResolution()
-    scan_execute = make_execute(
-        file_repo,
-        extensions=SUBTITLE_SCAN_EXTENSIONS,
-        library_index=_library_index,
-        parse_cache=_parse_cache,
-        resolution_probe=_stream_resolution,
-    )
-    settings = load_all()
-    ignore_tokens = settings.get("parse_tmdb", {}).get("ignore_tokens", "") or ""
-    parser = AnitopyTitleParser(ignore_tokens=ignore_tokens)
-    parse_execute = make_parse_execute(
-        parser,
-        library_index=_library_index,
-        parse_cache=_parse_cache,
-    )
-    api_key = (os.environ.get("TMDB_API_KEY") or read_tmdb_api_key() or "").strip()
-    match_execute = None
-    tmdb_search_execute = None
-    _poster_sync: TmdbPosterAssetSync | None = None
-    if api_key:
-        tmdb_client = TmdbApiClient(api_key, language="ko-KR")
-        _tmdb_lang = "ko-KR"
-        _inner_meta = TmdbMetadataProvider(tmdb_client)
-        metadata = CachingMetadataProvider(
-            _inner_meta,
-            _title_match,
-            language=_tmdb_lang,
-        )
-        _poster_sync = TmdbPosterAssetSync(_title_match, default_poster_cache_dir())
-        match_execute = make_match_execute(
-            metadata,
-            title_match=_title_match,
-            title_groups=_title_groups,
-            poster_sync=_poster_sync.sync_from_match_result,
-        )
-        tmdb_search_execute = make_tmdb_search_execute(metadata)
-
-    def _make_op_log(root: Path) -> OperationLogRepository:
-        """log_root별 OperationLogRepository를 만든다.
-
-        Args:
-            root: `.anivault/logs` 상위 디렉터리.
-
-        Returns:
-            FsOperationLogRepository 인스턴스.
-        """
-        return FsOperationLogRepository(root)
-
-    plan_execute = make_plan_execute(organize_plan=_organize_plans)
-    apply_execute = make_apply_execute(
-        file_repo,
-        _make_op_log,
-        library_index=_library_index,
-        organize_plan=_organize_plans,
-    )
-    presenter = OrganizerPresenter(
-        pipeline_model=model,
-        scan_execute=scan_execute,
-        parse_execute=parse_execute,
-        match_execute=match_execute,
-        tmdb_search_execute=tmdb_search_execute,
-        plan_execute=plan_execute,
-        apply_execute=apply_execute,
-        progress_dialog=progress_dialog,
-        include_companion_subtitles=False,
+        include_companion_subtitles=include_companion,
         sync_title_groups_execute=_sync_title_groups,
         title_match=_title_match,
         title_groups=_title_groups,

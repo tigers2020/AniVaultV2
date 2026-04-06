@@ -7,10 +7,7 @@ Author: Pom Kim
 
 from __future__ import annotations
 
-from typing import Protocol, TypedDict
-
 from PySide6.QtCore import QEvent, Qt, Signal
-from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
@@ -31,7 +28,6 @@ from anivault.interfaces.gui.components.molecules.poster_card import (
 )
 from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
     VIEW_CONTENT,
-    VIEW_DETAILS,
     VIEW_ICON_L,
     VIEW_ICON_M,
     VIEW_ICON_S,
@@ -50,65 +46,19 @@ from anivault.interfaces.gui.models import (
     pipeline_row_ready_for_plan,
 )
 from anivault.interfaces.gui.services.image_loader import ImageLoader
-from anivault.interfaces.gui.settings_storage import load_all, save_all
-
-VIEW_TO_INDEX = {
-    VIEW_DETAILS: 0,
-    VIEW_CONTENT: 1,
-    VIEW_ICON_XL: 2,
-    VIEW_ICON_L: 3,
-    VIEW_ICON_M: 4,
-    VIEW_ICON_S: 5,
-}
-
-# Persisted ui_state may still reference removed view keys.
-_LEGACY_VIEW_KEY_MAP = {"tiles": VIEW_CONTENT, "list": VIEW_DETAILS}
-
-
-class _ImageRowTarget(Protocol):
-    """비동기 이미지 URL과 픽스맵 적용 계약(PosterCard 등)."""
-
-    @property
-    def image_url(self) -> str:
-        """비동기 로드에 사용할 이미지 URL.
-
-        Args:
-            self: 이미지 행 대상.
-
-        Returns:
-            이미지 URL 문자열.
-        """
-        ...
-
-    def set_pixmap(self, pixmap: QPixmap | None) -> None:
-        """로드된 픽스맵을 위젯에 반영한다.
-
-        Args:
-            self: 이미지 행 대상.
-            pixmap: 표시할 픽스맵. None이면 비움.
-
-        Returns:
-            None.
-        """
-        ...
-
-
-class PipelineResultUiState(TypedDict):
-    """Persisted UI state payload for PipelineResultPanel."""
-
-    view_key: str
-    details_pane: bool
-    preview_pane: bool
-    selected_index: int
-
+from anivault.interfaces.gui.templates.pipeline_result_ui_state import (
+    VIEW_TO_INDEX,
+    load_normalized_pipeline_ui_state_from_settings,
+    persist_pipeline_results_ui_state,
+    restore_pipeline_result_panel_ui_state,
+)
+from anivault.interfaces.gui.templates.pipeline_selection_sync import (
+    on_split_table_selection,
+    sync_split_tables_selection,
+)
+from anivault.interfaces.gui.templates.poster_view_binder import PosterViewBinder
 
 ICON_SIZES = {VIEW_ICON_XL: 220, VIEW_ICON_L: 180, VIEW_ICON_M: 140, VIEW_ICON_S: 100}
-DEFAULT_UI_STATE: PipelineResultUiState = {
-    "view_key": VIEW_DETAILS,
-    "details_pane": False,
-    "preview_pane": False,
-    "selected_index": -1,
-}
 
 
 class PipelineResultPanel(QFrame):
@@ -139,10 +89,6 @@ class PipelineResultPanel(QFrame):
         self._pane_mode: str | None = None  # "details" | "preview" | None
         self._restoring_state = False
         self._pending_selected_index = -1
-        self._cards_by_url: dict[str, list[_ImageRowTarget]] = {}
-        self._preview_pending_url: str | None = None
-        self._image_loader = ImageLoader(self)
-        self._image_loader.loaded.connect(self._on_poster_image_loaded)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -175,10 +121,24 @@ class PipelineResultPanel(QFrame):
         self._matched_table = PipelineTable(show_header=False, model=self._matched_model)
         self._unmatched_table = PipelineTable(show_header=False, model=self._unmatched_model)
         self._matched_table.selection_changed.connect(
-            lambda r: self._on_split_table_selection("matched", r)
+            lambda r: on_split_table_selection(
+                "matched",
+                r,
+                self._rows,
+                self._matched_model,
+                self._unmatched_model,
+                self._apply_unified_selection,
+            )
         )
         self._unmatched_table.selection_changed.connect(
-            lambda r: self._on_split_table_selection("unmatched", r)
+            lambda r: on_split_table_selection(
+                "unmatched",
+                r,
+                self._rows,
+                self._matched_model,
+                self._unmatched_model,
+                self._apply_unified_selection,
+            )
         )
         details_splitter = QSplitter(Qt.Orientation.Vertical)
         details_splitter.setChildrenCollapsible(False)
@@ -231,6 +191,8 @@ class PipelineResultPanel(QFrame):
         self._pane_stack.addWidget(QWidget())  # empty
         self._details_pane = DetailsPane()
         self._preview_pane = PreviewPane()
+        self._image_loader = ImageLoader(self)
+        self._poster_binder = PosterViewBinder(self._image_loader, self._preview_pane)
         self._pane_stack.addWidget(self._details_pane)
         self._pane_stack.addWidget(self._preview_pane)
         main_splitter.addWidget(self._pane_stack)
@@ -297,73 +259,8 @@ class PipelineResultPanel(QFrame):
         grid_cards = self._ensure_poster_grid_for_view_key(key, rows)
         combined = list(self._content_view.poster_cards())
         combined.extend(grid_cards)
-        self._refresh_all_poster_pixmaps(combined)
+        self._poster_binder.refresh_poster_pixmaps(combined)
         self._persist_ui_state()
-
-    def _unified_index_for_group(self, group: PipelineGroupRow) -> int:
-        """파생 테이블의 그룹이 통합 `_rows`에서 몇 번째인지 찾는다.
-
-        Args:
-            self: 이 패널 인스턴스.
-            group: 파이프라인 그룹 행.
-
-        Returns:
-            통합 인덱스. 없으면 -1.
-        """
-        if not group.members:
-            return -1
-        key = group.members[0].original_file
-        for i, g in enumerate(self._rows):
-            if any(m.original_file == key for m in g.members):
-                return i
-        return -1
-
-    def _on_split_table_selection(self, which: str, row: int) -> None:
-        """세부 테이블에서 선택 시 통합 그룹 인덱스로 변환해 반영한다.
-
-        Args:
-            self: 이 패널 인스턴스.
-            which: "matched" 또는 "unmatched".
-            row: 해당 파생 테이블의 행 인덱스.
-
-        Returns:
-            None.
-        """
-        model = self._matched_model if which == "matched" else self._unmatched_model
-        groups = model.rows()
-        if row < 0 or row >= len(groups):
-            return
-        uni = self._unified_index_for_group(groups[row])
-        if uni >= 0:
-            self._apply_unified_selection(uni)
-
-    def _sync_split_tables_selection(self, unified_index: int) -> None:
-        """통합 인덱스에 맞춰 상·하단 테이블 중 하나만 하이라이트한다.
-
-        Args:
-            self: 이 패널 인스턴스.
-            unified_index: 통합 그룹 인덱스. 범위 밖이면 선택 해제.
-
-        Returns:
-            None.
-        """
-        if unified_index < 0 or unified_index >= len(self._rows):
-            self._matched_table.select_row(-1)
-            self._unmatched_table.select_row(-1)
-            return
-        key = self._rows[unified_index].members[0].original_file
-        for i, g in enumerate(self._matched_model.rows()):
-            if any(m.original_file == key for m in g.members):
-                self._matched_table.select_row(i)
-                self._unmatched_table.select_row(-1)
-                return
-        for i, g in enumerate(self._unmatched_model.rows()):
-            if any(m.original_file == key for m in g.members):
-                self._unmatched_table.select_row(i)
-                self._matched_table.select_row(-1)
-                return
-        self._matched_table.select_row(-1)
-        self._unmatched_table.select_row(-1)
 
     def _apply_unified_selection(self, index: int) -> None:
         """통합 그룹 인덱스로 상세·미리보기·분할 테이블 선택을 맞춘다.
@@ -380,8 +277,15 @@ class PipelineResultPanel(QFrame):
         row = self._rows[index] if 0 <= index < len(self._rows) else None
         self._details_pane.set_row(row)
         self._preview_pane.set_row(row)
-        self._schedule_preview_image(row)
-        self._sync_split_tables_selection(index)
+        self._poster_binder.schedule_preview_image(row)
+        sync_split_tables_selection(
+            self._rows,
+            index,
+            self._matched_model,
+            self._unmatched_model,
+            self._matched_table,
+            self._unmatched_table,
+        )
         self._persist_ui_state()
 
     def _on_selection(self, index: int) -> None:
@@ -579,71 +483,6 @@ class PipelineResultPanel(QFrame):
         self._poster_grid_dirty[view_key] = False
         return cards
 
-    def _on_poster_image_loaded(self, url: str, pixmap: QPixmap) -> None:
-        """ImageLoader 완료 시 해당 URL을 참조하는 모든 대상에 픽스맵을 적용한다.
-
-        Args:
-            self: 이 패널 인스턴스.
-            url: 로드된 이미지 URL.
-            pixmap: 디코딩된 픽스맵.
-
-        Returns:
-            None.
-        """
-        for card in self._cards_by_url.get(url, []):
-            card.set_pixmap(pixmap if not pixmap.isNull() else None)
-        if self._preview_pending_url == url:
-            self._preview_pane.set_pixmap(pixmap if not pixmap.isNull() else None)
-            self._preview_pending_url = None
-
-    def _schedule_preview_image(self, row: PipelineGroupRow | None) -> None:
-        """테이블 보기 등에서도 선택 행 포스터를 미리보기 패널에 불러온다.
-
-        Args:
-            self: 이 패널 인스턴스.
-            row: 선택 그룹. None이면 대기 URL만 해제.
-
-        Returns:
-            None.
-        """
-        self._preview_pending_url = None
-        if row is None:
-            return
-        img_url = pipeline_group_display_image_url(row).strip()
-        if not img_url:
-            return
-        self._preview_pending_url = img_url
-        cached = self._image_loader.get(img_url)
-        if cached is not None:
-            self._preview_pane.set_pixmap(cached)
-            self._preview_pending_url = None
-            return
-        self._image_loader.load(img_url)
-
-    def _refresh_all_poster_pixmaps(self, cards: list[PosterCard]) -> None:
-        """카드의 이미지 소스(URL·절대 경로·file URL)를 수집해 캐시 또는 로드로 픽스맵을 갱신한다.
-
-        Args:
-            self: 이 패널 인스턴스.
-            cards: 갱신할 포스터 카드 목록.
-
-        Returns:
-            None.
-        """
-        self._cards_by_url.clear()
-        for card in cards:
-            u = (card.image_url or "").strip()
-            if not u:
-                continue
-            self._cards_by_url.setdefault(u, []).append(card)
-        for url in self._cards_by_url:
-            cached = self._image_loader.get(url)
-            if cached is not None:
-                for c in self._cards_by_url[url]:
-                    c.set_pixmap(cached)
-            else:
-                self._image_loader.load(url)
-
     def _sync_views_from_model(self) -> None:
         """modelReset 시 콘텐츠·그리드 뷰를 모델과 동기화한다.
 
@@ -668,7 +507,7 @@ class PipelineResultPanel(QFrame):
         all_poster_cards.extend(self._content_view.poster_cards())
         vk = self._view_bar.current_view()
         all_poster_cards.extend(self._ensure_poster_grid_for_view_key(vk, self._rows))
-        self._refresh_all_poster_pixmaps(all_poster_cards)
+        self._poster_binder.refresh_poster_pixmaps(all_poster_cards)
         if rows:
             index = self._selectable_index(len(rows))
             self._on_selection(index)
@@ -704,51 +543,14 @@ class PipelineResultPanel(QFrame):
         Returns:
             None.
         """
-        ui_state = load_all().get("ui_state", {})
-        pipeline_state = {}
-        if isinstance(ui_state, dict):
-            raw = ui_state.get("pipeline_results", {})
-            if isinstance(raw, dict):
-                pipeline_state = raw
-        normalized = self._normalize_ui_state(pipeline_state)
-        self._restoring_state = True
-        self._pending_selected_index = normalized["selected_index"]
-        self._on_view_changed(normalized["view_key"])
-        self._on_details_pane(bool(normalized["details_pane"]))
-        self._on_preview_pane(bool(normalized["preview_pane"]))
-        self._restoring_state = False
-
-    def _normalize_ui_state(self, data: dict[str, object]) -> PipelineResultUiState:
-        """저장된 ui_state 딕셔너리를 안전한 기본값이 채워진 형태로 정규화한다.
-
-        Args:
-            self: 이 패널 인스턴스.
-            data: 원시 설정 딕셔너리.
-
-        Returns:
-            정규화된 UI 상태.
-        """
-        view_key = data.get("view_key")
-        details_pane = data.get("details_pane")
-        preview_pane = data.get("preview_pane")
-        selected_index = data.get("selected_index")
-        normalized: PipelineResultUiState = {
-            "view_key": DEFAULT_UI_STATE["view_key"],
-            "details_pane": DEFAULT_UI_STATE["details_pane"],
-            "preview_pane": DEFAULT_UI_STATE["preview_pane"],
-            "selected_index": DEFAULT_UI_STATE["selected_index"],
-        }
-        if isinstance(view_key, str):
-            view_key = _LEGACY_VIEW_KEY_MAP.get(view_key, view_key)
-            if view_key in VIEW_TO_INDEX:
-                normalized["view_key"] = view_key
-        if isinstance(details_pane, bool):
-            normalized["details_pane"] = details_pane
-        if isinstance(preview_pane, bool):
-            normalized["preview_pane"] = preview_pane
-        if isinstance(selected_index, int):
-            normalized["selected_index"] = selected_index
-        return normalized
+        restore_pipeline_result_panel_ui_state(
+            load_normalized_pipeline_ui_state_from_settings(),
+            set_restoring=lambda v: setattr(self, "_restoring_state", v),
+            set_pending_selected_index=lambda i: setattr(self, "_pending_selected_index", i),
+            apply_view_key=self._on_view_changed,
+            apply_details_pane=self._on_details_pane,
+            apply_preview_pane=self._on_preview_pane,
+        )
 
     def _persist_ui_state(self) -> None:
         """현재 Pipeline Result UI 상태를 설정 저장소에 기록한다.
@@ -759,19 +561,12 @@ class PipelineResultPanel(QFrame):
         Returns:
             None.
         """
-        if self._restoring_state:
-            return
-        save_all(
-            {
-                "ui_state": {
-                    "pipeline_results": {
-                        "view_key": self._view_bar.current_view(),
-                        "details_pane": self._view_bar.details_pane_checked(),
-                        "preview_pane": self._view_bar.preview_pane_checked(),
-                        "selected_index": self._selected_index,
-                    }
-                }
-            }
+        persist_pipeline_results_ui_state(
+            view_key=self._view_bar.current_view(),
+            details_pane=self._view_bar.details_pane_checked(),
+            preview_pane=self._view_bar.preview_pane_checked(),
+            selected_index=self._selected_index,
+            skip_if_restoring=self._restoring_state,
         )
 
     def model(self) -> PipelineTableModel:
@@ -844,18 +639,18 @@ class PipelineResultPanel(QFrame):
         if header_h > 0:
             self._header.setFixedHeight(header_h)
 
-    def changeEvent(self, event: QEvent) -> None:
+    def changeEvent(self, arg__1: QEvent) -> None:
         """폰트·스타일 등 변경 시 헤더 높이를 재계산한다.
 
         Args:
             self: 이 패널 인스턴스.
-            event: Qt 변경 이벤트.
+            arg__1: Qt 변경 이벤트(PySide 스텁 시그니처와 이름 일치).
 
         Returns:
             None.
         """
-        super().changeEvent(event)
-        if event.type() in {
+        super().changeEvent(arg__1)
+        if arg__1.type() in {
             QEvent.Type.FontChange,
             QEvent.Type.StyleChange,
             QEvent.Type.Polish,

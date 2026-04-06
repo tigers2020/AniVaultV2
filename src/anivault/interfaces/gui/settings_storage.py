@@ -25,6 +25,7 @@ PARSE_TMDB_KEYS = (
     "season_folder_format",
 )
 SCAN_BUILD_KEYS = ("source_path", "tmdb_mode", "unknown_mode")
+SCAN_BUILD_BOOL_KEYS = frozenset({"auto_scan_on_first_show"})
 PIPELINE_RESULTS_KEYS = ("view_key", "details_pane", "preview_pane", "selected_index")
 
 DEFAULT_PATH_RULES = {
@@ -43,6 +44,7 @@ DEFAULT_SCAN_BUILD = {
     "source_path": "",
     "tmdb_mode": "TMDB TV Search",
     "unknown_mode": "Unknown to Needs_Review",
+    "auto_scan_on_first_show": True,
 }
 DEFAULT_PIPELINE_RESULTS = {
     "view_key": "details",
@@ -189,11 +191,17 @@ def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
         loaded_data_group=data.get("parse_tmdb"),
         keys=PARSE_TMDB_KEYS,
     )
+    scan_loaded = data.get("scan_build")
+    str_keys = tuple(k for k in SCAN_BUILD_KEYS if k not in SCAN_BUILD_BOOL_KEYS)
     _merge_string_key_group(
         target_group=cast(dict[str, str], result["scan_build"]),
-        loaded_data_group=data.get("scan_build"),
-        keys=SCAN_BUILD_KEYS,
+        loaded_data_group=scan_loaded,
+        keys=str_keys,
     )
+    if isinstance(scan_loaded, dict):
+        for bk in SCAN_BUILD_BOOL_KEYS:
+            if bk in scan_loaded and isinstance(scan_loaded[bk], bool):
+                cast(dict[str, Any], result["scan_build"])[bk] = scan_loaded[bk]
 
     _migrate_scan_build_target_path_to_target_root(result, data)
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 import sqlite3
 from threading import Lock
 
+from anivault.adapters.persistence.sqlite.sql_queries import GROUP_TMDB_MATCH_UPSERT_SQL
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
 from anivault.application.dto.title_groups import (
     TitleGroupListRecord,
@@ -17,17 +18,6 @@ from anivault.application.dto.title_groups import (
     TitleGroupSyncBundle,
 )
 from anivault.domain.services.title_grouping import TitleGroupingInputRow
-
-_GROUP_MATCH_UPSERT = """
-INSERT INTO group_tmdb_matches (
-    group_id, tmdb_id, match_status, match_score, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(group_id) DO UPDATE SET
-    tmdb_id = excluded.tmdb_id,
-    match_status = excluded.match_status,
-    match_score = excluded.match_score,
-    updated_at = excluded.updated_at
-"""
 
 
 class SqliteTitleGroupRepository:
@@ -176,7 +166,7 @@ class SqliteTitleGroupRepository:
                         continue
                     new_gid = int(row_gid[0])
                     self._conn.execute(
-                        _GROUP_MATCH_UPSERT,
+                        GROUP_TMDB_MATCH_UPSERT_SQL,
                         (
                             new_gid,
                             tmdb_id,

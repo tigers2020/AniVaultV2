@@ -667,6 +667,9 @@ def _representative_path_norm_for_group(
 def _match_max_workers() -> int:
     """병렬 그룹 매칭 스레드 상한을 반환한다.
 
+    기본값은 1(직렬)이다. TMDB 요청 간격·SQLite 락 때문에 병렬 이득이 없을 때가 많아
+    복잡도만 늘리지 않도록 한다. 실험 시 ``ANIVAULT_MATCH_MAX_WORKERS``로 2~8을 설정한다.
+
     Args:
         없음.
 
@@ -674,9 +677,9 @@ def _match_max_workers() -> int:
         1 이상 8 이하 정수.
     """
     try:
-        w = int(os.environ.get("ANIVAULT_MATCH_MAX_WORKERS", "4"))
+        w = int(os.environ.get("ANIVAULT_MATCH_MAX_WORKERS", "1"))
     except ValueError:
-        w = 4
+        w = 1
     return max(1, min(8, w))
 
 

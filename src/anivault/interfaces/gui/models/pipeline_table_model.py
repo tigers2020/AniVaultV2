@@ -121,6 +121,9 @@ class PipelineTableModel(QAbstractTableModel):
     def set_rows(self, rows: list[PipelineGroupRow]) -> None:
         """그룹 목록을 통째로 바꾸고 모델을 리셋한다.
 
+        전체 ``modelReset``은 뷰 동기화 비용이 크므로, 동일 구조에서 셀만 바뀌는 경우
+        향후 ``dataChanged``·증분 갱신으로 대체할 여지가 있다.
+
         Args:
             self: 이 모델.
             rows: 새 그룹 행 목록.
