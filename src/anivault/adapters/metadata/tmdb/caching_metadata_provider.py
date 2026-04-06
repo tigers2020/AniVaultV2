@@ -69,26 +69,74 @@ class CachingMetadataProvider:
             try:
                 decoded = _decode_candidates_json(cached)
                 return decoded
-            except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+            except (KeyError, TypeError, ValueError) as e:
                 logger.warning("tmdb 검색 캐시 JSON 무효 key=%s: %s", key, e)
-        candidates = list(self._inner.search_series(query, year=year))
-        days = _SEARCH_TTL_OK_DAYS if candidates else _SEARCH_TTL_EMPTY_DAYS
-        expires = utc_plus_days_sqlite_text(days)
-        payload = _encode_candidates_json(candidates)
-        nq = normalize_tmdb_search_query(query)
-        try:
-            self._title_match.put_search_cache(
-                key,
+        local_candidates = list(
+            self._title_match.find_series_candidates_by_title(
+                query,
+                limit=10,
+            ),
+        )
+        if local_candidates:
+            _put_search_cache(
+                self._title_match,
+                key=key,
                 language=self._language,
-                normalized_query=nq,
-                year_hint=year,
-                page=1,
-                response_json=payload,
-                expires_at=expires,
+                query=query,
+                year=year,
+                candidates=local_candidates,
             )
-        except Exception:
-            logger.exception("tmdb_search_cache 기록 실패 key=%s", key)
+            return local_candidates
+        candidates = list(self._inner.search_series(query, year=year))
+        _put_search_cache(
+            self._title_match,
+            key=key,
+            language=self._language,
+            query=query,
+            year=year,
+            candidates=candidates,
+        )
         return candidates
+
+
+def _put_search_cache(
+    title_match: TitleMatchRepository,
+    *,
+    key: str,
+    language: str,
+    query: str,
+    year: int | None,
+    candidates: list[TmdbSeriesCandidateDTO],
+) -> None:
+    """검색 결과를 `tmdb_search_cache`에 저장한다.
+
+    Args:
+        title_match: 캐시 저장소.
+        key: 캐시 키.
+        language: API 언어 코드.
+        query: 원본 검색어.
+        year: 연도 힌트.
+        candidates: 저장할 후보 목록.
+
+    Returns:
+        None.
+    """
+    days = _SEARCH_TTL_OK_DAYS if candidates else _SEARCH_TTL_EMPTY_DAYS
+    expires = utc_plus_days_sqlite_text(days)
+    payload = _encode_candidates_json(candidates)
+    nq = normalize_tmdb_search_query(query)
+    try:
+        title_match.put_search_cache(
+            key,
+            language=language,
+            normalized_query=nq,
+            year_hint=year,
+            page=1,
+            response_json=payload,
+            expires_at=expires,
+        )
+    except Exception:
+        logger.exception("tmdb_search_cache 기록 실패 key=%s", key)
 
 
 def _encode_candidates_json(candidates: list[TmdbSeriesCandidateDTO]) -> str:
