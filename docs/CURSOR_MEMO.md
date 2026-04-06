@@ -7,6 +7,8 @@ Cursor(Composer/Agent) 작업 시 팀 규칙·진행 맥락·반복 실수 목�
 ## 팀/프로젝트 규칙 요약
 
 - 상세: `@AGENTS.md`, `@.cursor/rules/anivault-root.mdc`
+- **진입점**: `python -m anivault` → GUI(README 동일). 외부 메모·스킬이 “CLI 우선”이라고 해도 이 리포 기준과 혼동하지 말 것.
+- **Taste Skill 등**: 웹 전제 `SKILL.md`는 복붙 금지; AniVault는 **Cursor Rule**(`.mdc`)로 Qt 번역 — [.cursor/rules/anivault-agent-skills-taste-qt.mdc](.cursor/rules/anivault-agent-skills-taste-qt.mdc)
 - 진행: 3단계 대화형(시몬 브리핑 → 담당 브리핑 → 코딩) → 테스 테스트 → 렉스 4단계 검증
 - 검증: pytest → ruff → mypy → black
 
