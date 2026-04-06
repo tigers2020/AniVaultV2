@@ -24,7 +24,7 @@ from anivault.interfaces.gui.models import (
     group_pipeline_rows,
 )
 from anivault.interfaces.gui.presenters.worker_session import (
-    disconnect_worker_cancel_on_thread_finished,
+    run_use_case_worker_with_progress_dialog,
 )
 from anivault.interfaces.gui.workers import UseCaseWorker, WorkerSignals, run_worker
 
@@ -83,18 +83,16 @@ class ScanParseCoordinator(QObject):
         signals.error.connect(self._p._on_scan_error)  # noqa: SLF001
         dialog = self._p._progress_dialog  # noqa: SLF001
         if dialog is not None:
-            token = dialog.mark_work_started()
-            signals.started.connect(
-                lambda: dialog.show_progress("스캔 중", "폴더 스캔 중...", True)
+            thread = run_use_case_worker_with_progress_dialog(
+                dialog=dialog,
+                worker=worker,
+                signals=signals,
+                title="스캔 중",
+                message="폴더 스캔 중...",
+                indeterminate=True,
+                on_progress_with_token=self._on_progress,
+                on_finished=lambda: self._on_scan_thread_finished(dialog),
             )
-            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
-            signals.finished.connect(
-                lambda: self._on_scan_thread_finished(dialog),
-            )
-            signals.cancelled.connect(dialog.hide_progress)
-            dialog.canceled.connect(worker.cancel)
-            thread = run_worker(worker)
-            disconnect_worker_cancel_on_thread_finished(dialog, worker, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._p._on_worker_finished(t))  # noqa: SLF001
@@ -231,25 +229,26 @@ class ScanParseCoordinator(QObject):
 
         def _on_parse_worker_started() -> None:
             """워커 run 진입 후 진행 UI를 먼저 띄우고, 다음 틱에 모델을 반영한다."""
-            if dialog is not None:
-                dialog.show_progress("Parse 중", "파일명 파싱 중...", False)
             QTimer.singleShot(
                 0,
                 lambda m=merged_groups: self._apply_scan_rows_to_model(m),
             )
 
-        signals.started.connect(_on_parse_worker_started)
         if dialog is not None:
             self._p._scan_progress_handoff_done = True  # noqa: SLF001
             dialog.mark_work_finished()
-            token = dialog.mark_work_started()
-            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
-            signals.finished.connect(
-                lambda: self._p._finish_worker_session(dialog, True)
-            )  # noqa: SLF001
-            dialog.canceled.connect(worker.cancel)
-            thread = run_worker(worker)
-            disconnect_worker_cancel_on_thread_finished(dialog, worker, thread)
+            thread = run_use_case_worker_with_progress_dialog(
+                dialog=dialog,
+                worker=worker,
+                signals=signals,
+                title="Parse 중",
+                message="파일명 파싱 중...",
+                indeterminate=False,
+                on_progress_with_token=self._on_progress,
+                on_finished=lambda: self._p._finish_worker_session(dialog, True),  # noqa: SLF001
+                on_started=_on_parse_worker_started,
+                hide_progress_on_cancelled=False,
+            )
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._p._on_worker_finished(t))  # noqa: SLF001

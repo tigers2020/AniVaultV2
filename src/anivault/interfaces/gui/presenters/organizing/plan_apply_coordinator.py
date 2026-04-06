@@ -20,7 +20,7 @@ from anivault.interfaces.gui.presenters.plan_helpers import (
     try_build_plan_input_from_settings,
 )
 from anivault.interfaces.gui.presenters.worker_session import (
-    disconnect_worker_cancel_on_thread_finished,
+    run_use_case_worker_with_progress_dialog,
 )
 from anivault.interfaces.gui.settings_storage import load_all
 from anivault.interfaces.gui.workers import UseCaseWorker, WorkerSignals, run_worker
@@ -119,17 +119,16 @@ class PlanApplyCoordinator(QObject):
         signals.error.connect(self._p._on_scan_error)  # noqa: SLF001
         dialog = self._p._progress_dialog  # noqa: SLF001
         if dialog is not None:
-            token = dialog.mark_work_started()
-            signals.started.connect(
-                lambda: dialog.show_progress("플랜 생성", "경로 계획 중…", False)
+            thread = run_use_case_worker_with_progress_dialog(
+                dialog=dialog,
+                worker=worker,
+                signals=signals,
+                title="플랜 생성",
+                message="경로 계획 중…",
+                indeterminate=False,
+                on_progress_with_token=self._on_progress,
+                on_finished=lambda: self._p._finish_worker_session(dialog, True),  # noqa: SLF001
             )
-            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
-            signals.finished.connect(
-                lambda: self._p._finish_worker_session(dialog, True)
-            )  # noqa: SLF001
-            dialog.canceled.connect(worker.cancel)
-            thread = run_worker(worker)
-            disconnect_worker_cancel_on_thread_finished(dialog, worker, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._p._on_worker_finished(t))  # noqa: SLF001
@@ -233,15 +232,16 @@ class PlanApplyCoordinator(QObject):
         signals.error.connect(self._p._on_scan_error)  # noqa: SLF001
         dialog = self._p._progress_dialog  # noqa: SLF001
         if dialog is not None:
-            token = dialog.mark_work_started()
-            signals.started.connect(lambda: dialog.show_progress("파일 이동", "이동 중…", False))
-            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
-            signals.finished.connect(
-                lambda: self._p._finish_worker_session(dialog, True)
-            )  # noqa: SLF001
-            dialog.canceled.connect(worker.cancel)
-            thread = run_worker(worker)
-            disconnect_worker_cancel_on_thread_finished(dialog, worker, thread)
+            thread = run_use_case_worker_with_progress_dialog(
+                dialog=dialog,
+                worker=worker,
+                signals=signals,
+                title="파일 이동",
+                message="이동 중…",
+                indeterminate=False,
+                on_progress_with_token=self._on_progress,
+                on_finished=lambda: self._p._finish_worker_session(dialog, True),  # noqa: SLF001
+            )
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._p._on_worker_finished(t))  # noqa: SLF001
