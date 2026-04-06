@@ -41,6 +41,36 @@ def normalize_path_key(path: str | Path) -> str:
     return s
 
 
+def infer_dest_library_root(source_root: Path, new_file: Path) -> Path:
+    """정리(organize) 등으로 파일이 원래 라이브러리 루트 밖으로 나갔을 때, 새 루트 디렉터리를 추론한다.
+
+    소스 루트와 새 파일 경로의 경로 구성 요소 공통 접두를 맞춘 뒤, 목적지 쪽에서
+    처음으로 갈라지는 지점의 디렉터리를 루트로 삼는다. 예: ``.../애니`` 와
+    ``.../애니분류/1080p/.../x.mkv`` → ``.../애니분류``.
+
+    Args:
+        source_root: 이동 전 라이브러리 루트(해결된 절대 경로 권장).
+        new_file: 이동 후 파일 경로(해결된 절대 경로 권장).
+
+    Returns:
+        등록·상대 경로 계산에 쓸 목적지 라이브러리 루트 디렉터리.
+    """
+    s = source_root.resolve()
+    n = new_file.resolve()
+    sp, np_ = s.parts, n.parts
+    i = 0
+    lim = min(len(sp), len(np_))
+    while i < lim and sp[i] == np_[i]:
+        i += 1
+    if i == 0 and len(np_) > 0 and (len(sp) == 0 or sp[0] != np_[0]):
+        if len(np_) <= 2:
+            return n.parent
+        return Path(np_[0]).joinpath(np_[1])
+    if i >= len(np_) or not np_:
+        return n.parent
+    return Path(np_[0]).joinpath(*np_[1 : i + 1])
+
+
 def relative_posix_under_root(root: str | Path, absolute: str | Path) -> str:
     """루트 대비 상대 경로(POSIX, `.`/`..` 없이).
 

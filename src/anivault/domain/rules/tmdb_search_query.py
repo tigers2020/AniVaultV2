@@ -20,6 +20,18 @@ _TRAIL_BRACKET = re.compile(r"\s*\[[^\]]+\]\s*$")
 _MULTI_SPACE = re.compile(r"\s+")
 
 
+def compact_compare_key(s: str) -> str:
+    """TMDB 제목·검색어 비교용 키(공백 제거 후 소문자만 유지).
+
+    Args:
+        s: 원본 문자열.
+
+    Returns:
+        정규화된 키.
+    """
+    return "".join(c.lower() for c in s if not c.isspace())
+
+
 def normalize_tmdb_search_query(raw: str) -> str:
     """릴·해상도 꼬리와 느낌표를 정리해 TMDB 검색어 한 줄을 만든다.
 

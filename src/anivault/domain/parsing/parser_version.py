@@ -9,4 +9,4 @@ Author: Pom Kim
 
 from typing import Final
 
-PARSER_VERSION: Final[str] = "1"
+PARSER_VERSION: Final[str] = "2"
