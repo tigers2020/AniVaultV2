@@ -16,6 +16,8 @@ from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.application.ports.file_repository import FileRepository
 from anivault.application.ports.library_index_port import LibraryIndexRepository
+from anivault.application.ports.parse_cache_port import ParseCacheRepository
+from anivault.application.ports.video_stream_resolution_port import VideoStreamResolutionPort
 from anivault.domain.media.extensions import VIDEO_SCAN_EXTENSIONS, classify_media_kind
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.resolution_from_filename import resolution_from_filename
@@ -110,6 +112,8 @@ def make_execute(
     *,
     extensions: tuple[str, ...] = VIDEO_SCAN_EXTENSIONS,
     library_index: LibraryIndexRepository | None = None,
+    parse_cache: ParseCacheRepository | None = None,
+    resolution_probe: VideoStreamResolutionPort | None = None,
 ) -> Callable[[ScanInput, object, Event], ScanResult]:
     """FileRepository가 주입된 스캔 실행 함수를 만든다.
 
@@ -117,6 +121,8 @@ def make_execute(
         file_repo: 파일 목록 조회 포트.
         extensions: 수집할 파일 확장자(점 포함, 소문자 권장). 기본은 비디오 집합.
         library_index: 주입 시 스캔 후 `media_files` 등에 반영한다.
+        parse_cache: 주입 시 해상도 캐시를 조회/저장한다.
+        resolution_probe: 파일명 미검출 시 비디오 메타 해상도 조회 포트.
 
     Returns:
         (ScanInput, progress_callback, cancel_token) -> ScanResult 클로저.
@@ -194,8 +200,8 @@ def make_execute(
                 )
             )
         str_paths = [str(p) for p in paths]
-        resolutions = [resolution_from_filename(p) for p in str_paths]
         index_root_id: int | None = None
+        resolved = None
         if library_index is not None:
             index_root_id = _try_persist_library_index(
                 library_index,
@@ -203,6 +209,53 @@ def make_execute(
                 paths=paths,
                 cancel_token=cancel_token,
             )
+            if index_root_id is not None:
+                resolved = library_index.resolve_media_for_parse(index_root_id, str_paths)
+        resolutions: list[str] = []
+        for i, p in enumerate(str_paths):
+            if cancel_token.is_set():
+                return ScanResult(paths=[], resolutions=[])
+            media_meta = resolved[i] if resolved is not None and i < len(resolved) else None
+            signature: str | None = None
+            if media_meta is not None:
+                signature = _resolution_signature(media_meta.size_bytes, media_meta.mtime_ns)
+            res = (
+                parse_cache.get_valid_resolution(media_meta.id, signature)
+                if parse_cache is not None and media_meta is not None and signature is not None
+                else None
+            )
+            source = "cache"
+            if not res:
+                res = resolution_from_filename(p)
+                source = "filename"
+            if not res and resolution_probe is not None and classify_media_kind(p) == "video":
+                res = resolution_probe.probe_display_resolution(p)
+                source = "ffprobe"
+            resolutions.append(res)
+            if (
+                parse_cache is not None
+                and media_meta is not None
+                and signature is not None
+                and res
+                and source != "cache"
+            ):
+                parse_cache.upsert_resolution(
+                    media_file_id=media_meta.id,
+                    signature=signature,
+                    value=res,
+                    source=source,
+                )
+            if callable(progress_callback) and str_paths:
+                progress_callback(
+                    ProgressEvent(
+                        stage="scan",
+                        current=i + 1,
+                        total=len(str_paths),
+                        message=f"해상도 확인 중 ({i + 1}/{len(str_paths)})",
+                        percent=int((i + 1) * 100 / len(str_paths)),
+                        item_path=p,
+                    )
+                )
         return ScanResult(
             paths=str_paths,
             resolutions=resolutions,
@@ -210,3 +263,16 @@ def make_execute(
         )
 
     return execute
+
+
+def _resolution_signature(size_bytes: int, mtime_ns: int) -> str:
+    """해상도 캐시 무효화에 사용할 서명을 만든다.
+
+    Args:
+        size_bytes: 파일 크기(byte).
+        mtime_ns: 수정 시각(ns).
+
+    Returns:
+        size/mtime 기반 서명 문자열.
+    """
+    return f"res-v1:{size_bytes}:{mtime_ns}"

@@ -28,6 +28,7 @@ from anivault.application.ports.title_match_port import TitleMatchRepository
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.tmdb_image_url import tmdb_backdrop_cdn_url, tmdb_poster_cdn_url
 from anivault.domain.rules.tmdb_search_query import (
+    compact_compare_key,
     iter_strip_last_word_chain,
     iter_tmdb_search_queries,
 )
@@ -69,18 +70,6 @@ def _group_key(row: MatchFileRow) -> str:
     return row.original_file
 
 
-def _normalize_key(s: str) -> str:
-    """비교용 키: 공백 제거 후 소문자만 남긴다.
-
-    Args:
-        s: 원본 문자열.
-
-    Returns:
-        정규화된 키.
-    """
-    return "".join(c.lower() for c in s if not c.isspace())
-
-
 def _year_prefix(iso_date: str) -> str:
     """ISO 날짜 문자열에서 연도 4자리 접두를 반환한다.
 
@@ -113,7 +102,7 @@ def _score_one_candidate(
     """
     score = 0.0
     reason = reason_in
-    names = [_normalize_key(c.name_ko), _normalize_key(c.original_name)]
+    names = [compact_compare_key(c.name_ko), compact_compare_key(c.original_name)]
     names = [n for n in names if n]
     if qn and any(qn == n for n in names):
         score += 10.0
@@ -148,7 +137,7 @@ def _select_best_candidate(
     """
     if not candidates:
         return None, 0.0, "no_results"
-    qn = _normalize_key(query)
+    qn = compact_compare_key(query)
     best: TmdbSeriesCandidateDTO | None = None
     best_score = -1.0
     reason = "fallback_first"
@@ -332,7 +321,10 @@ def persist_manual_tmdb_selection(
     title_match: TitleMatchRepository | None,
     title_groups: TitleGroupRepository | None,
 ) -> None:
-    """수동 매칭 선택을 tmdb_series·group_tmdb_matches에 반영한다.
+    """수동 매칭 선택을 tmdb_series·(가능 시) group_tmdb_matches에 반영한다.
+
+    `title_groups`에서 그룹 id를 못 찾아도 `tmdb_series`는 항상 갱신해
+    로컬 DB 우선 검색·포스터 캐시에 반영된다.
 
     Args:
         files: 전체 파일 행(참조만).
@@ -346,26 +338,32 @@ def persist_manual_tmdb_selection(
     Returns:
         None.
     """
-    if (
-        root_id is None
-        or not representative_path_norm
-        or title_match is None
-        or title_groups is None
-        or not indices
-        or max(indices) >= len(files)
-    ):
+    if title_match is None or not indices or max(indices) >= len(files):
         return
-    gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
-    if gid is None:
+    if not chosen.tmdb_id:
         return
     raw_json = json.dumps(asdict(chosen), ensure_ascii=False, separators=(",", ":"))
     exp = _utc_plus_days_iso_z(7)
     try:
         title_match.upsert_series(chosen, raw_json=raw_json, expires_at=exp)
+    except Exception:
+        logger.exception("수동 TMDB tmdb_series upsert 실패 tmdb_id=%s", chosen.tmdb_id)
+        return
+    if root_id is None or not representative_path_norm or title_groups is None:
+        return
+    gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
+    if gid is None:
+        logger.warning(
+            "수동 TMDB: title_groups에 대표 경로 없음 root_id=%s path_norm=%s",
+            root_id,
+            representative_path_norm,
+        )
+        return
+    try:
         title_match.set_group_match(gid, int(chosen.tmdb_id), "confirmed", None)
     except Exception:
         logger.exception(
-            "수동 TMDB 영속 실패 group_id=%s tmdb_id=%s",
+            "수동 TMDB group 매칭 영속 실패 group_id=%s tmdb_id=%s",
             gid,
             chosen.tmdb_id,
         )
