@@ -182,7 +182,10 @@ class MatchCoordinator(QObject):
             None.
         """
         merged = [self._match_file_to_pipeline_row(m) for m in result.files]
-        self._p._model.set_rows(group_pipeline_rows(merged))  # noqa: SLF001
+        groups = group_pipeline_rows(merged)
+        model = self._p._model  # noqa: SLF001
+        if not model.update_rows_if_compatible(groups):
+            model.set_rows(groups)
         self._p._notify_dry_run(self._p._dry_run_should_enable())  # noqa: SLF001
 
     def _warn_missing_tmdb_api_key(self) -> None:
@@ -273,7 +276,9 @@ class MatchCoordinator(QObject):
                 pending_idx = i
                 break
         panel.set_pending_selected_group_index(pending_idx)
-        self._p._model.set_rows(merged_groups)  # noqa: SLF001
+        model = self._p._model  # noqa: SLF001
+        if not model.update_rows_if_compatible(merged_groups):
+            model.set_rows(merged_groups)
         self._p._notify_dry_run(self._p._dry_run_should_enable())  # noqa: SLF001
 
     def on_manual_tmdb_match_clicked(self) -> None:

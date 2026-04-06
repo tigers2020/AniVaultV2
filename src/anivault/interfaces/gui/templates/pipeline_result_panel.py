@@ -219,8 +219,10 @@ class PipelineResultPanel(QFrame):
         self._view_bar.details_pane_changed.connect(self._on_details_pane)
         self._view_bar.preview_pane_changed.connect(self._on_preview_pane)
 
-        # Sync content/poster grids when model changes
+        # Sync content/poster grids when model changes.
+        # Incremental updates are handled via dataChanged (P1-B-1).
         self._model.modelReset.connect(self._sync_views_from_model)
+        self._model.dataChanged.connect(self._on_model_data_changed)
         self._restore_ui_state()
 
     def _apply_list_content_for_view_key(self, key: str, rows: list[PipelineGroupRow]) -> None:
@@ -513,6 +515,41 @@ class PipelineResultPanel(QFrame):
             self._on_selection(index)
         else:
             self._on_selection(-1)
+
+    def _on_model_data_changed(
+        self,
+        top_left: object,
+        bottom_right: object,
+        roles: list[int] | None = None,
+    ) -> None:
+        """부분 갱신(dataChanged) 시 현재 활성 뷰만 최소 동기화한다.
+
+        Args:
+            self: 이 패널 인스턴스.
+            top_left: Qt QModelIndex(타입 스텁 의존 회피).
+            bottom_right: Qt QModelIndex(타입 스텁 의존 회피).
+            roles: 변경 역할 목록(미사용).
+
+        Returns:
+            None.
+        """
+        del top_left, bottom_right, roles
+        rows = self._model.rows()
+        self._rows = list(rows)
+
+        # Matched/unmatched split tables depend on readiness and must follow the model.
+        flat = self._model.flat_rows()
+        matched_flat = [r for r in flat if pipeline_row_ready_for_plan(r)]
+        unmatched_flat = [r for r in flat if not pipeline_row_ready_for_plan(r)]
+        self._matched_model.set_rows(group_pipeline_rows(matched_flat))
+        self._unmatched_model.set_rows(group_pipeline_rows(unmatched_flat))
+
+        view_key = self._view_bar.current_view()
+        self._apply_list_content_for_view_key(view_key, rows)
+        if view_key in self._poster_grids:
+            self._poster_grid_dirty[view_key] = True
+            cards = self._ensure_poster_grid_for_view_key(view_key, rows)
+            self._poster_binder.refresh_poster_pixmaps(cards)
 
     def _selectable_index(self, length: int) -> int:
         """대기·현재 선택 상태에 맞는 유효한 행 인덱스를 반환한다.

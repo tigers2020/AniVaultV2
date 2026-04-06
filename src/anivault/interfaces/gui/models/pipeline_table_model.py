@@ -5,6 +5,8 @@
 Author: Pom Kim
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, QPersistentModelIndex, Qt
@@ -134,6 +136,43 @@ class PipelineTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._rows = list(rows)
         self.endResetModel()
+
+    def update_rows_if_compatible(self, rows: list[PipelineGroupRow]) -> bool:
+        """구조가 호환되면 modelReset 없이 dataChanged로만 갱신한다.
+
+        이 경로는 P1-B-1의 1차 범위(매칭/수동 TMDB 후, 그룹 수·순서·멤버십 동일)에서만
+        사용한다. 구조가 조금이라도 다르면 안전하게 False를 반환해 호출부가 `set_rows`로
+        폴백하도록 한다.
+
+        호환 조건:
+        - 그룹 개수 동일
+        - 각 그룹의 member 개수 동일
+        - 각 member의 original_file 순서가 동일
+
+        Args:
+            self: 이 모델.
+            rows: 새 그룹 행 목록.
+
+        Returns:
+            호환 갱신을 적용했으면 True, 아니면 False.
+        """
+        if len(rows) != len(self._rows):
+            return False
+        for _i, (old_g, new_g) in enumerate(zip(self._rows, rows, strict=True)):
+            if len(old_g.members) != len(new_g.members):
+                return False
+            old_paths = [m.original_file for m in old_g.members]
+            new_paths = [m.original_file for m in new_g.members]
+            if old_paths != new_paths:
+                return False
+
+        self._rows = list(rows)
+        if not self._rows:
+            return True
+        top_left = self.index(0, 0)
+        bottom_right = self.index(len(self._rows) - 1, len(COLUMNS) - 1)
+        self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DisplayRole])
+        return True
 
     def rows(self) -> list[PipelineGroupRow]:
         """다른 뷰 동기화용 현재 그룹 행 복사본.
