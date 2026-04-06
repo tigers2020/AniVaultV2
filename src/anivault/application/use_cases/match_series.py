@@ -482,7 +482,19 @@ def _match_single_group(
             exp = _utc_plus_days_iso_z(7)
             try:
                 title_match.upsert_series(best, raw_json=raw_json, expires_at=exp)
-                title_match.set_group_match(gid, int(best.tmdb_id), "auto_matched", conf)
+                existing = title_match.get_group_match(gid)
+                preserve_confirmed = (
+                    existing is not None
+                    and existing.match_status == "confirmed"
+                    and int(existing.tmdb_id) == int(best.tmdb_id)
+                )
+                if not preserve_confirmed:
+                    title_match.set_group_match(
+                        gid,
+                        int(best.tmdb_id),
+                        "auto_matched",
+                        conf,
+                    )
             except Exception:
                 logger.exception(
                     "group TMDB persist 실패 group_id=%s tmdb_id=%s",
