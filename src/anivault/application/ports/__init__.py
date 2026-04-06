@@ -11,9 +11,11 @@ from anivault.application.ports.filename_parser import FilenameParser
 from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.ports.operation_log_port import OperationLogRepository
+from anivault.application.ports.organize_plan_port import OrganizePlanRepository
 from anivault.application.ports.parse_cache_port import ParseCacheRepository
 from anivault.application.ports.poster_sync_port import PosterAssetSyncPort
 from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.application.ports.video_stream_resolution_port import VideoStreamResolutionPort
 
 __all__ = [
     "CacheRepository",
@@ -22,7 +24,9 @@ __all__ = [
     "LibraryIndexRepository",
     "MetadataProvider",
     "OperationLogRepository",
+    "OrganizePlanRepository",
     "ParseCacheRepository",
     "PosterAssetSyncPort",
     "TitleMatchRepository",
+    "VideoStreamResolutionPort",
 ]

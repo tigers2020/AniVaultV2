@@ -40,6 +40,7 @@ class PlanInput:
     unknown_resolution: str
     unknown_group_folder: str
     include_companion_subtitles: bool = True
+    index_root_id: int | None = None
 
 
 @dataclass(slots=True)
@@ -48,6 +49,8 @@ class PlanResult:
 
     moves: tuple[FileOperation, ...] = field(default_factory=tuple)
     error: str | None = None
+    organize_plan_id: int | None = None
+    organize_item_ids: tuple[int, ...] = field(default_factory=tuple)
 
 
 @dataclass(slots=True)
@@ -58,6 +61,9 @@ class ApplyInput:
     dry_run: bool
     log_root: str
     source_root: str | None = None
+    index_root_id: int | None = None
+    organize_plan_id: int | None = None
+    organize_item_ids: tuple[int, ...] = field(default_factory=tuple)
 
 
 @dataclass(slots=True)
