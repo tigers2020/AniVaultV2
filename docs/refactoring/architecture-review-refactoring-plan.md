@@ -3,7 +3,7 @@
 **문서 위치**: `docs/refactoring/architecture-review-refactoring-plan.md`  
 함수명·줄 번호는 구현 직전 로컬 코드와 한 번 더 대조하는 것이 안전합니다.
 
-**진행 상황 요약 (동기화)**: **P0는 코드 기준으로 완료.** P1-A / P1-B / P2는 미착수. 아래 [진행 상황](#진행-상황) 표 참고.
+**진행 상황 요약 (동기화)**: **P0는 코드 기준으로 완료. P1-A / P1-B도 코드 기준으로 완료.** P2는 미착수. 아래 [진행 상황](#진행-상황) 표 참고.
 
 ---
 
@@ -14,11 +14,11 @@
 | **P0-1** 팩토리 통합 | 완료 | `create_organizer_page`, `mode="video"` 또는 `mode="subtitle"` 단일 공개 팩토리. `create_subtitle_organizer_page`는 제거됨. `app.py`는 `mode`만 구분해 호출. |
 | **P0-2** Presenter 분해 | 완료 | `OrganizerPresenter`는 facade. `presenters/organizing/`에 `ScanParseCoordinator`, `MatchCoordinator`, `PlanApplyCoordinator`, `ManualTmdbSearchRelay`. |
 | **P0-3** Panel 분해 | 완료(1차) | `templates/pipeline_selection_sync.py`(분할↔통합 선택), `templates/poster_view_binder.py`(이미지 로드·미리보기), `restore_pipeline_result_panel_ui_state` in `pipeline_result_ui_state.py`(복원 순서). 패널에는 레이아웃·그리드 lazy·`_sync_views_from_model` 등이 남음(추가 얇히기는 P1-B 등과 별도 검토). |
-| **P1-A** | 대기 | `worker_session` 등 |
-| **P1-B** | 대기 | `modelReset` 완화, `match_series` 병렬화 검토 |
+| **P1-A** | 완료 | `presenters/worker_session.py`에 lifecycle helper 추가, coordinator들의 worker boilerplate 감소. SQL 상수는 `sql_queries.py` 단일 출처로 검증 마감. |
+| **P1-B** | 완료(1차) | `PipelineTableModel.update_rows_if_compatible`로 구조 호환 시 `dataChanged` 경로 도입. `match_series`는 기본 직렬 유지 + env opt-in 병렬 정책 확정. |
 | **P2** | 대기 | dead API, autoscan, ImageLoader dedupe, pyproject 메타 |
 
-**관련 단위 테스트 (일부)**: `tests/unit/interfaces/gui/test_composition_organizer_factory.py`, `test_organizer_presenter_facade.py`, `test_pipeline_selection_sync.py`, `test_poster_view_binder.py`, `test_pipeline_result_panel_state.py`(복원 순서·카드 재클릭 등).
+**관련 단위 테스트 (일부)**: `tests/unit/bootstrap/test_env_file.py`, `tests/unit/interfaces/gui/test_pipeline_result_panel_state.py`, `tests/unit/interfaces/gui/test_pipeline_table_model_incremental_update.py`, `tests/unit/adapters/persistence/sqlite/test_sql_queries_group_tmdb_match_upsert.py`.
 
 ---
 
@@ -212,6 +212,8 @@ AniVault V2의 현재 구조에서 가장 큰 리스크는 기능 부족보다 *
 
 ## P1-A-1. worker 실행 템플릿 공통화
 
+**상태: 완료**
+
 ### 대상
 
 `OrganizerPresenter` 및 coordinator 내부의 반복되는 worker 실행 패턴
@@ -273,6 +275,8 @@ AniVault V2의 현재 구조에서 가장 큰 리스크는 기능 부족보다 *
 
 ## P1-B-1. `modelReset` / 전체 재동기화 완화
 
+**상태: 완료(1차)**
+
 ### 대상
 
 - `PipelineResultPanel._sync_views_from_model`
@@ -300,6 +304,8 @@ AniVault V2의 현재 구조에서 가장 큰 리스크는 기능 부족보다 *
 ---
 
 ## P1-B-2. `match_series` 병렬화 재검토
+
+**상태: 완료(정책 확정)**
 
 ### 대상
 
