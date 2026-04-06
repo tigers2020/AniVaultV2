@@ -16,6 +16,7 @@ from anivault.application.dto.library_index import IndexedMediaForParse, MediaFi
 from anivault.application.ports.library_index_port import ScanSessionStatus
 from anivault.domain.path_norm import (
     dir_norm_for_relative,
+    infer_dest_library_root,
     normalize_path_key,
     relative_posix_under_root,
 )
@@ -52,27 +53,65 @@ class SqliteLibraryIndexRepository:
         Returns:
             `library_roots.id`.
         """
+        with self._lock:
+            return self._upsert_root_path_locked(root_path, display_name=display_name)
+
+    def _upsert_root_path_locked(self, root_path: str, *, display_name: str | None = None) -> int:
+        """`self._lock`을 잡은 상태에서 루트 행을 upsert한다.
+
+        Args:
+            self: 저장소.
+            root_path: 스캔 루트.
+            display_name: 표시명.
+
+        Returns:
+            `library_roots.id`.
+        """
         pnorm = normalize_path_key(root_path)
         disp = display_name if display_name is not None else None
         now = utc_now_sqlite_text()
-        with self._lock:
-            cur = self._conn.execute(
-                """
-                INSERT INTO library_roots (
-                    root_path, path_norm, display_name, is_active, created_at, updated_at
-                ) VALUES (?, ?, ?, 1, ?, ?)
-                ON CONFLICT(path_norm) DO UPDATE SET
-                    root_path = excluded.root_path,
-                    display_name = COALESCE(excluded.display_name, library_roots.display_name),
-                    updated_at = excluded.updated_at
-                RETURNING id
-                """,
-                (pnorm, pnorm, disp, now, now),
-            )
-            row = cur.fetchone()
-            self._conn.commit()
+        cur = self._conn.execute(
+            """
+            INSERT INTO library_roots (
+                root_path, path_norm, display_name, is_active, created_at, updated_at
+            ) VALUES (?, ?, ?, 1, ?, ?)
+            ON CONFLICT(path_norm) DO UPDATE SET
+                root_path = excluded.root_path,
+                display_name = COALESCE(excluded.display_name, library_roots.display_name),
+                updated_at = excluded.updated_at
+            RETURNING id
+            """,
+            (pnorm, pnorm, disp, now, now),
+        )
+        row = cur.fetchone()
+        self._conn.commit()
         assert row is not None
         return int(row[0])
+
+    def _longest_library_root_covering_locked(self, file_resolved: Path) -> tuple[int, str] | None:
+        """파일이 그 아래에 있도록 등록된 루트 중 `path_norm`이 가장 긴 행을 고른다.
+
+        Args:
+            self: 저장소.
+            file_resolved: 해결된 절대 파일 경로.
+
+        Returns:
+            `(id, root_path)` 또는 없으면 None.
+        """
+        cur = self._conn.execute("SELECT id, root_path FROM library_roots")
+        best: tuple[int, str] | None = None
+        best_len = -1
+        for rid, rpath in cur.fetchall():
+            rp = Path(str(rpath)).expanduser()
+            try:
+                file_resolved.relative_to(rp.resolve())
+            except ValueError:
+                continue
+            ln = len(str(rpath))
+            if ln > best_len:
+                best_len = ln
+                best = (int(rid), str(rpath))
+        return best
 
     def begin_scan(self, root_id: int, scan_kind: str) -> int:
         """`running` 세션을 추가한다.
@@ -468,3 +507,172 @@ class SqliteLibraryIndexRepository:
                 )
             )
         return out
+
+    def relocate_media_file(
+        self,
+        root_id: int,
+        *,
+        old_absolute_path: str,
+        new_absolute_path: str,
+    ) -> bool:
+        """이동 후 절대 경로로 경로·크기·mtime 등을 갱신한다. 행 id·media_kind·지문은 유지.
+
+        새 경로가 원래 `root_id` 루트 밖이면(정리 출력 폴더 등) 등록된 더 넓은 루트를 고르거나
+        루트를 추론해 upsert한 뒤 `root_id`를 바꾼다. 루트가 바뀌면 해당 파일의
+        `title_group_members` 행은 제거된다(이후 동기화로 재구성).
+
+        물리 이동이 목적지를 덮어쓴 뒤 호출되는 것이 전제이므로, 목적지 `path_norm`에 남아 있던
+        다른 인덱스 행(스테일)이 있으면 `parse_cache`·`media_files`에서 제거한 뒤 갱신한다.
+
+        Args:
+            self: 저장소.
+            root_id: 이동 전 미디어가 속했던 루트 ID.
+            old_absolute_path: 이동 전 절대 경로.
+            new_absolute_path: 이동 후 절대 경로.
+
+        Returns:
+            갱신 성공이면 True, 해당 `path_norm` 행이 없으면 False.
+        """
+        old_pnorm = normalize_path_key(old_absolute_path)
+        path = Path(new_absolute_path)
+        now = utc_now_sqlite_text()
+        with self._lock:
+            cur = self._conn.execute(
+                "SELECT root_path FROM library_roots WHERE id = ?",
+                (root_id,),
+            )
+            rr = cur.fetchone()
+            if rr is None:
+                self._conn.commit()
+                return False
+            root_display = str(rr[0])
+            cur = self._conn.execute(
+                """
+                SELECT id, media_kind FROM media_files
+                WHERE root_id = ? AND path_norm = ? AND is_deleted = 0
+                """,
+                (root_id, old_pnorm),
+            )
+            kind_row = cur.fetchone()
+            if kind_row is None:
+                self._conn.commit()
+                return False
+            media_id = int(kind_row[0])
+            media_kind = str(kind_row[1])
+            file_name = path.name
+            file_stem = path.stem
+            extension = path.suffix.lower() if path.suffix else ""
+            st = path.stat()
+            size_bytes = int(st.st_size)
+            mtime_ns = int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1_000_000_000)))
+            ctime_ns: int | None = int(st.st_ctime_ns) if hasattr(st, "st_ctime_ns") else None
+            inode_hint = str(st.st_ino) if hasattr(st, "st_ino") else None
+            new_resolved = path.expanduser().resolve()
+            try:
+                rel = relative_posix_under_root(root_display, new_absolute_path)
+                target_root_id = root_id
+                target_root_display = root_display
+            except ValueError:
+                hit = self._longest_library_root_covering_locked(new_resolved)
+                if hit is not None:
+                    target_root_id, target_root_display = hit
+                else:
+                    inferred = infer_dest_library_root(
+                        Path(root_display).expanduser().resolve(),
+                        new_resolved,
+                    )
+                    target_root_id = self._upsert_root_path_locked(str(inferred))
+                    target_root_display = normalize_path_key(str(inferred))
+                rel = relative_posix_under_root(target_root_display, new_absolute_path)
+            new_pnorm = normalize_path_key(new_absolute_path)
+            dnorm = dir_norm_for_relative(rel)
+            sidecar_key = compute_sidecar_group_key(
+                media_kind=media_kind,
+                dir_norm=dnorm,
+                file_stem=file_stem,
+            )
+            cur = self._conn.execute(
+                """
+                SELECT id FROM media_files
+                WHERE root_id = ? AND path_norm = ? AND id != ?
+                """,
+                (target_root_id, new_pnorm, media_id),
+            )
+            occ = cur.fetchone()
+            if occ is not None:
+                stale_id = int(occ[0])
+                self._conn.execute(
+                    "DELETE FROM parse_cache WHERE media_file_id = ?",
+                    (stale_id,),
+                )
+                self._conn.execute(
+                    "DELETE FROM media_files WHERE id = ?",
+                    (stale_id,),
+                )
+            if target_root_id != root_id:
+                self._conn.execute(
+                    "DELETE FROM title_group_members WHERE media_file_id = ?",
+                    (media_id,),
+                )
+            cur = self._conn.execute(
+                """
+                UPDATE media_files SET
+                    root_id = ?,
+                    relative_path = ?,
+                    path_norm = ?,
+                    dir_norm = ?,
+                    file_name = ?,
+                    file_stem = ?,
+                    extension = ?,
+                    size_bytes = ?,
+                    mtime_ns = ?,
+                    ctime_ns = ?,
+                    inode_hint = ?,
+                    sidecar_group_key = ?,
+                    updated_at = ?
+                WHERE root_id = ? AND path_norm = ?
+                """,
+                (
+                    target_root_id,
+                    rel,
+                    new_pnorm,
+                    dnorm,
+                    file_name,
+                    file_stem,
+                    extension,
+                    size_bytes,
+                    mtime_ns,
+                    ctime_ns,
+                    inode_hint,
+                    sidecar_key,
+                    now,
+                    root_id,
+                    old_pnorm,
+                ),
+            )
+            n = cur.rowcount if cur.rowcount is not None else 0
+            self._conn.commit()
+        return n > 0
+
+    def relocate_media_files(
+        self,
+        root_id: int,
+        *,
+        pairs: tuple[tuple[str, str], ...],
+    ) -> None:
+        """`relocate_media_file`를 순서대로 적용한다.
+
+        Args:
+            self: 저장소.
+            root_id: 루트 ID.
+            pairs: `(이동 전, 이동 후)` 절대 경로 쌍.
+
+        Returns:
+            None.
+        """
+        for old_p, new_p in pairs:
+            self.relocate_media_file(
+                root_id,
+                old_absolute_path=old_p,
+                new_absolute_path=new_p,
+            )

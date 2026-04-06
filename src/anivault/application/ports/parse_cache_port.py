@@ -92,3 +92,38 @@ class ParseCacheRepository(Protocol):
             None.
         """
         ...
+
+    def get_valid_resolution(self, media_file_id: int, signature: str) -> str | None:
+        """서명이 일치하는 해상도 캐시를 반환한다.
+
+        Args:
+            self: 저장소.
+            media_file_id: `media_files.id`.
+            signature: 해상도 캐시 무효화 서명(size+mtime 기반).
+
+        Returns:
+            캐시된 해상도 문자열. miss면 None.
+        """
+        ...
+
+    def upsert_resolution(
+        self,
+        *,
+        media_file_id: int,
+        signature: str,
+        value: str,
+        source: str,
+    ) -> None:
+        """해상도 캐시를 upsert한다.
+
+        Args:
+            self: 저장소.
+            media_file_id: `media_files.id`.
+            signature: 해상도 캐시 무효화 서명(size+mtime 기반).
+            value: 저장할 해상도 라벨/WxH 값.
+            source: 값 출처(`filename` 또는 `ffprobe` 등).
+
+        Returns:
+            None.
+        """
+        ...

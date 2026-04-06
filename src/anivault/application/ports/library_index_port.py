@@ -145,3 +145,43 @@ class LibraryIndexRepository(Protocol):
             `MediaFileRecord` 목록.
         """
         ...
+
+    def relocate_media_file(
+        self,
+        root_id: int,
+        *,
+        old_absolute_path: str,
+        new_absolute_path: str,
+    ) -> bool:
+        """파일 이동 반영: 동일 행(id·media_kind 등 유지)에 경로·크기·mtime만 갱신.
+
+        `old_absolute_path`에 해당하는 행이 없으면 False(스킵).
+
+        Args:
+            self: 저장소.
+            root_id: `library_roots.id`.
+            old_absolute_path: 이동 직전 절대 경로.
+            new_absolute_path: 이동 직후 절대 경로.
+
+        Returns:
+            행을 갱신했으면 True, 대상 없음이면 False.
+        """
+        ...
+
+    def relocate_media_files(
+        self,
+        root_id: int,
+        *,
+        pairs: tuple[tuple[str, str], ...],
+    ) -> None:
+        """`relocate_media_file`를 순서대로 호출한다.
+
+        Args:
+            self: 저장소.
+            root_id: `library_roots.id`.
+            pairs: `(old_absolute_path, new_absolute_path)` 들.
+
+        Returns:
+            None.
+        """
+        ...
