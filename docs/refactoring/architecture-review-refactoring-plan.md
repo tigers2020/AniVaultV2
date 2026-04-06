@@ -496,8 +496,8 @@ python -m anivault
 - [x] organizer/subtitle page factory가 단일 구조로 정리됨(**P0 달성**)
 - [x] `OrganizerPresenter`가 facade 수준으로 축소됨(**P0 달성**)
 - [x] `PipelineResultPanel`이 layout·연결 중심으로 정리되고 선택/포스터/복원 핵심은 모듈 분리됨(**P0 1차 달성**; 추가 축소는 P1-B 등)
-- [ ] worker orchestration 중복이 제거됨(**P1-A**)
-- [ ] SQL 중복 정의가 사라짐(**P1-A**)
+- [x] worker orchestration 중복이 제거됨(**P1-A**)
+- [x] SQL 중복 정의가 사라짐(**P1-A**)
 - [ ] autoscan 및 dead API가 정책적으로 정리됨(**P2**)
 - [ ] 전체 기능이 기존과 동일하게 동작함(지속 검증: 단위 테스트 + GUI 스모크)
 
