@@ -57,14 +57,14 @@ class FormField(QWidget):
                 combo.addItem(initial)
             layout.addWidget(combo)
             self._input = combo
-            combo.currentIndexChanged.connect(self.value_changed.emit)
+            combo.currentIndexChanged.connect(lambda _i: self.value_changed.emit())
         elif kind == "path":
             path_field = PathSelectField(placeholder=initial or "폴더 경로", parent=self)
             if initial:
                 path_field.set_path(initial)
             layout.addWidget(path_field)
             self._input = path_field
-            path_field.path_changed.connect(self.value_changed.emit)
+            path_field.path_changed.connect(lambda _p: self.value_changed.emit())
         else:
             line = LineEdit(initial, self)
             if echo_password:
@@ -75,8 +75,8 @@ class FormField(QWidget):
                 line.textChanged.connect(lambda t: self._label.setText(label_updater(t)))
             layout.addWidget(line)
             self._input = line
-            line.textChanged.connect(self.value_changed.emit)
-            line.editingFinished.connect(self.value_changed.emit)
+            line.textChanged.connect(lambda _t: self.value_changed.emit())
+            line.editingFinished.connect(lambda: self.value_changed.emit())
 
     def value(self) -> str:
         """현재 입력 값을 문자열로 반환한다.

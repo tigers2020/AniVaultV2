@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Label
 from anivault.interfaces.gui.components.molecules import PosterCard
-from anivault.interfaces.gui.models import PipelineGroupRow
+from anivault.interfaces.gui.models import PipelineGroupRow, pipeline_group_display_image_url
 
 
 class ContentView(QFrame):
@@ -169,13 +169,11 @@ class ContentView(QFrame):
         Returns:
             None.
         """
-        backdrop = (g.backdrop_url or "").strip()
         card = PosterCard(
             title=self._group_card_title(g),
             meta=self._compact_meta_for_group(g),
             path="",
-            # Load backdrop when present, else poster; slot is always backdrop-shaped.
-            image_url=(backdrop or g.poster_url).strip(),
+            image_url=pipeline_group_display_image_url(g),
             variant="compact",
             image_aspect="backdrop",
             text_panel_overlay=True,

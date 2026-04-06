@@ -523,7 +523,7 @@ class OrganizerPresenter(QObject):
                 logger.exception("title_groups 동기화 실패")
 
     def _on_scan_error(self, exc: Exception) -> None:
-        """오류 시 모델은 유지하고 진행 다이얼로그만 숨긴다.
+        """오류 시 진행 다이얼로그를 닫고 사용자에게 오류를 보여준다.
 
         Args:
             self: 이 프레젠터 인스턴스.
@@ -532,10 +532,18 @@ class OrganizerPresenter(QObject):
         Returns:
             None.
         """
+        logger.exception("Organizer worker failed", exc_info=exc)
         self._current_library_root_id = None
         self._parse_index_root_id = None
         if self._progress_dialog is not None:
             self._progress_dialog.hide_progress()
+        parent = self.parent()
+        if isinstance(parent, QWidget):
+            QMessageBox.critical(
+                parent,
+                "작업 오류",
+                f"작업 중 오류가 발생했습니다.\n\n{exc}",
+            )
 
     def _on_worker_finished(self, thread: QThread) -> None:
         """보관 중인 스레드와 같을 때만 워커 스레드 참조를 비운다.
@@ -938,6 +946,7 @@ class OrganizerPresenter(QObject):
             rows,
             pr,
             include_companion_subtitles=self._include_companion_subtitles,
+            index_root_id=self._current_library_root_id,
         )
         parent = self.parent()
         if err == "empty":
@@ -1044,9 +1053,19 @@ class OrganizerPresenter(QObject):
         """
         plan = self._pending_plan
         dlg.accept()
-        if not plan or self._apply_execute is None:
+        parent = self.parent()
+        if not plan:
             return
-        self._start_apply_worker(plan)
+        if self._apply_execute is None:
+            if isinstance(parent, QWidget):
+                QMessageBox.warning(
+                    parent,
+                    "실제 이동 불가",
+                    "실제 이동 기능이 연결되지 않았습니다. 앱을 다시 실행해 주세요.",
+                )
+            return
+        # DryRunDialog.exec()가 끝나 중첩 이벤트 루프를 빠져나온 뒤 apply를 시작한다.
+        QTimer.singleShot(0, lambda p=plan: self._start_apply_worker(p))
 
     def _start_apply_worker(self, plan: PlanResult) -> None:
         """apply 유스케이스 워커를 시작한다.
@@ -1078,6 +1097,9 @@ class OrganizerPresenter(QObject):
             dry_run=False,
             log_root=log_root,
             source_root=str(src_root).strip() or None,
+            index_root_id=self._current_library_root_id,
+            organize_plan_id=plan.organize_plan_id,
+            organize_item_ids=plan.organize_item_ids,
         )
         signals = WorkerSignals()
         worker = UseCaseWorker(

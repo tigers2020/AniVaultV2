@@ -46,6 +46,7 @@ from anivault.interfaces.gui.models import (
     PipelineGroupRow,
     PipelineTableModel,
     group_pipeline_rows,
+    pipeline_group_display_image_url,
     pipeline_row_ready_for_plan,
 )
 from anivault.interfaces.gui.services.image_loader import ImageLoader
@@ -139,6 +140,7 @@ class PipelineResultPanel(QFrame):
         self._restoring_state = False
         self._pending_selected_index = -1
         self._cards_by_url: dict[str, list[_ImageRowTarget]] = {}
+        self._preview_pending_url: str | None = None
         self._image_loader = ImageLoader(self)
         self._image_loader.loaded.connect(self._on_poster_image_loaded)
 
@@ -378,6 +380,7 @@ class PipelineResultPanel(QFrame):
         row = self._rows[index] if 0 <= index < len(self._rows) else None
         self._details_pane.set_row(row)
         self._preview_pane.set_row(row)
+        self._schedule_preview_image(row)
         self._sync_split_tables_selection(index)
         self._persist_ui_state()
 
@@ -544,7 +547,7 @@ class PipelineResultPanel(QFrame):
                     title=title,
                     meta="",
                     path="",
-                    image_url=g.poster_url,
+                    image_url=pipeline_group_display_image_url(g),
                     variant="compact",
                     title_only=True,
                 )
@@ -589,9 +592,36 @@ class PipelineResultPanel(QFrame):
         """
         for card in self._cards_by_url.get(url, []):
             card.set_pixmap(pixmap if not pixmap.isNull() else None)
+        if self._preview_pending_url == url:
+            self._preview_pane.set_pixmap(pixmap if not pixmap.isNull() else None)
+            self._preview_pending_url = None
+
+    def _schedule_preview_image(self, row: PipelineGroupRow | None) -> None:
+        """테이블 보기 등에서도 선택 행 포스터를 미리보기 패널에 불러온다.
+
+        Args:
+            self: 이 패널 인스턴스.
+            row: 선택 그룹. None이면 대기 URL만 해제.
+
+        Returns:
+            None.
+        """
+        self._preview_pending_url = None
+        if row is None:
+            return
+        img_url = pipeline_group_display_image_url(row).strip()
+        if not img_url:
+            return
+        self._preview_pending_url = img_url
+        cached = self._image_loader.get(img_url)
+        if cached is not None:
+            self._preview_pane.set_pixmap(cached)
+            self._preview_pending_url = None
+            return
+        self._image_loader.load(img_url)
 
     def _refresh_all_poster_pixmaps(self, cards: list[PosterCard]) -> None:
-        """카드의 HTTP URL을 수집해 캐시 또는 비동기 로드로 픽스맵을 갱신한다.
+        """카드의 이미지 소스(URL·절대 경로·file URL)를 수집해 캐시 또는 로드로 픽스맵을 갱신한다.
 
         Args:
             self: 이 패널 인스턴스.
@@ -603,8 +633,9 @@ class PipelineResultPanel(QFrame):
         self._cards_by_url.clear()
         for card in cards:
             u = (card.image_url or "").strip()
-            if u.startswith("http"):
-                self._cards_by_url.setdefault(u, []).append(card)
+            if not u:
+                continue
+            self._cards_by_url.setdefault(u, []).append(card)
         for url in self._cards_by_url:
             cached = self._image_loader.get(url)
             if cached is not None:

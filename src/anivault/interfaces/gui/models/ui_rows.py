@@ -7,6 +7,7 @@ Author: Pom Kim
 
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass
@@ -276,6 +277,39 @@ class PipelineGroupRow:
             PipelineRow.
         """
         return self.members[0]
+
+
+def pipeline_group_display_image_url(g: PipelineGroupRow) -> str:
+    """그룹 카드·미리보기용 이미지 소스. 로컬·file URL을 TMDB CDN보다 우선한다.
+
+    백드롭 CDN 네트워크가 막혀 있어도 캐시된 포스터 경로가 있으면 표시에 쓴다.
+
+    Args:
+        g: 파이프라인 그룹 행.
+
+    Returns:
+        비어 있지 않으면 로드 가능한 문자열(절대 경로·file:·http(s)).
+    """
+
+    def _local_or_file_first(u: str) -> bool:
+        ul = u.lower()
+        if ul.startswith("file:"):
+            return True
+        if ul.startswith(("http://", "https://")):
+            return False
+        try:
+            return Path(u).is_file()
+        except OSError:
+            return False
+
+    pu = (g.poster_url or "").strip()
+    bu = (g.backdrop_url or "").strip()
+    for u in (pu, bu):
+        if u and _local_or_file_first(u):
+            return u
+    if bu:
+        return bu
+    return pu
 
 
 def _pipeline_row_group_key(row: PipelineRow) -> str:

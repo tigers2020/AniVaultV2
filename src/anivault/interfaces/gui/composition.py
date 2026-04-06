@@ -13,6 +13,7 @@ from threading import Event
 from typing import TYPE_CHECKING
 
 from anivault.adapters.fs import FsFileRepository
+from anivault.adapters.media import FfprobeStreamResolution
 from anivault.adapters.metadata.tmdb import (
     CachingMetadataProvider,
     TmdbApiClient,
@@ -23,6 +24,7 @@ from anivault.adapters.operation_log import FsOperationLogRepository
 from anivault.adapters.parser import AnitopyTitleParser
 from anivault.adapters.persistence.sqlite import (
     SqliteLibraryIndexRepository,
+    SqliteOrganizePlanRepository,
     SqliteParseCacheRepository,
     SqliteTitleGroupRepository,
     SqliteTitleMatchRepository,
@@ -119,8 +121,15 @@ def create_organizer_page(
     _parse_cache = SqliteParseCacheRepository(_db_conn, _db_lock)
     _title_groups = SqliteTitleGroupRepository(_db_conn, _db_lock)
     _title_match = SqliteTitleMatchRepository(_db_conn, _db_lock)
+    _organize_plans = SqliteOrganizePlanRepository(_db_conn, _db_lock)
     _sync_title_groups = make_sync_title_groups_execute(_title_groups)
-    scan_execute = make_execute(file_repo, library_index=_library_index)
+    _stream_resolution = FfprobeStreamResolution()
+    scan_execute = make_execute(
+        file_repo,
+        library_index=_library_index,
+        parse_cache=_parse_cache,
+        resolution_probe=_stream_resolution,
+    )
     settings = load_all()
     ignore_tokens = settings.get("parse_tmdb", {}).get("ignore_tokens", "") or ""
     parser = AnitopyTitleParser(ignore_tokens=ignore_tokens)
@@ -162,8 +171,13 @@ def create_organizer_page(
         """
         return FsOperationLogRepository(root)
 
-    plan_execute = make_plan_execute()
-    apply_execute = make_apply_execute(file_repo, _make_op_log)
+    plan_execute = make_plan_execute(organize_plan=_organize_plans)
+    apply_execute = make_apply_execute(
+        file_repo,
+        _make_op_log,
+        library_index=_library_index,
+        organize_plan=_organize_plans,
+    )
     presenter = OrganizerPresenter(
         pipeline_model=model,
         scan_execute=scan_execute,
@@ -202,11 +216,15 @@ def create_subtitle_organizer_page(
     _parse_cache = SqliteParseCacheRepository(_db_conn, _db_lock)
     _title_groups = SqliteTitleGroupRepository(_db_conn, _db_lock)
     _title_match = SqliteTitleMatchRepository(_db_conn, _db_lock)
+    _organize_plans = SqliteOrganizePlanRepository(_db_conn, _db_lock)
     _sync_title_groups = make_sync_title_groups_execute(_title_groups)
+    _stream_resolution = FfprobeStreamResolution()
     scan_execute = make_execute(
         file_repo,
         extensions=SUBTITLE_SCAN_EXTENSIONS,
         library_index=_library_index,
+        parse_cache=_parse_cache,
+        resolution_probe=_stream_resolution,
     )
     settings = load_all()
     ignore_tokens = settings.get("parse_tmdb", {}).get("ignore_tokens", "") or ""
@@ -249,8 +267,13 @@ def create_subtitle_organizer_page(
         """
         return FsOperationLogRepository(root)
 
-    plan_execute = make_plan_execute()
-    apply_execute = make_apply_execute(file_repo, _make_op_log)
+    plan_execute = make_plan_execute(organize_plan=_organize_plans)
+    apply_execute = make_apply_execute(
+        file_repo,
+        _make_op_log,
+        library_index=_library_index,
+        organize_plan=_organize_plans,
+    )
     presenter = OrganizerPresenter(
         pipeline_model=model,
         scan_execute=scan_execute,
