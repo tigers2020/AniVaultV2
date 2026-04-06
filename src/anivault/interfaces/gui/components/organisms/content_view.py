@@ -123,6 +123,8 @@ class ContentView(QFrame):
         """
         while self._list_layout.count():
             item = self._list_layout.takeAt(0)
+            if item is None:
+                continue
             w = item.widget()
             if w is not None:
                 w.deleteLater()

@@ -25,4 +25,3 @@ def test_group_tmdb_match_upsert_sql_is_single_source_of_truth() -> None:
     """
     assert GROUP_REPO_GROUP_TMDB_MATCH_UPSERT_SQL is GROUP_TMDB_MATCH_UPSERT_SQL
     assert MATCH_REPO_GROUP_TMDB_MATCH_UPSERT_SQL is GROUP_TMDB_MATCH_UPSERT_SQL
-

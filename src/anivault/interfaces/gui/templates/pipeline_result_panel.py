@@ -418,7 +418,7 @@ class PipelineResultPanel(QFrame):
         def _on_press(_event: object) -> None:
             self._on_icon_grid_card_clicked(index)
 
-        card.mousePressEvent = _on_press  # type: ignore[assignment]
+        card.mousePressEvent = _on_press  # type: ignore[method-assign]
 
     def _clear_all_poster_grids(self) -> None:
         """아이콘 그리드 위젯을 비우고 모두 재구성 필요로 표시한다.

@@ -112,8 +112,11 @@ class _GridContainer(QWidget):
         """
         while self._grid.count():
             item = self._grid.takeAt(0)
-            if item.widget():
-                item.widget().setParent(None)
+            if item is None:
+                continue
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
         if not self._cards:
             return
 
@@ -125,14 +128,14 @@ class _GridContainer(QWidget):
             if self._min_card_width is not None
             else theme.poster_min_card_width_px()
         )
-        w = self.width()
-        if w <= 0:
-            w = mc * 2 + grid_spacing
-        cols = _column_count(w, min_card=mc, grid_spacing=grid_spacing)
+        width_px = self.width()
+        if width_px <= 0:
+            width_px = mc * 2 + grid_spacing
+        cols = _column_count(width_px, min_card=mc, grid_spacing=grid_spacing)
         self._last_cols = cols
-        self._last_width = w
+        self._last_width = width_px
         # One size for all cards so height never "shrinks" by column
-        card_w = max(mc, (w - (cols - 1) * grid_spacing) // cols)
+        card_w = max(mc, (width_px - (cols - 1) * grid_spacing) // cols)
         if self._body_below_image_px is None:
             below_img = CARD_LAYOUT_SPACING_POSTER_PX + NON_COMPACT_BODY_HEIGHT_PX
         else:
@@ -148,7 +151,8 @@ class _GridContainer(QWidget):
             self._grid.addWidget(card, row, col, align)
         rows = (len(self._cards) + cols - 1) // cols
         grid_m = self._grid.contentsMargins()
-        outer_m = self.layout().contentsMargins() if self.layout() is not None else None
+        layout = self.layout()
+        outer_m = layout.contentsMargins() if layout is not None else None
         extra_h = grid_m.top() + grid_m.bottom()
         if outer_m is not None:
             extra_h += outer_m.top() + outer_m.bottom()

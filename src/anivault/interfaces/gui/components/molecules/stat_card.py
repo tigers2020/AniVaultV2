@@ -50,6 +50,9 @@ class StatCard(QFrame):
         """
         layout = self.layout()
         if layout and layout.count() >= 2:
-            w = layout.itemAt(1).widget()
+            item = layout.itemAt(1)
+            if item is None:
+                return
+            w = item.widget()
             if w and hasattr(w, "setText"):
                 w.setText(value)
