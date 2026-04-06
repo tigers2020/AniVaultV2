@@ -8,6 +8,7 @@ Author: Pom Kim
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
@@ -417,7 +418,15 @@ class PipelineResultPanel(QFrame):
         """
         card.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        def _on_press(_event: object) -> None:
+        def _on_press(event: QMouseEvent) -> None:
+            """포스터 카드 클릭 시 그룹 행을 선택한다.
+
+            Args:
+                event: 마우스 프레스 이벤트.
+
+            Returns:
+                None.
+            """
             self._on_icon_grid_card_clicked(index)
 
         card.mousePressEvent = _on_press  # type: ignore[method-assign]

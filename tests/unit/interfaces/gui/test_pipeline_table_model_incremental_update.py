@@ -132,4 +132,3 @@ def test_update_rows_if_compatible_emits_data_changed_without_model_reset() -> N
     assert ok is True
     assert model.modelReset.call_count == 0
     assert spy.calls >= 1
-
