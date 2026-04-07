@@ -136,11 +136,11 @@ def _sample_rows() -> list[PipelineRow]:
             tmdb_backdrop_path="",
             year="2023",
             season="01",
-            resolution="1080p",
+            resolution="FHD",
             status="Ready",
             poster_url="",
             backdrop_url="",
-            target_path=r"G:\AniSorted\1080p\2023\장송의 프리렌\Season01\ep01.mkv",
+            target_path=r"G:\AniSorted\FHD\2023\장송의 프리렌\Season01\ep01.mkv",
             episode="",
         ),
         PipelineRow(
@@ -153,11 +153,11 @@ def _sample_rows() -> list[PipelineRow]:
             tmdb_backdrop_path="",
             year="2023",
             season="01",
-            resolution="1080p",
+            resolution="FHD",
             status="Needs Review",
             poster_url="",
             backdrop_url="",
-            target_path=r"G:\AniSorted\1080p\2023\약사의 혼잣말\Season01\ep03.mkv",
+            target_path=r"G:\AniSorted\FHD\2023\약사의 혼잣말\Season01\ep03.mkv",
             episode="",
         ),
     ]
@@ -254,7 +254,7 @@ def _molecules_preview() -> QWidget:
     forms_layout.addWidget(PathSelectField("폴더 선택 테스트"), 1, 1)
     layout.addWidget(forms)
 
-    layout.addWidget(PathBox(r"G:\AniSorted\1080p\2024\애니제목\Season01\ep01.mkv"))
+    layout.addWidget(PathBox(r"G:\AniSorted\FHD\2024\애니제목\Season01\ep01.mkv"))
 
     toggles = QWidget()
     toggles_layout = QHBoxLayout(toggles)
@@ -276,8 +276,8 @@ def _molecules_preview() -> QWidget:
     posters_layout.addWidget(
         PosterCard(
             title="장송의 프리렌",
-            meta="2023 • Season01 • 1080p",
-            path=r"G:\AniSorted\1080p\2023\장송의 프리렌",
+            meta="2023 • Season01 • FHD",
+            path=r"G:\AniSorted\FHD\2023\장송의 프리렌",
             variant="poster",
         ),
         1,
@@ -285,7 +285,7 @@ def _molecules_preview() -> QWidget:
     posters_layout.addWidget(
         PosterCard(
             title="약사의 혼잣말",
-            meta="2023 • Season01 • 1080p",
+            meta="2023 • Season01 • FHD",
             path="",
             variant="compact",
         ),

@@ -98,14 +98,15 @@ def make_execute(
                     stage="parse",
                     current=0,
                     total=total,
-                    message="파일명 파싱 중...",
+                    message="파싱 캐시 확인 중..." if use_cache else "파일명 파싱 중...",
                     percent=0,
                 )
             )
         parsed: list[ParsedInfo] = []
+        cache_hits: list[bool] = []
         for i, path in enumerate(paths):
             if cancel_token.is_set():
-                return ParseResult(parsed=parsed)
+                return ParseResult(parsed=parsed, cache_hits=cache_hits)
             meta = None
             if use_cache and resolved is not None:
                 meta = resolved[i]
@@ -121,6 +122,7 @@ def make_execute(
                 cached = parse_cache.get_valid_parse(meta.id, signature)
             if cached is not None:
                 parsed.append(cached)
+                cache_hits.append(True)
             else:
                 name = Path(path).name
                 stem = Path(path).stem
@@ -142,10 +144,12 @@ def make_execute(
                             error_message=str(e),
                         )
                     parsed.append(ParsedInfo())
+                    cache_hits.append(False)
                 else:
                     info = apply_anime_title_refine(stem, info)
                     info = augment_parsed_info_with_parent_folder(path, info)
                     parsed.append(info)
+                    cache_hits.append(False)
                     if (
                         use_cache
                         and parse_cache is not None
@@ -177,11 +181,15 @@ def make_execute(
                         stage="parse",
                         current=i + 1,
                         total=total,
-                        message=f"파싱 중 {i + 1}/{total}",
+                        message=(
+                            f"파싱 캐시 로딩 중 {i + 1}/{total}"
+                            if cached is not None
+                            else f"파싱 중 {i + 1}/{total}"
+                        ),
                         percent=pct,
                         item_path=path,
                     )
                 )
-        return ParseResult(parsed=parsed)
+        return ParseResult(parsed=parsed, cache_hits=cache_hits)
 
     return execute

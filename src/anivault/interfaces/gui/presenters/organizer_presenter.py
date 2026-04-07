@@ -464,9 +464,11 @@ class OrganizerPresenter(QObject):
         """
         rows = self._model.flat_rows()
         parsed_list = result.parsed or []
+        cache_hits = result.cache_hits or []
         merged: list[PipelineRow] = []
         for i, row in enumerate(rows):
             p = parsed_list[i] if i < len(parsed_list) else None
+            parsed_from_cache = cache_hits[i] if i < len(cache_hits) else False
             if p is None:
                 merged.append(
                     PipelineRow(
@@ -501,7 +503,7 @@ class OrganizerPresenter(QObject):
                         year=p.year,
                         season=p.season,
                         resolution=merged_res,
-                        status="파싱됨",
+                        status="파싱 캐시" if parsed_from_cache else "파싱됨",
                         poster_url=row.poster_url,
                         backdrop_url=row.backdrop_url,
                         target_path=row.target_path,

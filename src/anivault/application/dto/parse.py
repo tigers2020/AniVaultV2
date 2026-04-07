@@ -23,6 +23,7 @@ class ParseResult:
     """parse_titles 결과. ParsedInfo는 ParseInput.paths와 동일 순서."""
 
     parsed: list[ParsedInfo] = field(default_factory=list)
+    cache_hits: list[bool] = field(default_factory=list)
 
 
 __all__ = ["ParsedInfo", "ParseInput", "ParseResult"]

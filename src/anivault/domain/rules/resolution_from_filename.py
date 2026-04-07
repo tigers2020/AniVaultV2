@@ -1,121 +1,134 @@
-"""resolution_from_filename.py
-
-미디어 파일 경로·베이스명에서 표시용 해상도(Np, 4K, WxH)를 추출·정규화한다.
-
-Author: Pom Kim
-"""
+"""Extract and normalize video resolution labels from filenames."""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
-_WxH = re.compile(r"\b(\d{3,4})\s*[x×]\s*(\d{3,4})\b", re.IGNORECASE)
+_WxH = re.compile(r"\b(\d{3,4})\s*[xX]\s*(\d{3,4})\b")
+_HEIGHT_SUFFIX = re.compile(r"^\s*[xX]\s*(\d+)\s*$")
+_WIDTH_TOKEN = re.compile(r"(?<![A-Za-z0-9])(1280|1920|2560|3840|7680)(?![A-Za-z0-9])")
 _SHORT = re.compile(
-    r"\b(2160p|1080p|720p|576p|480p|360p|4k)\b",
+    r"\b(4320p|2160p|1440p|1080p|720p|576p|480p|360p|8k|4k|2k)\b",
     re.IGNORECASE,
 )
+_SHORT_LABELS = {
+    "360p": "SD",
+    "480p": "SD",
+    "576p": "SD",
+    "720p": "HD",
+    "1080p": "FHD",
+    "1440p": "QHD",
+    "2160p": "UHD",
+    "4320p": "8K UHD",
+    "2k": "QHD",
+    "4k": "UHD",
+    "8k": "8K UHD",
+}
+_WIDTH_LABELS = {
+    "1280": "HD",
+    "1920": "FHD",
+    "2560": "QHD",
+    "3840": "UHD",
+    "7680": "8K UHD",
+}
+_LABEL_RANKS = {"HD": 0, "FHD": 1, "QHD": 2, "UHD": 3, "8K UHD": 4}
 
 
 def normalize_resolution_from_raw(raw: str) -> str:
-    """anitopy 스타일 또는 단순 해상도 문자열을 짧은 라벨로 맞춘다.
+    """Normalize anitopy/raw resolution strings to standard tier labels.
 
     Args:
-        raw: 원본 해상도 문자열.
+        raw: Original resolution text.
 
     Returns:
-        예: 1280x720 → 720p. 빈 입력이면 빈 문자열.
+        Standard tier label, original text when unrecognized, or an empty string.
     """
     if not raw or not raw.strip():
         return ""
     s = raw.strip()
     m = _SHORT.search(s)
     if m:
-        return m.group(1).lower()
-    m = re.search(r"(?:x|×)\s*(\d+)|^\s*(\d+)\s*$", s)
+        return _SHORT_LABELS[m.group(1).lower()]
+    m = _WxH.search(s)
     if m:
-        h = int(m.group(1) or m.group(2) or "0")
+        h = _video_height(int(m.group(1)), int(m.group(2)))
+        return _height_to_label(h) or s
+    m = _HEIGHT_SUFFIX.search(s)
+    if m:
+        h = int(m.group(1) or "0")
+        return _height_to_label(h) or s
+    m = _WIDTH_TOKEN.search(s)
+    if m:
+        return _WIDTH_LABELS[m.group(1)]
+    m = re.search(r"^\s*(\d+)\s*$", s)
+    if m:
+        h = int(m.group(1) or "0")
         return _height_to_label(h) or s
     return s
 
 
 def _height_to_label(h: int) -> str:
-    """세로 픽셀 높이를 짧은 p 라벨로 변환한다.
-
-    Args:
-        h: 세로(또는 기준) 픽셀 수.
-
-    Returns:
-        2160p 등. 구간에 없으면 빈 문자열.
-    """
-    if h >= 2160:
-        return "2160p"
-    if h >= 1080:
-        return "1080p"
-    if h >= 720:
-        return "720p"
-    if h >= 576:
-        return "576p"
-    if h >= 480:
-        return "480p"
-    if h >= 360:
-        return "360p"
-    return ""
+    """Round a video height up to the nearest standard resolution tier."""
+    if h <= 0:
+        return ""
+    if h <= 480:
+        return "SD"
+    if h <= 720:
+        return "HD"
+    if h <= 1080:
+        return "FHD"
+    if h <= 1440:
+        return "QHD"
+    if h <= 2160:
+        return "UHD"
+    return "8K UHD"
 
 
 def _video_height(w: int, h: int) -> int:
-    """가로×세로에서 영상 높이로 쓸 값을 고른다(가로가 긴 전제).
-
-    Args:
-        w: 가로 픽셀.
-        h: 세로 픽셀.
-
-    Returns:
-        세로가 더 작거나 같으면 min, 아니면 max.
-    """
+    """Choose the video height from a WxH pair, allowing rotated dimensions."""
     return min(w, h) if w >= h else max(w, h)
 
 
-def _best_dimension_label(stem: str) -> str:
-    """stem에서 WxH 후보 중 가장 큰 영상 높이에 해당하는 라벨을 고른다.
-
-    Args:
-        stem: 파일명 stem(확장자 제외).
-
-    Returns:
-        720p 등 또는 WxH 문자열. 없으면 빈 문자열.
-    """
+def _best_dimension_label(text: str) -> str:
+    """Return the best standard tier label from WxH tokens in text."""
     best_h = 0
-    best_pair: tuple[int, int] | None = None
-    for m in _WxH.finditer(stem):
+    for m in _WxH.finditer(text):
         w, h = int(m.group(1)), int(m.group(2))
         vh = _video_height(w, h)
         if vh > best_h:
             best_h = vh
-            best_pair = (w, h)
-    if not best_pair:
-        return ""
-    label = _height_to_label(best_h)
+    return _height_to_label(best_h) if best_h else ""
+
+
+def _width_token_label(text: str) -> str:
+    """Return the best tier label from common standalone width tokens."""
+    best_rank = -1
+    best_label = ""
+    for m in _WIDTH_TOKEN.finditer(text):
+        label = _WIDTH_LABELS[m.group(1)]
+        rank = _LABEL_RANKS[label]
+        if rank > best_rank:
+            best_rank = rank
+            best_label = label
+    return best_label
+
+
+def _resolution_label_from_text(text: str) -> str:
+    """Extract a standard tier from resolution-like tokens in text."""
+    m = _SHORT.search(text)
+    if m:
+        return _SHORT_LABELS[m.group(1).lower()]
+    label = _best_dimension_label(text)
     if label:
         return label
-    bw, bh = best_pair
-    return f"{bw}x{bh}"
+    return _width_token_label(text)
 
 
 def resolution_from_filename(filename: str) -> str:
-    """전체 경로 또는 베이스명에서 짧은 해상도 라벨을 반환한다.
-
-    Args:
-        filename: 파일 경로 또는 이름.
-
-    Returns:
-        Np/4K/WxH 기반 짧은 라벨. 없으면 빈 문자열.
-    """
+    """Extract a normalized standard resolution tier from a path or filename."""
     try:
         stem = Path(filename).stem
     except Exception:
         stem = filename
-    m = _SHORT.search(stem)
-    if m:
-        return m.group(1).lower()
-    return _best_dimension_label(stem)
+    return _resolution_label_from_text(stem) or _resolution_label_from_text(filename)

@@ -13,7 +13,7 @@ import re
 
 _LEADING_BRACKET = re.compile(r"^\s*\[[^\]]+\]\s*")
 _TRAIL_TECH_PAREN = re.compile(
-    r"\s*\((?:[^)]*(?:1080|720|480|576|2160|4320|p|x264|x265|hevc|aac|ac3|dvd|bd|bluray)[^)]*)\)\s*$",
+    r"\s*\((?:[^)]*(?:1080|720|480|576|1440|2160|4320|2k|4k|8k|sd|hd|fhd|qhd|uhd|p|x264|x265|hevc|aac|ac3|dvd|bd|bluray)[^)]*)\)\s*$",
     re.I,
 )
 _TRAIL_BRACKET = re.compile(r"\s*\[[^\]]+\]\s*$")

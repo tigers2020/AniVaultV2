@@ -40,9 +40,9 @@ class FolderStructurePreview(QFrame):
         body.setSpacing(12)
         body.setContentsMargins(18, 18, 18, 18)
         for label, path in [
-            ("1080p", r"G:\AniSorted\1080p\2023\장송의 프리렌\Season01"),
-            ("1080p", r"G:\AniSorted\1080p\2023\약사의 혼잣말\Season01"),
-            ("720p", r"G:\AniSorted\720p\1999\원피스\Season01"),
+            ("FHD", r"G:\AniSorted\FHD\2023\장송의 프리렌\Season01"),
+            ("FHD", r"G:\AniSorted\FHD\2023\약사의 혼잣말\Season01"),
+            ("HD", r"G:\AniSorted\HD\1999\원피스\Season01"),
             ("Unknown", r"G:\AniSorted\Unknown\Unknown\Needs_Review\Season00"),
         ]:
             item = QWidget()

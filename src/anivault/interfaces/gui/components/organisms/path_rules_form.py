@@ -15,7 +15,7 @@ from anivault.interfaces.gui.components.molecules import FormField, PanelHeader
 
 _PATH_TEMPLATE_EXAMPLES = {
     "target": "G:/AniSorted",
-    "resolution": "1080p",
+    "resolution": "FHD",
     "year": "2024",
     "korean_title_group": "애니제목",
     "season": "01",

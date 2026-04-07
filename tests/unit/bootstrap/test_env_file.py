@@ -2,15 +2,27 @@
 
 import os
 from pathlib import Path
+from threading import Event
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
-from anivault.application.dto.parse import ParsedInfo as ApplicationParsedInfo
-from anivault.bootstrap import container
-from anivault.bootstrap import env_file
+from anivault.application.dto.library_index import IndexedMediaForParse
+from anivault.application.dto.match_result import MatchFileRow
+from anivault.application.dto.parse import (
+    ParsedInfo as ApplicationParsedInfo,
+)
+from anivault.application.dto.parse import (
+    ParseInput,
+)
+from anivault.application.dto.plan import PlanInput
+from anivault.application.dto.progress import ProgressEvent
+from anivault.application.use_cases.parse_titles import make_execute as make_parse_execute
+from anivault.application.use_cases.plan_moves import make_execute
+from anivault.bootstrap import container, env_file
 from anivault.domain.models.parsed_info import ParsedInfo as DomainParsedInfo
+from anivault.interfaces.gui.app import PAGE_META
 
 
 class _FakePage:
@@ -22,6 +34,81 @@ class _FakePresenter:
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.args = args
         self.kwargs = kwargs
+
+
+class _FailingParser:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def parse(self, filename: str) -> DomainParsedInfo:
+        self.calls.append(filename)
+        raise AssertionError("parser should not run on parse cache hit")
+
+
+class _ParseLibraryIndex:
+    def __init__(self, media: list[IndexedMediaForParse | None]) -> None:
+        self.media = media
+
+    def resolve_media_for_parse(
+        self,
+        root_id: int,
+        absolute_paths: list[str],
+    ) -> list[IndexedMediaForParse | None]:
+        del root_id, absolute_paths
+        return self.media
+
+
+class _ParseCache:
+    def __init__(self, cached: dict[int, DomainParsedInfo]) -> None:
+        self.cached = cached
+        self.upserted_ok: list[int] = []
+        self.upserted_errors: list[int] = []
+
+    def get_valid_parse(self, media_file_id: int, signature: str) -> DomainParsedInfo | None:
+        del signature
+        return self.cached.get(media_file_id)
+
+    def upsert_parse_ok(self, **kwargs: Any) -> None:
+        self.upserted_ok.append(int(kwargs["media_file_id"]))
+
+    def upsert_parse_error(self, **kwargs: Any) -> None:
+        self.upserted_errors.append(int(kwargs["media_file_id"]))
+
+
+def _matched_row(path: Path) -> MatchFileRow:
+    return MatchFileRow(
+        original_file=str(path),
+        parsed_title="Parsed",
+        parse_group="Parsed",
+        tmdb_korean_title_group="Korean Title",
+        tmdb_series_id="123",
+        tmdb_poster_path="",
+        tmdb_backdrop_path="",
+        year="2025",
+        season="1",
+        resolution="1080p",
+        status="TMDB matched",
+        poster_url="",
+        backdrop_url="",
+        target_path="",
+        episode="01",
+    )
+
+
+def _plan_input(
+    row: MatchFileRow,
+    target_root: Path,
+    *,
+    include_companion_subtitles: bool,
+) -> PlanInput:
+    return PlanInput(
+        files=(row,),
+        path_template="{korean_title_group}/Season {season:02}/{original_filename}",
+        target_root=str(target_root),
+        unknown_resolution="Unknown",
+        unknown_group_folder="Needs_Review",
+        include_companion_subtitles=include_companion_subtitles,
+    )
 
 
 def test_read_tmdb_api_key_empty_when_no_file(
@@ -106,6 +193,40 @@ def test_domain_parsed_info_defaults_match_previous_dto_shape() -> None:
     assert parsed.resolution == ""
 
 
+def test_parse_titles_loads_valid_cache_without_running_parser() -> None:
+    parser = _FailingParser()
+    cached = DomainParsedInfo(
+        title="Cached Title",
+        parse_group="Cached Title",
+        year="2025",
+        season="1",
+        episode="01",
+        resolution="1080p",
+    )
+    execute = make_parse_execute(
+        parser,  # type: ignore[arg-type]
+        library_index=_ParseLibraryIndex(
+            [IndexedMediaForParse(id=7, path_norm="show.mkv", size_bytes=10, mtime_ns=20)]
+        ),  # type: ignore[arg-type]
+        parse_cache=_ParseCache({7: cached}),  # type: ignore[arg-type]
+    )
+    progress: list[ProgressEvent] = []
+
+    result = execute(
+        ParseInput(paths=["F:/media/show.mkv"], index_root_id=1),
+        progress.append,
+        Event(),
+    )
+
+    assert result.parsed == [cached]
+    assert result.cache_hits == [True]
+    assert parser.calls == []
+    assert [event.message for event in progress] == [
+        "파싱 캐시 확인 중...",
+        "파싱 캐시 로딩 중 1/1",
+    ]
+
+
 def test_create_settings_page_wires_presenter(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(container, "SettingsPage", _FakePage)
     monkeypatch.setattr(container, "SettingsPresenter", _FakePresenter)
@@ -148,3 +269,80 @@ def test_create_subtitle_organizer_page_delegates_to_shared_builder(
         scan_extensions=container.SUBTITLE_SCAN_EXTENSIONS,
         include_companion_subtitles=False,
     )
+
+
+def test_subtitle_page_meta_describes_orphan_subtitle_workflow() -> None:
+    title, description = PAGE_META["subtitles"]
+
+    assert title == "자막만"
+    assert "비디오가 누락" in description
+    assert "자막 파일만" in description
+
+
+def test_plan_moves_video_with_same_stem_subtitle_as_inherited_companion(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    video = source_dir / "show.mkv"
+    subtitle = source_dir / "show.srt"
+    non_matching_subtitle = source_dir / "other.srt"
+    video.write_bytes(b"video")
+    subtitle.write_text("subtitle", encoding="utf-8")
+    non_matching_subtitle.write_text("other", encoding="utf-8")
+    target_root = tmp_path / "organized"
+    execute = make_execute()
+
+    result = execute(
+        _plan_input(_matched_row(video), target_root, include_companion_subtitles=True),
+        None,
+        Event(),
+    )
+
+    assert result.error is None
+    assert [(move.source_path, Path(move.destination_path).name) for move in result.moves] == [
+        (str(video), "show.mkv"),
+        (str(subtitle), "show.srt"),
+    ]
+    assert (
+        Path(result.moves[1].destination_path).parent
+        == Path(result.moves[0].destination_path).parent
+    )
+
+
+def test_plan_moves_subtitle_only_does_not_expand_companions(tmp_path: Path) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    subtitle = source_dir / "orphan.srt"
+    companion = source_dir / "orphan.ass"
+    subtitle.write_text("subtitle", encoding="utf-8")
+    companion.write_text("companion", encoding="utf-8")
+    target_root = tmp_path / "organized"
+    execute = make_execute()
+
+    result = execute(
+        _plan_input(_matched_row(subtitle), target_root, include_companion_subtitles=False),
+        None,
+        Event(),
+    )
+
+    assert result.error is None
+    assert [(move.source_path, Path(move.destination_path).name) for move in result.moves] == [
+        (str(subtitle), "orphan.srt"),
+    ]
+
+
+def test_plan_moves_subtitle_only_still_requires_match_data(tmp_path: Path) -> None:
+    subtitle = tmp_path / "orphan.srt"
+    subtitle.write_text("subtitle", encoding="utf-8")
+    row = _matched_row(subtitle)
+    row.tmdb_korean_title_group = ""
+    execute = make_execute()
+
+    result = execute(
+        _plan_input(row, tmp_path / "organized", include_companion_subtitles=False),
+        None,
+        Event(),
+    )
+
+    assert result.error is not None
