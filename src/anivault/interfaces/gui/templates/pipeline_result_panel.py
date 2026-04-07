@@ -603,7 +603,7 @@ class PipelineResultPanel(QFrame):
         self._cards_by_url.clear()
         for card in cards:
             u = (card.image_url or "").strip()
-            if u.startswith("http"):
+            if u:
                 self._cards_by_url.setdefault(u, []).append(card)
         for url in self._cards_by_url:
             cached = self._image_loader.get(url)

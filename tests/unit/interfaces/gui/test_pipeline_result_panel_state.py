@@ -6,7 +6,30 @@ from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
     VIEW_CONTENT,
     VIEW_DETAILS,
 )
+from anivault.interfaces.gui.presenters.organizer_presenter import OrganizerPresenter
 from anivault.interfaces.gui.templates.pipeline_result_panel import PipelineResultPanel
+
+
+class _FakeFinishedSignal:
+    def __init__(self) -> None:
+        self.callback = None
+
+    def connect(self, callback) -> None:
+        self.callback = callback
+
+
+class _FakeThread:
+    def __init__(self) -> None:
+        self.finished = _FakeFinishedSignal()
+
+
+class _FakePosterCard:
+    def __init__(self, image_url: str) -> None:
+        self.image_url = image_url
+        self.pixmap = None
+
+    def set_pixmap(self, pixmap) -> None:
+        self.pixmap = pixmap
 
 
 def test_normalize_ui_state_maps_legacy_tiles_to_content() -> None:
@@ -120,3 +143,30 @@ def test_icon_grid_different_card_opens_selection_without_close() -> None:
 
     assert ensure_calls == 1
     assert selection_calls == [3]
+
+
+def test_cancel_signal_disconnects_when_thread_finishes() -> None:
+    presenter = OrganizerPresenter.__new__(OrganizerPresenter)
+    dialog = MagicMock()
+    worker = MagicMock()
+    thread = _FakeThread()
+
+    presenter._disconnect_cancel_on_thread_finished(dialog, worker, thread)  # type: ignore[attr-defined]
+    thread.finished.callback()
+
+    dialog.canceled.disconnect.assert_called_once_with(worker.cancel)
+
+
+def test_refresh_all_poster_pixmaps_loads_local_paths() -> None:
+    panel = PipelineResultPanel.__new__(PipelineResultPanel)
+    image_loader = MagicMock()
+    image_loader.get.return_value = None
+    panel._image_loader = image_loader  # type: ignore[attr-defined]
+    panel._cards_by_url = {}  # type: ignore[attr-defined]
+    card = _FakePosterCard("F:\\cache\\poster.jpg")
+
+    panel._refresh_all_poster_pixmaps([card])  # type: ignore[arg-type, attr-defined]
+
+    image_loader.get.assert_called_once_with("F:\\cache\\poster.jpg")
+    image_loader.load.assert_called_once_with("F:\\cache\\poster.jpg")
+    assert panel._cards_by_url == {"F:\\cache\\poster.jpg": [card]}  # type: ignore[attr-defined]

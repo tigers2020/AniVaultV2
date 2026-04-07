@@ -7,17 +7,7 @@ Author: Pom Kim
 
 from dataclasses import dataclass, field
 
-
-@dataclass
-class ParsedInfo:
-    """경량 파싱 결과. title, parse_group, year, season, episode, resolution."""
-
-    title: str = ""
-    parse_group: str = ""
-    year: str = ""
-    season: str = ""
-    episode: str = ""
-    resolution: str = ""
+from anivault.domain.models.parsed_info import ParsedInfo
 
 
 @dataclass
@@ -33,3 +23,6 @@ class ParseResult:
     """parse_titles 결과. ParsedInfo는 ParseInput.paths와 동일 순서."""
 
     parsed: list[ParsedInfo] = field(default_factory=list)
+
+
+__all__ = ["ParsedInfo", "ParseInput", "ParseResult"]

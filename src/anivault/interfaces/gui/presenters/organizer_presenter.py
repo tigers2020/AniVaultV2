@@ -58,6 +58,7 @@ ApplyExecuteFn = Callable[
     [ApplyInput, Callable[[ProgressEvent], None] | None, Event],
     ApplyResult,
 ]
+CachedTmdbHydrateFn = Callable[[MatchInput], MatchResult]
 
 
 class _ManualTmdbSearchRelay(QObject):
@@ -139,6 +140,7 @@ class OrganizerPresenter(QObject):
         progress_dialog: ProgressDialog | None = None,
         include_companion_subtitles: bool = True,
         sync_title_groups_execute: Callable[[int], None] | None = None,
+        cached_tmdb_hydrate_execute: CachedTmdbHydrateFn | None = None,
         title_match: TitleMatchRepository | None = None,
         title_groups: TitleGroupRepository | None = None,
         poster_sync: PosterAssetSyncPort | None = None,
@@ -177,6 +179,7 @@ class OrganizerPresenter(QObject):
         self._apply_execute = apply_execute
         self._progress_dialog = progress_dialog
         self._sync_title_groups_execute = sync_title_groups_execute
+        self._cached_tmdb_hydrate_execute = cached_tmdb_hydrate_execute
         self._title_match = title_match
         self._title_groups = title_groups
         self._poster_sync = poster_sync
@@ -215,6 +218,22 @@ class OrganizerPresenter(QObject):
         dialog.mark_work_finished()
         if hide:
             dialog.hide_progress()
+
+    def _disconnect_cancel_on_thread_finished(
+        self,
+        dialog: ProgressDialog,
+        worker: UseCaseWorker,
+        thread: QThread,
+    ) -> None:
+        """Disconnect the shared cancel signal when a worker thread finishes."""
+
+        def _disconnect_cancel() -> None:
+            try:
+                dialog.canceled.disconnect(worker.cancel)
+            except (RuntimeError, TypeError):
+                logger.debug("Progress dialog cancel signal was already disconnected.")
+
+        thread.finished.connect(_disconnect_cancel)
 
     def on_scan_clicked(self, path: str) -> None:
         """스캔 버튼 클릭: 경로 검증 후 워커를 시작하고 결과로 모델을 갱신한다.
@@ -262,19 +281,8 @@ class OrganizerPresenter(QObject):
             signals.cancelled.connect(dialog.hide_progress)
             dialog.canceled.connect(worker.cancel)
 
-            def _disconnect_cancel() -> None:
-                """스레드 종료 시 취소 시그널 연결을 끊는다.
-
-                Args:
-                    없음.
-
-                Returns:
-                    None.
-                """
-                dialog.canceled.disconnect(worker.cancel)
-
             thread = run_worker(worker)
-            thread.finished.connect(_disconnect_cancel)
+            self._disconnect_cancel_on_thread_finished(dialog, worker, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
@@ -437,19 +445,8 @@ class OrganizerPresenter(QObject):
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
             dialog.canceled.connect(worker.cancel)
 
-            def _disconnect_cancel() -> None:
-                """스레드 종료 시 취소 시그널 연결을 끊는다.
-
-                Args:
-                    없음.
-
-                Returns:
-                    None.
-                """
-                dialog.canceled.disconnect(worker.cancel)
-
             thread = run_worker(worker)
-            thread.finished.connect(_disconnect_cancel)
+            self._disconnect_cancel_on_thread_finished(dialog, worker, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
@@ -511,8 +508,6 @@ class OrganizerPresenter(QObject):
                         episode=p.episode,
                     )
                 )
-        self._model.set_rows(group_pipeline_rows(merged))
-        self._notify_dry_run(False)
         root_for_sync = self._parse_index_root_id
         sync_fn = self._sync_title_groups_execute
         self._parse_index_root_id = None
@@ -521,6 +516,21 @@ class OrganizerPresenter(QObject):
                 sync_fn(root_for_sync)
             except Exception:
                 logger.exception("title_groups 동기화 실패")
+
+        hydrate_fn = self._cached_tmdb_hydrate_execute
+        if root_for_sync is not None and hydrate_fn is not None:
+            try:
+                hydrated = hydrate_fn(
+                    MatchInput(
+                        files=tuple(pipeline_row_to_match_file(r) for r in merged),
+                        index_root_id=root_for_sync,
+                    )
+                )
+                merged = [self._match_file_to_pipeline_row(m) for m in hydrated.files]
+            except Exception:
+                logger.exception("TMDB cache hydration failed")
+        self._model.set_rows(group_pipeline_rows(merged))
+        self._notify_dry_run(self._dry_run_should_enable())
 
     def _on_scan_error(self, exc: Exception) -> None:
         """오류 시 모델은 유지하고 진행 다이얼로그만 숨긴다.
@@ -610,19 +620,8 @@ class OrganizerPresenter(QObject):
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
             dialog.canceled.connect(worker.cancel)
 
-            def _disconnect_cancel() -> None:
-                """스레드 종료 시 취소 시그널 연결을 끊는다.
-
-                Args:
-                    없음.
-
-                Returns:
-                    None.
-                """
-                dialog.canceled.disconnect(worker.cancel)
-
             thread = run_worker(worker)
-            thread.finished.connect(_disconnect_cancel)
+            self._disconnect_cancel_on_thread_finished(dialog, worker, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
@@ -982,19 +981,8 @@ class OrganizerPresenter(QObject):
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
             dialog.canceled.connect(worker.cancel)
 
-            def _disconnect_cancel() -> None:
-                """스레드 종료 시 취소 시그널 연결을 끊는다.
-
-                Args:
-                    없음.
-
-                Returns:
-                    None.
-                """
-                dialog.canceled.disconnect(worker.cancel)
-
             thread = run_worker(worker)
-            thread.finished.connect(_disconnect_cancel)
+            self._disconnect_cancel_on_thread_finished(dialog, worker, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
@@ -1095,19 +1083,8 @@ class OrganizerPresenter(QObject):
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
             dialog.canceled.connect(worker.cancel)
 
-            def _disconnect_cancel_apply() -> None:
-                """스레드 종료 시 취소 시그널 연결을 끊는다.
-
-                Args:
-                    없음.
-
-                Returns:
-                    None.
-                """
-                dialog.canceled.disconnect(worker.cancel)
-
             thread = run_worker(worker)
-            thread.finished.connect(_disconnect_cancel_apply)
+            self._disconnect_cancel_on_thread_finished(dialog, worker, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))

@@ -6,6 +6,7 @@ Author: Pom Kim
 """
 
 from anivault.domain.models.file_operation import FileOperation, OperationType
+from anivault.domain.models.parsed_info import ParsedInfo
 from anivault.domain.models.path_template_input import PathTemplateInput
 
-__all__ = ["FileOperation", "OperationType", "PathTemplateInput"]
+__all__ = ["FileOperation", "OperationType", "ParsedInfo", "PathTemplateInput"]

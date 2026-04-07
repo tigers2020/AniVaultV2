@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from anivault.application.dto.parse import ParsedInfo
+from anivault.domain.models.parsed_info import ParsedInfo
 
 _EP_DIGITS = re.compile(r"^\d{1,4}$")
 _EP_TAG = re.compile(r"^ep\s*\d+$", re.I)

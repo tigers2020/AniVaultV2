@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
         self.resize(1280, 768)
         self._shell = MainShell()
         self.setCentralWidget(self._shell)
-        from anivault.interfaces.gui.composition import (
+        from anivault.bootstrap.container import (
             create_organizer_page,
             create_settings_page,
             create_subtitle_organizer_page,

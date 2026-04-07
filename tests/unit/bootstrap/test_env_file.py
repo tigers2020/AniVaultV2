@@ -2,10 +2,26 @@
 
 import os
 from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
+from anivault.application.dto.parse import ParsedInfo as ApplicationParsedInfo
+from anivault.bootstrap import container
 from anivault.bootstrap import env_file
+from anivault.domain.models.parsed_info import ParsedInfo as DomainParsedInfo
+
+
+class _FakePage:
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = kwargs
+
+
+class _FakePresenter:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.args = args
+        self.kwargs = kwargs
 
 
 def test_read_tmdb_api_key_empty_when_no_file(
@@ -72,3 +88,63 @@ def test_load_into_os_environ_loads_file_when_unset(
     (tmp_path / ".env").write_text(f"{env_file.TMDB_API_KEY}=fromfile\n", encoding="utf-8")
     env_file.load_into_os_environ()
     assert os.environ.get(env_file.TMDB_API_KEY) == "fromfile"
+
+
+def test_application_parse_dto_reexports_domain_parsed_info() -> None:
+    """Application DTO imports should keep working after moving ParsedInfo to domain."""
+    assert ApplicationParsedInfo is DomainParsedInfo
+
+
+def test_domain_parsed_info_defaults_match_previous_dto_shape() -> None:
+    parsed = DomainParsedInfo()
+
+    assert parsed.title == ""
+    assert parsed.parse_group == ""
+    assert parsed.year == ""
+    assert parsed.season == ""
+    assert parsed.episode == ""
+    assert parsed.resolution == ""
+
+
+def test_create_settings_page_wires_presenter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(container, "SettingsPage", _FakePage)
+    monkeypatch.setattr(container, "SettingsPresenter", _FakePresenter)
+
+    page = container.create_settings_page()
+
+    assert isinstance(page, _FakePage)
+    assert isinstance(page.kwargs["presenter"], _FakePresenter)
+
+
+def test_create_organizer_page_delegates_to_shared_builder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    builder = MagicMock(return_value="page")
+    model = object()
+    progress_dialog = object()
+    monkeypatch.setattr(container, "_create_organizer_page", builder)
+
+    assert container.create_organizer_page(model, progress_dialog) == "page"
+    builder.assert_called_once_with(
+        pipeline_model=model,
+        progress_dialog=progress_dialog,
+        scan_extensions=None,
+        include_companion_subtitles=True,
+    )
+
+
+def test_create_subtitle_organizer_page_delegates_to_shared_builder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    builder = MagicMock(return_value="page")
+    model = object()
+    progress_dialog = object()
+    monkeypatch.setattr(container, "_create_organizer_page", builder)
+
+    assert container.create_subtitle_organizer_page(model, progress_dialog) == "page"
+    builder.assert_called_once_with(
+        pipeline_model=model,
+        progress_dialog=progress_dialog,
+        scan_extensions=container.SUBTITLE_SCAN_EXTENSIONS,
+        include_companion_subtitles=False,
+    )

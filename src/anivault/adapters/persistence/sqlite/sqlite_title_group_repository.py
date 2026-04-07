@@ -95,8 +95,26 @@ class SqliteTitleGroupRepository:
         with self._lock:
             self._conn.execute("BEGIN")
             try:
+                existing_matches: dict[str, tuple[int, str, float | None]] = {}
+                cur = self._conn.execute(
+                    """
+                    SELECT g.group_key, m.tmdb_id, m.match_status, m.match_score
+                    FROM title_groups g
+                    INNER JOIN group_tmdb_matches m ON m.group_id = g.id
+                    WHERE g.root_id = ?
+                    """,
+                    (root_id,),
+                )
+                for row in cur.fetchall():
+                    existing_matches[str(row[0])] = (
+                        int(row[1]),
+                        str(row[2]),
+                        float(row[3]) if row[3] is not None else None,
+                    )
                 self._conn.execute("DELETE FROM title_groups WHERE root_id = ?", (root_id,))
                 for b in bundles:
+                    preserved = existing_matches.get(b.group_key)
+                    tmdb_series_id = preserved[0] if preserved is not None else b.tmdb_series_id
                     n = len(b.members)
                     cur = self._conn.execute(
                         """
@@ -113,7 +131,7 @@ class SqliteTitleGroupRepository:
                             b.group_confidence,
                             b.canonical_title,
                             b.canonical_title_normalized,
-                            b.tmdb_series_id,
+                            tmdb_series_id,
                             n,
                             now,
                             now,
@@ -124,6 +142,15 @@ class SqliteTitleGroupRepository:
                         msg = "INSERT title_groups did not yield row id"
                         raise RuntimeError(msg)
                     gid = int(rid)
+                    if preserved is not None:
+                        self._conn.execute(
+                            """
+                            INSERT INTO group_tmdb_matches (
+                                group_id, tmdb_id, match_status, match_score, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (gid, preserved[0], preserved[1], preserved[2], now, now),
+                        )
                     self._conn.executemany(
                         """
                         INSERT INTO title_group_members (

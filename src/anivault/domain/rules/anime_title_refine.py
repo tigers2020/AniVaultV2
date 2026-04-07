@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from anivault.application.dto.parse import ParsedInfo
+from anivault.domain.models.parsed_info import ParsedInfo
 
 _CANONICAL_DURARARA = "Durarara!!"
 
