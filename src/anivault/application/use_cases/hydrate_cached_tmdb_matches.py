@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from collections.abc import Callable
+from pathlib import Path
 
 from anivault.application.dto.match_result import MatchFileRow, MatchInput, MatchResult
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
@@ -29,10 +32,22 @@ def _year_prefix(iso_date: str) -> str:
     return d[:4] if len(d) >= 4 else ""
 
 
+def _lexical_path_key(path: str) -> str:
+    p = Path(path).expanduser()
+    s = p.as_posix()
+    if len(s) > 1 and s.endswith("/"):
+        s = s.rstrip("/")
+        if s.endswith(":"):
+            s = s + "/"
+    if os.name == "nt" or sys.platform.startswith("win"):
+        return os.path.normcase(s)
+    return s
+
+
 def _apply_cached_candidate(
     row: MatchFileRow,
     candidate: TmdbSeriesCandidateDTO,
-    title_match: TitleMatchRepository,
+    poster_local_path_for: Callable[[int, str, str], str | None],
 ) -> MatchFileRow:
     poster_remote = normalize_tmdb_remote_image_path(candidate.poster_path)
     backdrop_remote = normalize_tmdb_remote_image_path(candidate.backdrop_path)
@@ -40,7 +55,7 @@ def _apply_cached_candidate(
     backdrop_cdn = tmdb_backdrop_cdn_url(backdrop_remote)
     local_poster: str | None = None
     if candidate.tmdb_id and poster_remote:
-        local_poster = title_match.get_poster_local_path(
+        local_poster = poster_local_path_for(
             int(candidate.tmdb_id),
             "poster",
             poster_remote,
@@ -83,34 +98,96 @@ def make_execute(
         if root_id is None or not files:
             return MatchResult(files=tuple(files), groups=())
 
-        candidate_by_group_id: dict[int, TmdbSeriesCandidateDTO | None] = {}
-        candidate_by_current_group: dict[str, TmdbSeriesCandidateDTO] = {}
+        paths_by_current_group: dict[str, list[str]] = {}
+        lexical_norms_by_current_group: dict[str, list[str]] = {}
+        all_lexical_norms: list[str] = []
         for row in files:
             current_group_key = _group_key(row)
-            if current_group_key in candidate_by_current_group:
+            paths_by_current_group.setdefault(current_group_key, []).append(row.original_file)
+            path_norm = _lexical_path_key(row.original_file)
+            lexical_norms_by_current_group.setdefault(current_group_key, []).append(path_norm)
+            all_lexical_norms.append(path_norm)
+
+        group_id_by_path_norm = title_groups.get_group_ids_for_path_norms(
+            root_id,
+            all_lexical_norms,
+        )
+        group_id_by_current_group: dict[str, int] = {}
+        missing_current_groups: list[str] = []
+        for current_group_key, path_norms in lexical_norms_by_current_group.items():
+            for path_norm in path_norms:
+                group_id = group_id_by_path_norm.get(path_norm)
+                if group_id is not None:
+                    group_id_by_current_group[current_group_key] = group_id
+                    break
+            else:
+                missing_current_groups.append(current_group_key)
+
+        if missing_current_groups:
+            fallback_norms_by_current_group: dict[str, list[str]] = {}
+            all_fallback_norms: list[str] = []
+            for current_group_key in missing_current_groups:
+                for original_file in paths_by_current_group[current_group_key]:
+                    try:
+                        path_norm = normalize_path_key(original_file)
+                    except OSError:
+                        continue
+                    fallback_norms_by_current_group.setdefault(current_group_key, []).append(
+                        path_norm,
+                    )
+                    all_fallback_norms.append(path_norm)
+            fallback_group_id_by_path_norm = title_groups.get_group_ids_for_path_norms(
+                root_id,
+                all_fallback_norms,
+            )
+            for current_group_key, path_norms in fallback_norms_by_current_group.items():
+                for path_norm in path_norms:
+                    group_id = fallback_group_id_by_path_norm.get(path_norm)
+                    if group_id is not None:
+                        group_id_by_current_group[current_group_key] = group_id
+                        break
+
+        matches_by_group_id = title_match.get_group_matches(
+            list(group_id_by_current_group.values()),
+        )
+        tmdb_ids = [
+            match.tmdb_id
+            for match in matches_by_group_id.values()
+            if match.match_status in ("auto_matched", "confirmed")
+        ]
+        candidates_by_tmdb_id = title_match.get_series_candidates(tmdb_ids)
+        candidate_by_current_group: dict[str, TmdbSeriesCandidateDTO] = {}
+        for current_group_key, group_id in group_id_by_current_group.items():
+            match = matches_by_group_id.get(group_id)
+            if match is None or match.match_status not in ("auto_matched", "confirmed"):
                 continue
-            try:
-                path_norm = normalize_path_key(row.original_file)
-            except OSError:
-                continue
-            group_id = title_groups.get_group_id_for_path_norm(root_id, path_norm)
-            if group_id is None:
-                continue
-            if group_id not in candidate_by_group_id:
-                match = title_match.get_group_match(group_id)
-                candidate_by_group_id[group_id] = (
-                    title_match.get_series_candidate(match.tmdb_id)
-                    if match is not None and match.match_status in ("auto_matched", "confirmed")
-                    else None
-                )
-            candidate = candidate_by_group_id[group_id]
+            candidate = candidates_by_tmdb_id.get(match.tmdb_id)
             if candidate is None:
                 continue
             candidate_by_current_group[current_group_key] = candidate
+
+        poster_local_path_cache: dict[tuple[int, str, str], str | None] = {}
+
+        def poster_local_path_for(
+            tmdb_id: int,
+            image_kind: str,
+            remote_path: str,
+        ) -> str | None:
+            key = (tmdb_id, image_kind, remote_path)
+            if key not in poster_local_path_cache:
+                poster_local_path_cache[key] = title_match.get_poster_local_path(
+                    tmdb_id,
+                    image_kind,
+                    remote_path,
+                )
+            return poster_local_path_cache[key]
+
         hydrated = [
             (
                 _apply_cached_candidate(
-                    row, candidate_by_current_group[_group_key(row)], title_match
+                    row,
+                    candidate_by_current_group[_group_key(row)],
+                    poster_local_path_for,
                 )
                 if _group_key(row) in candidate_by_current_group
                 else row

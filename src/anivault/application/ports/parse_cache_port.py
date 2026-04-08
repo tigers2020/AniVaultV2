@@ -10,6 +10,11 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from anivault.application.dto.parse import ParsedInfo
+from anivault.application.dto.parse_cache import (
+    ParseCacheErrorWrite,
+    ParseCacheLookup,
+    ParseCacheOkWrite,
+)
 
 
 @runtime_checkable
@@ -27,6 +32,10 @@ class ParseCacheRepository(Protocol):
         Returns:
             캐시된 최종 ParsedInfo. miss면 None.
         """
+        ...
+
+    def get_valid_parses(self, lookups: list[ParseCacheLookup]) -> dict[int, ParsedInfo]:
+        """Bulk read valid parse cache hits by media id."""
         ...
 
     def upsert_parse_ok(
@@ -69,6 +78,10 @@ class ParseCacheRepository(Protocol):
         """
         ...
 
+    def upsert_parse_ok_many(self, items: list[ParseCacheOkWrite]) -> None:
+        """Bulk upsert successful parse cache rows."""
+        ...
+
     def upsert_parse_error(
         self,
         *,
@@ -91,4 +104,8 @@ class ParseCacheRepository(Protocol):
         Returns:
             None.
         """
+        ...
+
+    def upsert_parse_error_many(self, items: list[ParseCacheErrorWrite]) -> None:
+        """Bulk upsert parse error cache rows."""
         ...

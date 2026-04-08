@@ -14,6 +14,11 @@ from threading import Event
 
 from anivault.application.dto.library_index import IndexedMediaForParse
 from anivault.application.dto.parse import ParsedInfo, ParseInput, ParseResult
+from anivault.application.dto.parse_cache import (
+    ParseCacheErrorWrite,
+    ParseCacheLookup,
+    ParseCacheOkWrite,
+)
 from anivault.application.dto.parse_serde import parsed_info_to_compact_json
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.ports.filename_parser import FilenameParser
@@ -92,6 +97,21 @@ def make_execute(
             assert parse_cache is not None
             assert index_root_id is not None
             resolved = library_index.resolve_media_for_parse(index_root_id, paths)
+        signatures: list[str | None] = [None] * total
+        cached_by_media_id: dict[int, ParsedInfo] = {}
+        if use_cache and resolved is not None and parse_cache is not None:
+            lookups: list[ParseCacheLookup] = []
+            for i, meta in enumerate(resolved):
+                if meta is None:
+                    continue
+                lookup_signature = compute_parse_input_signature(
+                    meta.path_norm,
+                    meta.size_bytes,
+                    meta.mtime_ns,
+                )
+                signatures[i] = lookup_signature
+                lookups.append(ParseCacheLookup(meta.id, lookup_signature))
+            cached_by_media_id = parse_cache.get_valid_parses(lookups)
         if callable(progress_callback) and total:
             progress_callback(
                 ProgressEvent(
@@ -104,22 +124,30 @@ def make_execute(
             )
         parsed: list[ParsedInfo] = []
         cache_hits: list[bool] = []
+        pending_ok: list[ParseCacheOkWrite] = []
+        pending_errors: list[ParseCacheErrorWrite] = []
+
+        def flush_pending_cache_writes() -> None:
+            if not use_cache or parse_cache is None:
+                return
+            if pending_ok:
+                parse_cache.upsert_parse_ok_many(pending_ok)
+                pending_ok.clear()
+            if pending_errors:
+                parse_cache.upsert_parse_error_many(pending_errors)
+                pending_errors.clear()
+
         for i, path in enumerate(paths):
             if cancel_token.is_set():
+                flush_pending_cache_writes()
                 return ParseResult(parsed=parsed, cache_hits=cache_hits)
             meta = None
             if use_cache and resolved is not None:
                 meta = resolved[i]
-            signature: str | None = None
-            if meta is not None:
-                signature = compute_parse_input_signature(
-                    meta.path_norm,
-                    meta.size_bytes,
-                    meta.mtime_ns,
-                )
+            signature: str | None = signatures[i] if i < len(signatures) else None
             cached: ParsedInfo | None = None
             if use_cache and parse_cache is not None and meta is not None and signature is not None:
-                cached = parse_cache.get_valid_parse(meta.id, signature)
+                cached = cached_by_media_id.get(meta.id)
             if cached is not None:
                 parsed.append(cached)
                 cache_hits.append(True)
@@ -136,12 +164,14 @@ def make_execute(
                         and meta is not None
                         and signature is not None
                     ):
-                        parse_cache.upsert_parse_error(
-                            media_file_id=meta.id,
-                            parser_version=PARSER_VERSION,
-                            parse_input_signature=signature,
-                            error_code=type(e).__name__,
-                            error_message=str(e),
+                        pending_errors.append(
+                            ParseCacheErrorWrite(
+                                media_file_id=meta.id,
+                                parser_version=PARSER_VERSION,
+                                parse_input_signature=signature,
+                                error_code=type(e).__name__,
+                                error_message=str(e),
+                            )
                         )
                     parsed.append(ParsedInfo())
                     cache_hits.append(False)
@@ -157,22 +187,24 @@ def make_execute(
                         and signature is not None
                     ):
                         dto_json = parsed_info_to_compact_json(info)
-                        parse_cache.upsert_parse_ok(
-                            media_file_id=meta.id,
-                            parser_version=PARSER_VERSION,
-                            parse_input_signature=signature,
-                            parsed=info,
-                            dto_json=dto_json,
-                            parsed_title=info.title or None,
-                            parsed_title_normalized=normalize_title_for_parse_cache(
-                                info.title,
-                            ),
-                            parsed_year=_optional_int_from_str(info.year),
-                            season_number=_optional_int_from_str(info.season),
-                            episode_start=_optional_int_from_str(info.episode),
-                            episode_end=None,
-                            episode_count=None,
-                            confidence=None,
+                        pending_ok.append(
+                            ParseCacheOkWrite(
+                                media_file_id=meta.id,
+                                parser_version=PARSER_VERSION,
+                                parse_input_signature=signature,
+                                parsed=info,
+                                dto_json=dto_json,
+                                parsed_title=info.title or None,
+                                parsed_title_normalized=normalize_title_for_parse_cache(
+                                    info.title,
+                                ),
+                                parsed_year=_optional_int_from_str(info.year),
+                                season_number=_optional_int_from_str(info.season),
+                                episode_start=_optional_int_from_str(info.episode),
+                                episode_end=None,
+                                episode_count=None,
+                                confidence=None,
+                            )
                         )
             if callable(progress_callback) and total:
                 pct = int((i + 1) * 100 / total) if total else 100
@@ -190,6 +222,7 @@ def make_execute(
                         item_path=path,
                     )
                 )
+        flush_pending_cache_writes()
         return ParseResult(parsed=parsed, cache_hits=cache_hits)
 
     return execute

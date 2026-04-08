@@ -101,6 +101,13 @@ class TitleMatchRepository(Protocol):
         """
         ...
 
+    def get_series_candidates(
+        self,
+        tmdb_ids: list[int],
+    ) -> dict[int, TmdbSeriesCandidateDTO]:
+        """Multiple TMDB ids to non-expired series candidates."""
+        ...
+
     def get_group_match(self, group_id: int) -> GroupTmdbMatchRecord | None:
         """그룹의 저장된 TMDB 매칭을 조회한다.
 
@@ -111,6 +118,10 @@ class TitleMatchRepository(Protocol):
         Returns:
             레코드. 없으면 None.
         """
+        ...
+
+    def get_group_matches(self, group_ids: list[int]) -> dict[int, GroupTmdbMatchRecord]:
+        """Multiple group ids to their stored TMDB match records."""
         ...
 
     def set_group_match(

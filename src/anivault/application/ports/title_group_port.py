@@ -33,6 +33,14 @@ class TitleGroupRepository(Protocol):
         """
         ...
 
+    def get_group_ids_for_path_norms(
+        self,
+        root_id: int,
+        path_norms: list[str],
+    ) -> dict[str, int]:
+        """Multiple `path_norm` values to their owning title group ids."""
+        ...
+
     def replace_root_title_groups(self, root_id: int, bundles: list[TitleGroupSyncBundle]) -> None:
         """단일 트랜잭션에서 루트 소속 기존 그룹을 모두 지우고 새 그룹·멤버를 쓴다.
 

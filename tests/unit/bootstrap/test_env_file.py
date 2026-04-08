@@ -16,6 +16,11 @@ from anivault.application.dto.parse import (
 from anivault.application.dto.parse import (
     ParseInput,
 )
+from anivault.application.dto.parse_cache import (
+    ParseCacheErrorWrite,
+    ParseCacheLookup,
+    ParseCacheOkWrite,
+)
 from anivault.application.dto.plan import PlanInput
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.use_cases.parse_titles import make_execute as make_parse_execute
@@ -45,6 +50,27 @@ class _FailingParser:
         raise AssertionError("parser should not run on parse cache hit")
 
 
+class _SuccessfulParser:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def parse(self, filename: str) -> DomainParsedInfo:
+        self.calls.append(filename)
+        return DomainParsedInfo(
+            title=Path(filename).stem,
+            parse_group=Path(filename).stem,
+            year="2025",
+            season="1",
+            episode="01",
+            resolution="1080p",
+        )
+
+
+class _ErrorParser:
+    def parse(self, filename: str) -> DomainParsedInfo:
+        raise ValueError(f"bad filename: {filename}")
+
+
 class _ParseLibraryIndex:
     def __init__(self, media: list[IndexedMediaForParse | None]) -> None:
         self.media = media
@@ -61,18 +87,37 @@ class _ParseLibraryIndex:
 class _ParseCache:
     def __init__(self, cached: dict[int, DomainParsedInfo]) -> None:
         self.cached = cached
+        self.lookups: list[ParseCacheLookup] = []
         self.upserted_ok: list[int] = []
         self.upserted_errors: list[int] = []
+        self.upserted_ok_many: list[ParseCacheOkWrite] = []
+        self.upserted_error_many: list[ParseCacheErrorWrite] = []
 
     def get_valid_parse(self, media_file_id: int, signature: str) -> DomainParsedInfo | None:
         del signature
         return self.cached.get(media_file_id)
 
+    def get_valid_parses(self, lookups: list[ParseCacheLookup]) -> dict[int, DomainParsedInfo]:
+        self.lookups.extend(lookups)
+        return {
+            lookup.media_file_id: self.cached[lookup.media_file_id]
+            for lookup in lookups
+            if lookup.media_file_id in self.cached
+        }
+
     def upsert_parse_ok(self, **kwargs: Any) -> None:
         self.upserted_ok.append(int(kwargs["media_file_id"]))
 
+    def upsert_parse_ok_many(self, items: list[ParseCacheOkWrite]) -> None:
+        self.upserted_ok_many.extend(items)
+        self.upserted_ok.extend(item.media_file_id for item in items)
+
     def upsert_parse_error(self, **kwargs: Any) -> None:
         self.upserted_errors.append(int(kwargs["media_file_id"]))
+
+    def upsert_parse_error_many(self, items: list[ParseCacheErrorWrite]) -> None:
+        self.upserted_error_many.extend(items)
+        self.upserted_errors.extend(item.media_file_id for item in items)
 
 
 def _matched_row(path: Path) -> MatchFileRow:
@@ -203,12 +248,13 @@ def test_parse_titles_loads_valid_cache_without_running_parser() -> None:
         episode="01",
         resolution="1080p",
     )
+    cache = _ParseCache({7: cached})
     execute = make_parse_execute(
         parser,  # type: ignore[arg-type]
         library_index=_ParseLibraryIndex(
             [IndexedMediaForParse(id=7, path_norm="show.mkv", size_bytes=10, mtime_ns=20)]
         ),  # type: ignore[arg-type]
-        parse_cache=_ParseCache({7: cached}),  # type: ignore[arg-type]
+        parse_cache=cache,  # type: ignore[arg-type]
     )
     progress: list[ProgressEvent] = []
 
@@ -221,10 +267,47 @@ def test_parse_titles_loads_valid_cache_without_running_parser() -> None:
     assert result.parsed == [cached]
     assert result.cache_hits == [True]
     assert parser.calls == []
+    assert [lookup.media_file_id for lookup in cache.lookups] == [7]
     assert [event.message for event in progress] == [
         "파싱 캐시 확인 중...",
         "파싱 캐시 로딩 중 1/1",
     ]
+
+
+def test_parse_titles_bulk_writes_cache_misses() -> None:
+    parser = _SuccessfulParser()
+    cache = _ParseCache({})
+    execute = make_parse_execute(
+        parser,  # type: ignore[arg-type]
+        library_index=_ParseLibraryIndex(
+            [IndexedMediaForParse(id=8, path_norm="show.mkv", size_bytes=10, mtime_ns=20)]
+        ),  # type: ignore[arg-type]
+        parse_cache=cache,  # type: ignore[arg-type]
+    )
+
+    result = execute(ParseInput(paths=["F:/media/show.mkv"], index_root_id=1), None, Event())
+
+    assert result.cache_hits == [False]
+    assert parser.calls == ["show.mkv"]
+    assert [item.media_file_id for item in cache.upserted_ok_many] == [8]
+    assert cache.upserted_error_many == []
+
+
+def test_parse_titles_bulk_writes_parse_errors() -> None:
+    cache = _ParseCache({})
+    execute = make_parse_execute(
+        _ErrorParser(),  # type: ignore[arg-type]
+        library_index=_ParseLibraryIndex(
+            [IndexedMediaForParse(id=9, path_norm="bad.mkv", size_bytes=10, mtime_ns=20)]
+        ),  # type: ignore[arg-type]
+        parse_cache=cache,  # type: ignore[arg-type]
+    )
+
+    result = execute(ParseInput(paths=["F:/media/bad.mkv"], index_root_id=1), None, Event())
+
+    assert result.cache_hits == [False]
+    assert [item.media_file_id for item in cache.upserted_error_many] == [9]
+    assert cache.upserted_error_many[0].error_code == "ValueError"
 
 
 def test_create_settings_page_wires_presenter(monkeypatch: pytest.MonkeyPatch) -> None:
