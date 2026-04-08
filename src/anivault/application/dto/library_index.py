@@ -11,6 +11,23 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class BulkMediaUpsertItem:
+    """Input row for bulk media index upsert."""
+
+    absolute_path: str
+    media_kind: str
+
+
+@dataclass(frozen=True)
+class BulkMediaUpsertResult:
+    """Summary from bulk media index upsert."""
+
+    files_added: int
+    files_updated: int
+    seen_path_norms: set[str]
+
+
+@dataclass(frozen=True)
 class MediaFileRecord:
     """media_files 행 요약."""
 

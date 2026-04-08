@@ -9,7 +9,12 @@ from __future__ import annotations
 
 from typing import Literal, Protocol, runtime_checkable
 
-from anivault.application.dto.library_index import IndexedMediaForParse, MediaFileRecord
+from anivault.application.dto.library_index import (
+    BulkMediaUpsertItem,
+    BulkMediaUpsertResult,
+    IndexedMediaForParse,
+    MediaFileRecord,
+)
 
 ScanSessionStatus = Literal["success", "failed", "cancelled"]
 
@@ -91,6 +96,25 @@ class LibraryIndexRepository(Protocol):
 
         Returns:
             `(is_new, is_updated)` — 신규 삽입이면 `(True, False)`, 기존 갱신이면 `(False, True)`.
+        """
+        ...
+
+    def upsert_media_files(
+        self,
+        root_id: int,
+        session_id: int,
+        files: list[BulkMediaUpsertItem],
+    ) -> BulkMediaUpsertResult:
+        """Reflect many media files in one repository operation.
+
+        Args:
+            self: Repository instance.
+            root_id: `library_roots.id`.
+            session_id: Current scan session id.
+            files: Media files with absolute path and media kind.
+
+        Returns:
+            Bulk summary plus the normalized paths seen during this scan.
         """
         ...
 

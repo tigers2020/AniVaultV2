@@ -11,16 +11,24 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 from threading import Event
+from typing import cast
 
+from anivault.application.dto.library_index import BulkMediaUpsertItem
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.application.ports.file_repository import FileRepository
 from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.domain.media.extensions import VIDEO_SCAN_EXTENSIONS, classify_media_kind
-from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.resolution_from_filename import resolution_from_filename
 
 logger = logging.getLogger(__name__)
+
+
+def _progress_if_callable(progress_callback: object, event: ProgressEvent) -> None:
+    """Progress 콜백이 callable일 때만 이벤트를 넘긴다(execute 쪽 분기 단순화)."""
+    if not callable(progress_callback):
+        return
+    cast(Callable[[ProgressEvent], None], progress_callback)(event)
 
 
 def _try_persist_library_index(
@@ -53,29 +61,28 @@ def _try_persist_library_index(
     try:
         root_id = library_index.upsert_root(scan_root_str)
         scan_id = library_index.begin_scan(root_id, "full")
-        for p in paths:
-            if cancel_token.is_set():
-                assert scan_id is not None
-                library_index.finish_scan(
-                    scan_id,
-                    status="cancelled",
-                    files_seen=len(seen),
-                    files_added=files_added,
-                    files_updated=files_updated,
-                    files_removed=0,
-                )
-                return root_id
-            ap = str(p)
-            kind = classify_media_kind(ap)
-            a, u = library_index.upsert_media_file(
-                root_id,
+        if cancel_token.is_set():
+            assert scan_id is not None
+            library_index.finish_scan(
                 scan_id,
-                absolute_path=ap,
-                media_kind=kind,
+                status="cancelled",
+                files_seen=0,
+                files_added=files_added,
+                files_updated=files_updated,
+                files_removed=0,
             )
-            files_added += int(a)
-            files_updated += int(u)
-            seen.add(normalize_path_key(ap))
+            return root_id
+        bulk_files = [
+            BulkMediaUpsertItem(
+                absolute_path=str(p),
+                media_kind=classify_media_kind(str(p)),
+            )
+            for p in paths
+        ]
+        bulk_result = library_index.upsert_media_files(root_id, scan_id, bulk_files)
+        files_added = bulk_result.files_added
+        files_updated = bulk_result.files_updated
+        seen = bulk_result.seen_path_norms
         assert scan_id is not None
         removed = library_index.mark_missing_deleted(root_id, scan_id, seen)
         library_index.finish_scan(
@@ -139,16 +146,16 @@ def make_execute(
         """
         if cancel_token.is_set():
             return ScanResult(paths=[], resolutions=[])
-        if callable(progress_callback):
-            progress_callback(
-                ProgressEvent(
-                    stage="scan",
-                    current=0,
-                    total=0,
-                    message="폴더 스캔 중...",
-                    percent=0,
-                )
-            )
+        _progress_if_callable(
+            progress_callback,
+            ProgressEvent(
+                stage="scan",
+                current=0,
+                total=0,
+                message="폴더 스캔 중...",
+                percent=0,
+            ),
+        )
         root = Path(input_dto.path)
 
         def scan_progress(count: int, item_path: str | None) -> None:
@@ -161,17 +168,17 @@ def make_execute(
             Returns:
                 None.
             """
-            if callable(progress_callback):
-                progress_callback(
-                    ProgressEvent(
-                        stage="scan",
-                        current=count,
-                        total=0,
-                        message=f"스캔 중: {count}개 파일 발견",
-                        percent=0,
-                        item_path=item_path,
-                    )
-                )
+            _progress_if_callable(
+                progress_callback,
+                ProgressEvent(
+                    stage="scan",
+                    current=count,
+                    total=0,
+                    message=f"스캔 중: {count}개 파일 발견",
+                    percent=0,
+                    item_path=item_path,
+                ),
+            )
 
         paths = file_repo.list_files(
             root,
@@ -182,16 +189,17 @@ def make_execute(
         )
         if cancel_token.is_set():
             return ScanResult(paths=[], resolutions=[])
-        if callable(progress_callback) and paths:
-            progress_callback(
+        if paths:
+            _progress_if_callable(
+                progress_callback,
                 ProgressEvent(
                     stage="scan",
                     current=len(paths),
                     total=len(paths),
                     message=f"스캔 완료: {len(paths)}개 파일",
                     percent=100,
-                    item_path=str(paths[-1]) if paths else None,
-                )
+                    item_path=str(paths[-1]),
+                ),
             )
         str_paths = [str(p) for p in paths]
         resolutions = [resolution_from_filename(p) for p in str_paths]
