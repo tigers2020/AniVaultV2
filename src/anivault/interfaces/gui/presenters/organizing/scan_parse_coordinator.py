@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
 
+from anivault.application.dto.match_result import MatchInput, MatchResult
 from anivault.application.dto.parse import ParseInput, ParseResult
 from anivault.application.dto.progress import ProgressEvent, progress_dialog_value_and_maximum
 from anivault.application.dto.scan import ScanInput, ScanResult
@@ -27,6 +28,7 @@ from anivault.interfaces.gui.models import (
     PipelineTableModel,
     group_pipeline_rows,
 )
+from anivault.interfaces.gui.presenters.plan_helpers import pipeline_row_to_match_file
 from anivault.interfaces.gui.presenters.worker_session import (
     run_use_case_worker_with_progress_dialog,
 )
@@ -66,6 +68,20 @@ def _execute_title_groups_sync_worker(
     return None
 
 
+def _execute_cached_tmdb_hydrate_worker(
+    dto: MatchInput,
+    progress_callback: object,
+    cancel_token: Event,
+    *,
+    hydrate_fn: Callable[[MatchInput], MatchResult],
+) -> MatchResult:
+    """Run cached TMDB hydrate with the worker-compatible callable signature."""
+    del progress_callback
+    if cancel_token.is_set():
+        return MatchResult(files=())
+    return hydrate_fn(dto)
+
+
 class ScanParseCoordinator(QObject):
     """스캔→파싱 흐름과 진행 다이얼로그 세션."""
 
@@ -83,6 +99,7 @@ class ScanParseCoordinator(QObject):
         self._parse_apply_generation = 0
         # 파싱 완료 시 병합용: 대용량에서 중간 set_rows를 생략하면 모델이 비어 있을 수 있음.
         self._parse_snapshot: tuple[int, list[PipelineRow]] | None = None
+        self._pending_cached_hydrate: dict[int, tuple[PipelineTableModel, MatchInput]] = {}
 
     def _warn_scan_path(self, title: str, message: str) -> None:
         """부모가 QWidget이면 경고 대화상자를 띄운다.
@@ -167,7 +184,6 @@ class ScanParseCoordinator(QObject):
             )
         else:
             thread = run_worker(worker)
-        thread.finished.connect(lambda t=thread: self._p._on_worker_finished(t))  # noqa: SLF001
         self._p.register_worker_thread(thread)  # noqa: SLF001
 
     def _on_scan_thread_finished(self, dialog: ProgressDialog) -> None:
@@ -334,7 +350,6 @@ class ScanParseCoordinator(QObject):
             )
         else:
             thread = run_worker(worker)
-        thread.finished.connect(lambda t=thread: self._p._on_worker_finished(t))  # noqa: SLF001
         self._p.register_worker_thread(thread)  # noqa: SLF001
 
     def _on_parse_result(self, result: ParseResult, session_gen: int) -> None:
@@ -400,21 +415,95 @@ class ScanParseCoordinator(QObject):
                         episode=p.episode,
                     )
                 )
-        grouped = group_pipeline_rows(merged)
         root_for_sync = self._p._parse_index_root_id  # noqa: SLF001
         sync_fn = self._p._sync_title_groups_execute  # noqa: SLF001
         self._p._parse_index_root_id = None  # noqa: SLF001
-        self._apply_parse_result_groups_chunked(
+        self._apply_parse_result_rows_after_optional_hydrate(
             model,
-            grouped,
+            merged,
             session_gen=session_gen,
             root_for_sync=root_for_sync,
             sync_fn=sync_fn,
         )
 
+    def _apply_parse_result_rows_after_optional_hydrate(
+        self,
+        model: PipelineTableModel,
+        merged: list[PipelineRow],
+        *,
+        session_gen: int,
+        root_for_sync: int | None,
+        sync_fn: Callable[[int], None] | None,
+    ) -> None:
+        """Hydrate cached TMDB data off the UI thread, then apply rows in chunks."""
+        hydrate_fn = self._p._cached_tmdb_hydrate_execute  # noqa: SLF001
+        if root_for_sync is not None and hydrate_fn is not None:
+            self._pending_cached_hydrate[session_gen] = (
+                model,
+                MatchInput(
+                    files=tuple(pipeline_row_to_match_file(row) for row in merged),
+                    index_root_id=root_for_sync,
+                ),
+            )
+        self._apply_parse_result_groups_chunked(
+            model,
+            group_pipeline_rows(merged),
+            session_gen=session_gen,
+            root_for_sync=root_for_sync,
+            sync_fn=sync_fn,
+        )
+
+    def _run_pending_cached_tmdb_hydrate(self, session_gen: int) -> None:
+        """Start cached TMDB hydrate after parsed rows are already visible."""
+        hydrate_fn = self._p._cached_tmdb_hydrate_execute  # noqa: SLF001
+        pending = self._pending_cached_hydrate.pop(session_gen, None)
+        if pending is None or hydrate_fn is None or session_gen != self._parse_apply_generation:
+            return
+        model, hydrate_input = pending
+
+        signals = WorkerSignals()
+        worker = UseCaseWorker(
+            execute_fn=partial(_execute_cached_tmdb_hydrate_worker, hydrate_fn=hydrate_fn),
+            input_dto=hydrate_input,
+            signals=signals,
+        )
+        signals.result.connect(
+            lambda result, g=session_gen: self._on_cached_tmdb_hydrate_result(
+                result,
+                model,
+                g,
+            )
+        )
+        signals.error.connect(
+            lambda exc, lg=logger: lg.exception("cached TMDB hydrate failed", exc_info=exc)
+        )
+        thread = run_worker(worker)
+        self._p.register_worker_thread(thread)  # noqa: SLF001
+
+    def _on_cached_tmdb_hydrate_result(
+        self,
+        result: MatchResult,
+        model: PipelineTableModel,
+        session_gen: int,
+    ) -> None:
+        """Apply cached TMDB hydrate results after the background worker completes."""
+        if session_gen != self._parse_apply_generation:
+            return
+        grouped = group_pipeline_rows(
+            [self._p._match_file_to_pipeline_row(file) for file in result.files]  # noqa: SLF001
+        )
+        self._apply_parse_result_groups_chunked(
+            model,
+            grouped,
+            session_gen=session_gen,
+            root_for_sync=None,
+            sync_fn=None,
+        )
+
     def _after_parse_result_groups_applied(
         self,
         *,
+        session_gen: int,
         root_for_sync: int | None,
         sync_fn: Callable[[int], None] | None,
     ) -> None:
@@ -432,6 +521,7 @@ class ScanParseCoordinator(QObject):
         if panel is not None:
             panel.sync_views_from_model()
         self._p._notify_dry_run(False)  # noqa: SLF001
+        self._run_pending_cached_tmdb_hydrate(session_gen)
         if root_for_sync is None or sync_fn is None:
             return
         self._run_title_groups_sync_worker(root_for_sync, sync_fn)
@@ -462,7 +552,6 @@ class ScanParseCoordinator(QObject):
             ),
         )
         thread = run_worker(worker)
-        thread.finished.connect(lambda t=thread: self._p._on_worker_finished(t))  # noqa: SLF001
         self._p.register_worker_thread(thread)  # noqa: SLF001
 
     def _schedule_parse_result_chunk_work(
@@ -496,6 +585,7 @@ class ScanParseCoordinator(QObject):
             return
         if idx_ref[0] >= n:
             self._after_parse_result_groups_applied(
+                session_gen=session_gen,
                 root_for_sync=root_for_sync,
                 sync_fn=sync_fn,
             )
@@ -505,6 +595,7 @@ class ScanParseCoordinator(QObject):
         idx_ref[0] = end
         if idx_ref[0] >= n:
             self._after_parse_result_groups_applied(
+                session_gen=session_gen,
                 root_for_sync=root_for_sync,
                 sync_fn=sync_fn,
             )

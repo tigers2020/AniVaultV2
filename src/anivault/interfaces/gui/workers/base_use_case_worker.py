@@ -125,6 +125,7 @@ def run_worker(
         시작된 QThread(참조 유지 권장).
     """
     thread = QThread()
+    thread._anivault_worker = worker  # type: ignore[attr-defined]
     worker.moveToThread(thread)
     thread.started.connect(worker.run)
 
@@ -136,5 +137,7 @@ def run_worker(
         worker.signals().progress.connect(on_progress)
 
     worker.signals().finished.connect(thread.quit)
+    worker.signals().finished.connect(worker.deleteLater)
+    thread.finished.connect(lambda t=thread: setattr(t, "_anivault_worker", None))
     thread.start()
     return thread

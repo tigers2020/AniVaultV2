@@ -195,11 +195,17 @@ class OrganizerPresenter(QObject):
         self._parse_index_root_id: int | None = None
         self._current_library_root_id: int | None = None
         self._worker_thread: QThread | None = None
+        self._worker_threads: list[QThread] = []
         self._dry_run_enabled_handler: Callable[[bool], None] | None = None
         self._pending_plan: PlanResult | None = None
         self._scan_progress_handoff_done: bool = False
         self._pipeline_panel: PipelineResultPanel | None = None
         self._tmdb_worker_keepalive: UseCaseWorker | None = None
+        from anivault.interfaces.gui.presenters.organizing.scan_parse_coordinator import (
+            ScanParseCoordinator,
+        )
+
+        self._scan_parse_coordinator = ScanParseCoordinator(self)
 
     def set_pipeline_result_panel(self, panel: PipelineResultPanel | None) -> None:
         """Pipeline Result 패널(선택 인덱스·수동 매칭 시그널)을 연결한다.
@@ -231,20 +237,24 @@ class OrganizerPresenter(QObject):
     def _disconnect_cancel_on_thread_finished(
         self,
         dialog: ProgressDialog,
-        worker: UseCaseWorker,
+        cancel_slot: Callable[[], None],
         thread: QThread,
     ) -> None:
         """Disconnect the shared cancel signal when a worker thread finishes."""
 
         def _disconnect_cancel() -> None:
             try:
-                dialog.canceled.disconnect(worker.cancel)
-            except (RuntimeError, TypeError):
+                dialog.canceled.disconnect(cancel_slot)
+            except (RuntimeError, TypeError, SystemError):
                 logger.debug("Progress dialog cancel signal was already disconnected.")
 
         thread.finished.connect(_disconnect_cancel)
 
     def on_scan_clicked(self, path: str) -> None:
+        """Delegate scan/parse flow to the coordinator that applies parse results in chunks."""
+        self._scan_parse_coordinator.on_scan_clicked(path)
+
+    def _on_scan_clicked_legacy(self, path: str) -> None:
         """스캔 버튼 클릭: 경로 검증 후 워커를 시작하고 결과로 모델을 갱신한다.
 
         Args:
@@ -288,10 +298,11 @@ class OrganizerPresenter(QObject):
                 lambda: self._on_scan_thread_finished(dialog),
             )
             signals.cancelled.connect(dialog.hide_progress)
-            dialog.canceled.connect(worker.cancel)
+            cancel_slot = worker.cancel
+            dialog.canceled.connect(cancel_slot)
 
             thread = run_worker(worker)
-            self._disconnect_cancel_on_thread_finished(dialog, worker, thread)
+            self._disconnect_cancel_on_thread_finished(dialog, cancel_slot, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
@@ -308,6 +319,9 @@ class OrganizerPresenter(QObject):
             None.
         """
         self._worker_thread = thread
+        if thread not in self._worker_threads:
+            self._worker_threads.append(thread)
+        thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
 
     def _on_scan_thread_finished(self, dialog: ProgressDialog) -> None:
         """스캔 워커 스레드 finished: 이미 파싱으로 넘겼으면 mark 생략(이중 세션 방지).
@@ -464,10 +478,11 @@ class OrganizerPresenter(QObject):
             token = dialog.mark_work_started()
             signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
-            dialog.canceled.connect(worker.cancel)
+            cancel_slot = worker.cancel
+            dialog.canceled.connect(cancel_slot)
 
             thread = run_worker(worker)
-            self._disconnect_cancel_on_thread_finished(dialog, worker, thread)
+            self._disconnect_cancel_on_thread_finished(dialog, cancel_slot, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
@@ -623,8 +638,10 @@ class OrganizerPresenter(QObject):
         Returns:
             None.
         """
+        if thread in self._worker_threads:
+            self._worker_threads.remove(thread)
         if self._worker_thread is thread:
-            self._worker_thread = None
+            self._worker_thread = self._worker_threads[-1] if self._worker_threads else None
 
     def on_parse_clicked(self) -> None:
         """파싱 버튼 클릭(Phase 4 예약). 현재는 동작 없음.
@@ -684,10 +701,11 @@ class OrganizerPresenter(QObject):
             )
             signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
-            dialog.canceled.connect(worker.cancel)
+            cancel_slot = worker.cancel
+            dialog.canceled.connect(cancel_slot)
 
             thread = run_worker(worker)
-            self._disconnect_cancel_on_thread_finished(dialog, worker, thread)
+            self._disconnect_cancel_on_thread_finished(dialog, cancel_slot, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
@@ -1045,10 +1063,11 @@ class OrganizerPresenter(QObject):
             )
             signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
-            dialog.canceled.connect(worker.cancel)
+            cancel_slot = worker.cancel
+            dialog.canceled.connect(cancel_slot)
 
             thread = run_worker(worker)
-            self._disconnect_cancel_on_thread_finished(dialog, worker, thread)
+            self._disconnect_cancel_on_thread_finished(dialog, cancel_slot, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
@@ -1147,10 +1166,11 @@ class OrganizerPresenter(QObject):
             signals.started.connect(lambda: dialog.show_progress("파일 이동", "이동 중…", False))
             signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
-            dialog.canceled.connect(worker.cancel)
+            cancel_slot = worker.cancel
+            dialog.canceled.connect(cancel_slot)
 
             thread = run_worker(worker)
-            self._disconnect_cancel_on_thread_finished(dialog, worker, thread)
+            self._disconnect_cancel_on_thread_finished(dialog, cancel_slot, thread)
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))

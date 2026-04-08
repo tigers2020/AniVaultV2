@@ -21,15 +21,15 @@ logger = logging.getLogger(__name__)
 
 def _disconnect_cancel_on_thread_finished(
     dialog: ProgressDialog,
-    worker: UseCaseWorker,
+    cancel_slot: Callable[[], None],
     thread: QThread,
 ) -> None:
     """스레드 종료 시 취소 시그널 연결을 끊는다(이중 disconnect 방지)."""
 
     def _disconnect_cancel() -> None:
         try:
-            dialog.canceled.disconnect(worker.cancel)
-        except (RuntimeError, TypeError):
+            dialog.canceled.disconnect(cancel_slot)
+        except (RuntimeError, TypeError, SystemError):
             logger.debug("Progress dialog cancel signal was already disconnected.")
 
     thread.finished.connect(_disconnect_cancel)
@@ -77,7 +77,8 @@ def run_use_case_worker_with_progress_dialog(
     signals.finished.connect(on_finished)
     if hide_progress_on_cancelled:
         signals.cancelled.connect(dialog.hide_progress)
-    dialog.canceled.connect(worker.cancel)
+    cancel_slot = worker.cancel
+    dialog.canceled.connect(cancel_slot)
     thread = run_worker(worker)
-    _disconnect_cancel_on_thread_finished(dialog, worker, thread)
+    _disconnect_cancel_on_thread_finished(dialog, cancel_slot, thread)
     return thread

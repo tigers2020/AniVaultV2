@@ -148,11 +148,12 @@ def test_cancel_signal_disconnects_when_thread_finishes() -> None:
     dialog = MagicMock()
     worker = MagicMock()
     thread = _FakeThread()
+    cancel_slot = worker.cancel
 
-    presenter._disconnect_cancel_on_thread_finished(dialog, worker, thread)  # type: ignore[attr-defined]
+    presenter._disconnect_cancel_on_thread_finished(dialog, cancel_slot, thread)  # type: ignore[attr-defined]
     thread.finished.callback()
 
-    dialog.canceled.disconnect.assert_called_once_with(worker.cancel)
+    dialog.canceled.disconnect.assert_called_once_with(cancel_slot)
 
 
 def test_refresh_all_poster_pixmaps_loads_local_paths() -> None:

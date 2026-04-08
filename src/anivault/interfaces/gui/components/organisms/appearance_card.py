@@ -57,7 +57,7 @@ class AppearanceCard(QFrame):
         layout.addLayout(body)
         self.setStyleSheet(theme.card_panel())
 
-    def _on_theme_selected(self) -> None:
+    def _on_theme_selected(self, _idx: int | None = None) -> None:
         """현재 콤보 데이터로 theme_changed를보낸다.
 
         Args:
