@@ -8,7 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Event
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from anivault.adapters.fs import FsFileRepository
 from anivault.adapters.metadata.tmdb import (
@@ -30,6 +30,7 @@ from anivault.adapters.persistence.sqlite.db_path import default_poster_cache_di
 from anivault.application.dto.parse import ParseInput, ParseResult
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.tmdb import TmdbSearchInput, TmdbSeriesCandidateDTO
+from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.ports.operation_log_port import OperationLogRepository
 from anivault.application.use_cases.apply_plan import make_apply_execute
@@ -137,13 +138,14 @@ def _create_organizer_page(
     model = pipeline_model if pipeline_model is not None else PipelineTableModel()
     file_repo = FsFileRepository()
     repos = _create_sqlite_repositories()
+    library_index_repo = cast(LibraryIndexRepository, repos.library_index)
     scan_execute = (
-        make_scan_execute(file_repo, library_index=repos.library_index)
+        make_scan_execute(file_repo, library_index=library_index_repo)
         if scan_extensions is None
         else make_scan_execute(
             file_repo,
             extensions=scan_extensions,
-            library_index=repos.library_index,
+            library_index=library_index_repo,
         )
     )
     parse_execute = _create_parse_execute(repos)
@@ -206,7 +208,7 @@ def _create_parse_execute(
     parser = AnitopyTitleParser(ignore_tokens=ignore_tokens)
     return make_parse_execute(
         parser,
-        library_index=repos.library_index,
+        library_index=cast(LibraryIndexRepository, repos.library_index),
         parse_cache=repos.parse_cache,
     )
 

@@ -14,8 +14,8 @@ import time
 from threading import Lock
 from typing import Any
 
-from tmdbapis import TMDbAPIs
-from tmdbapis.exceptions import NotFound
+from tmdbapis import TMDbAPIs  # pyright: ignore[reportMissingModuleSource]
+from tmdbapis.exceptions import NotFound  # pyright: ignore[reportMissingModuleSource]
 
 
 class TmdbApiClient:
