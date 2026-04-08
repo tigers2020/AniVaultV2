@@ -108,10 +108,17 @@ def _pick_representative(
     Returns:
         대표 `TitleGroupingInputRow`.
     """
+    def _media_kind_priority(media_kind: str) -> int:
+        if media_kind == "video":
+            return 0
+        if media_kind == "subtitle":
+            return 1
+        return 2
+
     sorted_rows = sorted(
         rows,
         key=lambda r: (
-            0 if r.media_kind == "video" else 1 if r.media_kind == "subtitle" else 2,
+            _media_kind_priority(r.media_kind),
             r.media_file_id,
         ),
     )
