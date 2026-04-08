@@ -25,7 +25,7 @@ PARSE_TMDB_KEYS = (
     "season_folder_format",
 )
 SCAN_BUILD_KEYS = ("source_path", "tmdb_mode", "unknown_mode")
-PIPELINE_RESULTS_KEYS = ("view_key", "details_pane", "preview_pane", "selected_index")
+PIPELINE_RESULTS_KEYS = ("view_key", "details_pane", "selected_index")
 
 DEFAULT_PATH_RULES = {
     "target_root": "G:/AniSorted",
@@ -47,7 +47,6 @@ DEFAULT_SCAN_BUILD = {
 DEFAULT_PIPELINE_RESULTS = {
     "view_key": "details",
     "details_pane": False,
-    "preview_pane": False,
     "selected_index": -1,
 }
 
@@ -219,11 +218,6 @@ def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
         value = pipeline_results["details_pane"]
         if isinstance(value, bool):
             result_pipeline["details_pane"] = value
-
-    if "preview_pane" in pipeline_results:
-        value = pipeline_results["preview_pane"]
-        if isinstance(value, bool):
-            result_pipeline["preview_pane"] = value
 
     if "view_key" in pipeline_results:
         value = pipeline_results["view_key"]
