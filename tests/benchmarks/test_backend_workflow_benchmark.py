@@ -5,6 +5,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import asdict
 from pathlib import Path
 from threading import Event, Lock
+from typing import Protocol, TypeVar
 
 import pytest
 from _helpers import SAMPLE_SIZES, load_filename_samples, synthetic_media_paths
@@ -44,10 +45,16 @@ from anivault.domain.parsing.normalize_cache_title import normalize_title_for_pa
 from anivault.domain.parsing.parse_signature import compute_parse_input_signature
 from anivault.domain.parsing.parser_version import PARSER_VERSION
 
+T = TypeVar("T")
+
+
+class BenchmarkCallable(Protocol):
+    def __call__(self, target: Callable[[], T], *args: object, **kwargs: object) -> T: ...
+
 
 @pytest.mark.benchmark
 @pytest.mark.parametrize("sample_size", SAMPLE_SIZES)
-def test_anitopy_title_parser_timing(benchmark: Callable[..., object], sample_size: int) -> None:
+def test_anitopy_title_parser_timing(benchmark: BenchmarkCallable, sample_size: int) -> None:
     filenames = load_filename_samples(sample_size)
     parser = AnitopyTitleParser()
 
@@ -58,7 +65,7 @@ def test_anitopy_title_parser_timing(benchmark: Callable[..., object], sample_si
 
 @pytest.mark.benchmark
 @pytest.mark.parametrize("sample_size", SAMPLE_SIZES)
-def test_parse_titles_use_case_timing(benchmark: Callable[..., object], sample_size: int) -> None:
+def test_parse_titles_use_case_timing(benchmark: BenchmarkCallable, sample_size: int) -> None:
     filenames = load_filename_samples(sample_size)
     execute = make_parse_execute(AnitopyTitleParser())
 
@@ -96,7 +103,7 @@ class _StaticFileRepository:
 @pytest.mark.benchmark
 @pytest.mark.parametrize("sample_size", SAMPLE_SIZES)
 def test_scan_library_use_case_timing(
-    benchmark: Callable[..., object],
+    benchmark: BenchmarkCallable,
     tmp_path: Path,
     sample_size: int,
 ) -> None:
@@ -160,7 +167,7 @@ def _upsert_parse_ok(
 @pytest.mark.benchmark
 @pytest.mark.parametrize("sample_size", SAMPLE_SIZES)
 def test_sqlite_index_and_parse_cache_timing(
-    benchmark: Callable[..., object],
+    benchmark: BenchmarkCallable,
     tmp_path: Path,
     sample_size: int,
 ) -> None:
@@ -258,7 +265,7 @@ def _seed_sqlite_parse_cache(
 @pytest.mark.benchmark
 @pytest.mark.parametrize("sample_size", SAMPLE_SIZES)
 def test_sync_title_groups_timing(
-    benchmark: Callable[..., object],
+    benchmark: BenchmarkCallable,
     tmp_path: Path,
     sample_size: int,
 ) -> None:
@@ -331,7 +338,7 @@ def _match_rows(paths: Sequence[str]) -> tuple[MatchFileRow, ...]:
 @pytest.mark.benchmark
 @pytest.mark.parametrize("sample_size", SAMPLE_SIZES)
 def test_match_series_use_case_timing(
-    benchmark: Callable[..., object],
+    benchmark: BenchmarkCallable,
     sample_size: int,
 ) -> None:
     filenames = load_filename_samples(sample_size)
@@ -368,7 +375,7 @@ def _matched_rows(paths: Sequence[str]) -> tuple[MatchFileRow, ...]:
 
 @pytest.mark.benchmark
 @pytest.mark.parametrize("sample_size", SAMPLE_SIZES)
-def test_plan_moves_use_case_timing(benchmark: Callable[..., object], sample_size: int) -> None:
+def test_plan_moves_use_case_timing(benchmark: BenchmarkCallable, sample_size: int) -> None:
     filenames = load_filename_samples(sample_size)
     rows = _matched_rows(filenames)
     execute = make_plan_execute()
@@ -395,7 +402,7 @@ def test_plan_moves_use_case_timing(benchmark: Callable[..., object], sample_siz
 @pytest.mark.benchmark
 @pytest.mark.parametrize("sample_size", SAMPLE_SIZES)
 def test_apply_plan_dry_run_timing(
-    benchmark: Callable[..., object],
+    benchmark: BenchmarkCallable,
     tmp_path: Path,
     sample_size: int,
 ) -> None:
@@ -433,7 +440,7 @@ def test_apply_plan_dry_run_timing(
 
 @pytest.mark.benchmark
 @pytest.mark.parametrize("cancelled", (False, True))
-def test_rollback_stub_timing(benchmark: Callable[..., object], cancelled: bool) -> None:
+def test_rollback_stub_timing(benchmark: BenchmarkCallable, cancelled: bool) -> None:
     cancel_token = Event()
     if cancelled:
         cancel_token.set()
@@ -446,7 +453,7 @@ def test_rollback_stub_timing(benchmark: Callable[..., object], cancelled: bool)
 @pytest.mark.benchmark
 @pytest.mark.parametrize("sample_size", SAMPLE_SIZES)
 def test_cached_hydrate_with_sqlite_timing(
-    benchmark: Callable[..., object],
+    benchmark: BenchmarkCallable,
     tmp_path: Path,
     sample_size: int,
 ) -> None:

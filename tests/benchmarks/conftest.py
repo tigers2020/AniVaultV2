@@ -81,20 +81,24 @@ def _load_previous_report() -> dict[str, float]:
         payload = _extract_report_payload(path)
         if payload is None:
             continue
-        rows = payload.get("benchmarks")
-        if not isinstance(rows, list):
-            continue
-        previous: dict[str, float] = {}
-        for row in rows:
-            if not isinstance(row, dict):
-                continue
-            fullname = row.get("fullname")
-            mean_ms = row.get("mean_ms")
-            if isinstance(fullname, str) and isinstance(mean_ms, int | float):
-                previous[fullname] = float(mean_ms)
+        previous = _collect_previous_means(payload.get("benchmarks"))
         if previous:
             return previous
     return {}
+
+
+def _collect_previous_means(rows: object) -> dict[str, float]:
+    if not isinstance(rows, list):
+        return {}
+    previous: dict[str, float] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        fullname = row.get("fullname")
+        mean_ms = row.get("mean_ms")
+        if isinstance(fullname, str) and isinstance(mean_ms, int | float):
+            previous[fullname] = float(mean_ms)
+    return previous
 
 
 def _extract_report_payload(path: Path) -> dict[str, object] | None:
