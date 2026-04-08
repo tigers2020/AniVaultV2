@@ -103,6 +103,82 @@ def _append_primary_and_optional_companion_moves(
             move_kinds.append("subtitle")
 
 
+def _emit_plan_progress(
+    progress_callback: PlanProgressCallback | None,
+    *,
+    index: int,
+    total: int,
+    row: MatchFileRow,
+) -> None:
+    """계획 진행률 이벤트를 조건부로 발행한다."""
+    if progress_callback is None or total <= 0:
+        return
+    cur = index + 1
+    progress_callback(
+        ProgressEvent(
+            stage="plan",
+            current=cur,
+            total=total,
+            message=f"경로 계획 중 ({cur}/{total})",
+            percent=int(100 * cur / total),
+            item_path=row.original_file,
+        )
+    )
+
+
+def _persist_plan_if_needed(
+    *,
+    organize_plan: OrganizePlanRepository | None,
+    input_dto: PlanInput,
+    files: list[MatchFileRow],
+    moves: list[FileOperation],
+    move_kinds: list[str],
+) -> PlanResult | None:
+    """필요한 경우 계획을 저장소에 기록하고 결과를 반환한다.
+
+    Returns:
+        저장을 생략하면 None, 저장 성공/실패 시 해당 PlanResult.
+    """
+    if organize_plan is None or input_dto.index_root_id is None or not moves:
+        return None
+    if len(move_kinds) != len(moves):
+        return PlanResult(
+            moves=tuple(moves),
+            error="내부 오류: 이동 작업과 종류 수가 일치하지 않습니다.",
+        )
+    try:
+        summary = json.dumps(
+            {
+                "v": 1,
+                "matched_files": len(files),
+                "operations": len(moves),
+            },
+            ensure_ascii=False,
+        )
+        plan_id = organize_plan.create_plan(
+            input_dto.index_root_id,
+            "previewed",
+            summary,
+        )
+        rows = tuple(
+            OrganizePlanAppendRow(
+                src_path_norm=normalize_path_key(m.source_path),
+                dst_path_norm=normalize_path_key(m.destination_path),
+                operation_kind="move",
+                detail_json=json.dumps({"kind": kind}, ensure_ascii=False),
+            )
+            for m, kind in zip(moves, move_kinds, strict=True)
+        )
+        item_ids = organize_plan.append_items(plan_id, rows)
+    except (OSError, sqlite3.Error) as e:
+        return PlanResult(moves=tuple(moves), error=str(e))
+    return PlanResult(
+        moves=tuple(moves),
+        organize_plan_id=plan_id,
+        organize_item_ids=tuple(item_ids),
+    )
+
+
 def make_execute(
     organize_plan: OrganizePlanRepository | None = None,
 ) -> Callable[[PlanInput, PlanProgressCallback | None, Event], PlanResult]:
@@ -157,57 +233,18 @@ def make_execute(
                 unk_grp=unk_grp,
                 include_companion_subtitles=input_dto.include_companion_subtitles,
             )
-            if progress_callback is not None and total > 0:
-                cur = i + 1
-                progress_callback(
-                    ProgressEvent(
-                        stage="plan",
-                        current=cur,
-                        total=total,
-                        message=f"경로 계획 중 ({cur}/{total})",
-                        percent=int(100 * cur / total),
-                        item_path=row.original_file,
-                    )
-                )
+            _emit_plan_progress(progress_callback, index=i, total=total, row=row)
 
         result = PlanResult(moves=tuple(moves))
-        if organize_plan is None or input_dto.index_root_id is None or not moves:
-            return result
-        if len(move_kinds) != len(moves):
-            return PlanResult(
-                moves=tuple(moves),
-                error="내부 오류: 이동 작업과 종류 수가 일치하지 않습니다.",
-            )
-        try:
-            summary = json.dumps(
-                {
-                    "v": 1,
-                    "matched_files": len(files),
-                    "operations": len(moves),
-                },
-                ensure_ascii=False,
-            )
-            plan_id = organize_plan.create_plan(
-                input_dto.index_root_id,
-                "previewed",
-                summary,
-            )
-            rows = tuple(
-                OrganizePlanAppendRow(
-                    src_path_norm=normalize_path_key(m.source_path),
-                    dst_path_norm=normalize_path_key(m.destination_path),
-                    operation_kind="move",
-                    detail_json=json.dumps({"kind": kind}, ensure_ascii=False),
-                )
-                for m, kind in zip(moves, move_kinds, strict=True)
-            )
-            item_ids = organize_plan.append_items(plan_id, rows)
-        except (OSError, sqlite3.Error) as e:
-            return PlanResult(moves=tuple(moves), error=str(e))
-        return PlanResult(
-            moves=tuple(moves),
-            organize_plan_id=plan_id,
-            organize_item_ids=tuple(item_ids),
+        persisted = _persist_plan_if_needed(
+            organize_plan=organize_plan,
+            input_dto=input_dto,
+            files=files,
+            moves=moves,
+            move_kinds=move_kinds,
         )
+        if persisted is None:
+            return result
+        return persisted
 
     return execute
