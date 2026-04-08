@@ -8,7 +8,7 @@ Author: Pom Kim
 from __future__ import annotations
 
 from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPixmap
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPaintEvent, QPixmap
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from anivault.interfaces.gui import theme
@@ -102,7 +102,7 @@ class RoundedPixmapLabel(QWidget):
             return max(2, r)
         return max(2, min(r, w // 2, h // 2))
 
-    def paintEvent(self, event) -> None:
+    def paintEvent(self, event: QPaintEvent) -> None:
         """배경·클리핑된 픽스맥 또는 플레이스홀더 텍스트를 그린다.
 
         Args:

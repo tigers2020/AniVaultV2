@@ -106,16 +106,17 @@ class FolderScanBar(QFrame):
         if h > 0:
             self.setFixedHeight(h)
 
-    def changeEvent(self, event: QEvent) -> None:
+    def changeEvent(self, arg__1: QEvent) -> None:
         """폰트·스타일 변경 시 바 높이를 재동기화한다.
 
         Args:
             self: 이 바 인스턴스.
-            event: Qt 변경 이벤트.
+            arg__1: Qt 변경 이벤트.
 
         Returns:
             None.
         """
+        event = arg__1
         super().changeEvent(event)
         if event.type() in {
             QEvent.Type.FontChange,

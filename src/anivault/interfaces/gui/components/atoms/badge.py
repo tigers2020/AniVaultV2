@@ -34,7 +34,7 @@ class Badge(QFrame):
         self._label.setStyleSheet(theme.badge_label(size))
         self._label.setGeometry(0, 0, size, size)
 
-    def paintEvent(self, event: QPaintEvent) -> None:
+    def paintEvent(self, arg__1: QPaintEvent) -> None:
         """둥근 사각 그라데이션 배경을 그린 뒤 기본 페인트를 호출한다.
 
         Args:
@@ -52,4 +52,4 @@ class Badge(QFrame):
         painter.setBrush(QBrush(grad))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(self.rect(), 12, 12)
-        super().paintEvent(event)
+        super().paintEvent(arg__1)

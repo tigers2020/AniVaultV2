@@ -106,7 +106,7 @@ class DetailsPane(QFrame):
                     f"<b>대상 경로</b><br>{row.target_path}"
                 )
             else:
-                only = row.members[0]
+                only = row.representative()
                 self._set_single_row(only)
             return
         self._set_single_row(row)

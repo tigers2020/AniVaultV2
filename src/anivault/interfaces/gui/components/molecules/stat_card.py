@@ -5,7 +5,7 @@
 Author: Pom Kim
 """
 
-from PySide6.QtWidgets import QFrame, QVBoxLayout
+from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Label
@@ -54,5 +54,5 @@ class StatCard(QFrame):
             if item is None:
                 return
             w = item.widget()
-            if w and hasattr(w, "setText"):
+            if isinstance(w, QLabel):
                 w.setText(value)

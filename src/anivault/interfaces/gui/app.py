@@ -49,8 +49,8 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._shell)
         from anivault.bootstrap.container import (
             create_organizer_page,
-            create_subtitle_organizer_page,
             create_settings_page,
+            create_subtitle_organizer_page,
         )
         from anivault.interfaces.gui.models import PipelineTableModel
 

@@ -52,31 +52,52 @@ class FormField(QWidget):
         self._label = Label(effective_label, "muted")
         layout.addWidget(self._label)
         if kind == "combo":
-            combo = ComboBox(self)
-            if initial:
-                combo.addItem(initial)
-            layout.addWidget(combo)
-            self._input = combo
-            combo.currentIndexChanged.connect(lambda *_: self.value_changed.emit())
-        elif kind == "path":
-            path_field = PathSelectField(placeholder=initial or "폴더 경로", parent=self)
-            if initial:
-                path_field.set_path(initial)
-            layout.addWidget(path_field)
-            self._input = path_field
-            path_field.path_changed.connect(lambda *_: self.value_changed.emit())
-        else:
-            line = LineEdit(initial, self)
-            if echo_password:
-                line.setEchoMode(QLineEdit.EchoMode.Password)
-            if initial:
-                line.setText(initial)
-            if label_updater:
-                line.textChanged.connect(lambda t: self._label.setText(label_updater(t)))
-            layout.addWidget(line)
-            self._input = line
-            line.textChanged.connect(lambda *_: self.value_changed.emit())
-            line.editingFinished.connect(lambda *_: self.value_changed.emit())
+            self._input = self._build_combo_input(layout, initial)
+            return
+        if kind == "path":
+            self._input = self._build_path_input(layout, initial)
+            return
+        self._input = self._build_line_input(
+            layout=layout,
+            initial=initial,
+            label_updater=label_updater,
+            echo_password=echo_password,
+        )
+
+    def _build_combo_input(self, layout: QVBoxLayout, initial: str) -> ComboBox:
+        combo = ComboBox(self)
+        if initial:
+            combo.addItem(initial)
+        layout.addWidget(combo)
+        combo.currentIndexChanged.connect(lambda *_: self.value_changed.emit())
+        return combo
+
+    def _build_path_input(self, layout: QVBoxLayout, initial: str) -> PathSelectField:
+        path_field = PathSelectField(placeholder=initial or "폴더 경로", parent=self)
+        if initial:
+            path_field.set_path(initial)
+        layout.addWidget(path_field)
+        path_field.path_changed.connect(lambda *_: self.value_changed.emit())
+        return path_field
+
+    def _build_line_input(
+        self,
+        layout: QVBoxLayout,
+        initial: str,
+        label_updater: Callable[[str], str] | None,
+        echo_password: bool,
+    ) -> LineEdit:
+        line = LineEdit(initial, self)
+        if echo_password:
+            line.setEchoMode(QLineEdit.EchoMode.Password)
+        if initial:
+            line.setText(initial)
+        if label_updater:
+            line.textChanged.connect(lambda t: self._label.setText(label_updater(t)))
+        layout.addWidget(line)
+        line.textChanged.connect(lambda *_: self.value_changed.emit())
+        line.editingFinished.connect(lambda *_: self.value_changed.emit())
+        return line
 
     def value(self) -> str:
         """현재 입력 값을 문자열로 반환한다.

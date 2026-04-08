@@ -35,7 +35,7 @@ class StepIndex(QLabel):
         palette.setColor(palette.ColorRole.WindowText, QColor("#ffffff"))
         self.setPalette(palette)
 
-    def paintEvent(self, event: QPaintEvent) -> None:
+    def paintEvent(self, arg__1: QPaintEvent) -> None:
         """그라데이션 원을 그린 뒤 기본 라벨 페인트를 호출한다.
 
         Args:
@@ -53,4 +53,4 @@ class StepIndex(QLabel):
         painter.setBrush(QBrush(grad))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(self.rect())
-        super().paintEvent(event)
+        super().paintEvent(arg__1)

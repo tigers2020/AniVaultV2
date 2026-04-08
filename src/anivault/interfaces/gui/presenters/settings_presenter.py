@@ -166,7 +166,6 @@ class SettingsPresenter(QObject):
             None.
         """
         del path
-        pass
 
     def on_parse_clicked(self) -> None:
         """Parse 버튼 스텁.

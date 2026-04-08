@@ -225,7 +225,7 @@ class ContentView(QFrame):
                 f"<b>해상도:</b> {g.resolution}<br>"
                 f"<b>경로:</b> {g.target_path}"
             )
-        r = g.members[0]
+        r = g.representative()
         return (
             f"<b>원본 파일:</b> {r.original_file}<br>"
             f"<b>Parsed:</b> {r.parsed_title}<br>"

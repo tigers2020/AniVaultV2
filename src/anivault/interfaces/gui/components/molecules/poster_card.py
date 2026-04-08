@@ -282,7 +282,7 @@ class PosterCard(QFrame):
         """
         return True
 
-    def heightForWidth(self, w: int) -> int:
+    def heightForWidth(self, arg__1: int) -> int:
         """주어진 너비에서 이미지+본문 높이 합을 계산한다.
 
         Args:
@@ -292,15 +292,15 @@ class PosterCard(QFrame):
         Returns:
             픽셀 높이.
         """
-        if w <= 0:
+        if arg__1 <= 0:
             return self.minimumHeight()
         if self._is_compact:
             body_px = (
                 COMPACT_TITLE_ONLY_BODY_HEIGHT_PX if self._title_only else COMPACT_BODY_HEIGHT_PX
             )
-            return int(w * self._aspect_hw_compact) + CARD_LAYOUT_SPACING_COMPACT_PX + body_px
+            return int(arg__1 * self._aspect_hw_compact) + CARD_LAYOUT_SPACING_COMPACT_PX + body_px
         return (
-            int(w * POSTER_IMAGE_ASPECT_HW)
+            int(arg__1 * POSTER_IMAGE_ASPECT_HW)
             + CARD_LAYOUT_SPACING_POSTER_PX
             + NON_COMPACT_BODY_HEIGHT_PX
         )
