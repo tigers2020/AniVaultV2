@@ -12,6 +12,7 @@ import logging
 import sqlite3
 from pathlib import Path
 from threading import Lock
+from typing import Any
 
 from anivault.adapters.persistence.sqlite.sqlite_time import (
     is_utc_sqlite_text_expired,
@@ -22,6 +23,8 @@ from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
 
 logger = logging.getLogger(__name__)
+
+_LOOKUP_CHUNK = 500
 
 _SEARCH_CACHE_UPSERT = """
 INSERT INTO tmdb_search_cache (
@@ -285,6 +288,47 @@ class SqliteTitleMatchRepository:
             logger.warning("tmdb_series raw_json 역직렬화 실패 tmdb_id=%s: %s", tmdb_id, e)
             return None
 
+    def get_series_candidates(
+        self,
+        tmdb_ids: list[int],
+    ) -> dict[int, TmdbSeriesCandidateDTO]:
+        """Return non-expired TMDB candidates for multiple ids."""
+        cleaned: list[int] = []
+        seen: set[int] = set()
+        for tmdb_id in tmdb_ids:
+            tid = int(tmdb_id)
+            if tid not in seen:
+                seen.add(tid)
+                cleaned.append(tid)
+        if not cleaned:
+            return {}
+        out: dict[int, TmdbSeriesCandidateDTO] = {}
+        with self._lock:
+            for start in range(0, len(cleaned), _LOOKUP_CHUNK):
+                chunk = cleaned[start : start + _LOOKUP_CHUNK]
+                placeholders = ",".join("?" for _ in chunk)
+                cur = self._conn.execute(
+                    f"""
+                    SELECT tmdb_id, raw_json, expires_at
+                    FROM tmdb_series
+                    WHERE tmdb_id IN ({placeholders})
+                    """,
+                    tuple(chunk),
+                )
+                for row in cur.fetchall():
+                    tid = int(row[0])
+                    if is_utc_sqlite_text_expired(str(row[2])):
+                        continue
+                    try:
+                        out[tid] = _candidate_from_raw_json(str(row[1]))
+                    except (KeyError, OSError, TypeError, ValueError) as e:
+                        logger.warning(
+                            "tmdb_series raw_json deserialize failed tmdb_id=%s: %s",
+                            tid,
+                            e,
+                        )
+        return out
+
     def get_group_match(self, group_id: int) -> GroupTmdbMatchRecord | None:
         """그룹 매칭 행을 조회한다.
 
@@ -323,6 +367,36 @@ class SqliteTitleMatchRepository:
             match_status=mst,
             match_score=float(row[3]) if row[3] is not None else None,
         )
+
+    def get_group_matches(self, group_ids: list[int]) -> dict[int, GroupTmdbMatchRecord]:
+        """Return stored TMDB match records for multiple title group ids."""
+        cleaned: list[int] = []
+        seen: set[int] = set()
+        for group_id in group_ids:
+            gid = int(group_id)
+            if gid not in seen:
+                seen.add(gid)
+                cleaned.append(gid)
+        if not cleaned:
+            return {}
+        out: dict[int, GroupTmdbMatchRecord] = {}
+        with self._lock:
+            for start in range(0, len(cleaned), _LOOKUP_CHUNK):
+                chunk = cleaned[start : start + _LOOKUP_CHUNK]
+                placeholders = ",".join("?" for _ in chunk)
+                cur = self._conn.execute(
+                    f"""
+                    SELECT group_id, tmdb_id, match_status, match_score
+                    FROM group_tmdb_matches
+                    WHERE group_id IN ({placeholders})
+                    """,
+                    tuple(chunk),
+                )
+                for row in cur.fetchall():
+                    record = _group_match_from_row(row)
+                    if record is not None:
+                        out[record.group_id] = record
+        return out
 
     def set_group_match(
         self,
@@ -520,6 +594,24 @@ class SqliteTitleMatchRepository:
                 )
                 self._conn.rollback()
                 raise
+
+
+def _group_match_from_row(row: sqlite3.Row | tuple[Any, ...]) -> GroupTmdbMatchRecord | None:
+    st = str(row[2])
+    if st == "auto_matched":
+        mst: MatchStatusDto = "auto_matched"
+    elif st == "confirmed":
+        mst = "confirmed"
+    elif st == "rejected":
+        mst = "rejected"
+    else:
+        return None
+    return GroupTmdbMatchRecord(
+        group_id=int(row[0]),
+        tmdb_id=int(row[1]),
+        match_status=mst,
+        match_score=float(row[3]) if row[3] is not None else None,
+    )
 
 
 def _candidate_from_raw_json(raw: str) -> TmdbSeriesCandidateDTO:

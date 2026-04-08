@@ -1,23 +1,25 @@
-"""sqlite_parse_cache_repository.py
-
-ParseCacheRepository SQLite 구현. updated_at·created_at은 메서드에서 수동 설정.
-
-Author: Pom Kim
-"""
+"""SQLite implementation of the parse cache repository."""
 
 from __future__ import annotations
 
 import logging
 import sqlite3
 from threading import Lock
+from typing import Any
 
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
 from anivault.application.dto.parse import ParsedInfo
+from anivault.application.dto.parse_cache import (
+    ParseCacheErrorWrite,
+    ParseCacheLookup,
+    ParseCacheOkWrite,
+)
 from anivault.application.dto.parse_serde import parsed_info_from_compact_json
 
 logger = logging.getLogger(__name__)
 
 _ERROR_DTO_JSON = "{}"
+_LOOKUP_CHUNK = 500
 
 _PARSE_OK_UPSERT_SQL = """
 INSERT INTO parse_cache (
@@ -75,60 +77,61 @@ ON CONFLICT(media_file_id) DO UPDATE SET
 
 
 class SqliteParseCacheRepository:
-    """parse_cache 테이블 접근."""
+    """Access parse_cache rows."""
 
     def __init__(self, conn: sqlite3.Connection, lock: Lock) -> None:
-        """연결과 직렬화 Lock을 받는다.
-
-        Args:
-            self: 저장소.
-            conn: 공유 SQLite 연결.
-            lock: 메서드 단위 락.
-
-        Returns:
-            None.
-        """
         self._conn = conn
         self._lock = lock
 
     def get_valid_parse(self, media_file_id: int, signature: str) -> ParsedInfo | None:
-        """ok·서명·JSON이 유효할 때만 ParsedInfo를 반환한다.
+        """Return one valid cache hit, or None."""
+        return self.get_valid_parses([ParseCacheLookup(media_file_id, signature)]).get(
+            media_file_id
+        )
 
-        Args:
-            self: 저장소.
-            media_file_id: 미디어 행 ID.
-            signature: 입력 서명.
+    def get_valid_parses(self, lookups: list[ParseCacheLookup]) -> dict[int, ParsedInfo]:
+        """Bulk read valid cache hits keyed by media_file_id."""
+        if not lookups:
+            return {}
+        signature_by_id: dict[int, str] = {}
+        media_ids: list[int] = []
+        for lookup in lookups:
+            if lookup.media_file_id not in signature_by_id:
+                signature_by_id[lookup.media_file_id] = lookup.signature
+                media_ids.append(lookup.media_file_id)
 
-        Returns:
-            캐시 hit 시 ParsedInfo. miss면 None.
-        """
+        rows: list[tuple[Any, ...]] = []
         with self._lock:
-            cur = self._conn.execute(
-                """
-                SELECT parse_status, parse_input_signature, dto_json
-                FROM parse_cache
-                WHERE media_file_id = ?
-                """,
-                (media_file_id,),
-            )
-            row = cur.fetchone()
-            self._conn.commit()
-        if row is None:
-            return None
-        status, stored_sig, dto_json = str(row[0]), str(row[1]), str(row[2])
-        if status != "ok":
-            return None
-        if stored_sig != signature:
-            return None
-        try:
-            return parsed_info_from_compact_json(dto_json)
-        except (OSError, TypeError, ValueError) as e:
-            logger.warning(
-                "parse_cache dto_json 역직렬화 실패 media_file_id=%s: %s",
-                media_file_id,
-                e,
-            )
-            return None
+            for start in range(0, len(media_ids), _LOOKUP_CHUNK):
+                chunk = media_ids[start : start + _LOOKUP_CHUNK]
+                placeholders = ",".join("?" * len(chunk))
+                cur = self._conn.execute(
+                    f"""
+                    SELECT media_file_id, parse_status, parse_input_signature, dto_json
+                    FROM parse_cache
+                    WHERE media_file_id IN ({placeholders})
+                    """,
+                    chunk,
+                )
+                rows.extend(cur.fetchall())
+
+        out: dict[int, ParsedInfo] = {}
+        for row in rows:
+            media_file_id = int(row[0])
+            status = str(row[1])
+            stored_sig = str(row[2])
+            dto_json = str(row[3])
+            if status != "ok" or stored_sig != signature_by_id.get(media_file_id):
+                continue
+            try:
+                out[media_file_id] = parsed_info_from_compact_json(dto_json)
+            except (OSError, TypeError, ValueError) as e:
+                logger.warning(
+                    "parse_cache dto_json deserialize failed media_file_id=%s: %s",
+                    media_file_id,
+                    e,
+                )
+        return out
 
     def upsert_parse_ok(
         self,
@@ -147,55 +150,63 @@ class SqliteParseCacheRepository:
         episode_count: int | None,
         confidence: float | None,
     ) -> None:
-        """성공 행을 upsert한다.
+        """Upsert one successful parse row."""
+        self.upsert_parse_ok_many(
+            [
+                ParseCacheOkWrite(
+                    media_file_id=media_file_id,
+                    parser_version=parser_version,
+                    parse_input_signature=parse_input_signature,
+                    parsed=parsed,
+                    dto_json=dto_json,
+                    parsed_title=parsed_title,
+                    parsed_title_normalized=parsed_title_normalized,
+                    parsed_year=parsed_year,
+                    season_number=season_number,
+                    episode_start=episode_start,
+                    episode_end=episode_end,
+                    episode_count=episode_count,
+                    confidence=confidence,
+                )
+            ]
+        )
 
-        Args:
-            self: 저장소.
-            media_file_id: 미디어 행 ID.
-            parser_version: 기록용 버전 문자열.
-            parse_input_signature: 서명.
-            parsed: 참고용 ParsedInfo.
-            dto_json: compact JSON.
-            parsed_title: 정규 컬럼.
-            parsed_title_normalized: 정규화 제목.
-            parsed_year: 연도.
-            season_number: 시즌.
-            episode_start: 에피소드 시작.
-            episode_end: 에피소드 끝.
-            episode_count: 에피소드 수.
-            confidence: 신뢰도.
-
-        Returns:
-            None.
-        """
-        assert isinstance(parsed, ParsedInfo)
+    def upsert_parse_ok_many(self, items: list[ParseCacheOkWrite]) -> None:
+        """Bulk upsert successful parse rows in one transaction."""
+        if not items:
+            return
+        for item in items:
+            assert isinstance(item.parsed, ParsedInfo)
         now = utc_now_sqlite_text()
+        params = [
+            (
+                item.media_file_id,
+                item.parser_version,
+                item.parse_input_signature,
+                item.parsed_title,
+                item.parsed_title_normalized,
+                item.parsed_year,
+                item.season_number,
+                item.episode_start,
+                item.episode_end,
+                item.episode_count,
+                item.confidence,
+                item.dto_json,
+                now,
+                now,
+            )
+            for item in items
+        ]
         with self._lock:
             try:
-                self._conn.execute(
-                    _PARSE_OK_UPSERT_SQL,
-                    (
-                        media_file_id,
-                        parser_version,
-                        parse_input_signature,
-                        parsed_title,
-                        parsed_title_normalized,
-                        parsed_year,
-                        season_number,
-                        episode_start,
-                        episode_end,
-                        episode_count,
-                        confidence,
-                        dto_json,
-                        now,
-                        now,
-                    ),
-                )
+                self._conn.executemany(_PARSE_OK_UPSERT_SQL, params)
                 self._conn.commit()
             except sqlite3.Error as e:
                 self._conn.rollback()
                 logger.exception(
-                    "parse_cache upsert_parse_ok 실패 media_file_id=%s: %s", media_file_id, e
+                    "parse_cache upsert_parse_ok_many failed count=%s: %s",
+                    len(items),
+                    e,
                 )
 
     def upsert_parse_error(
@@ -207,40 +218,45 @@ class SqliteParseCacheRepository:
         error_code: str | None,
         error_message: str | None,
     ) -> None:
-        """에러 행을 upsert한다(dto_json은 `{}`).
+        """Upsert one parse error row."""
+        self.upsert_parse_error_many(
+            [
+                ParseCacheErrorWrite(
+                    media_file_id=media_file_id,
+                    parser_version=parser_version,
+                    parse_input_signature=parse_input_signature,
+                    error_code=error_code,
+                    error_message=error_message,
+                )
+            ]
+        )
 
-        Args:
-            self: 저장소.
-            media_file_id: 미디어 행 ID.
-            parser_version: 기록용.
-            parse_input_signature: 서명.
-            error_code: 코드.
-            error_message: 메시지.
-
-        Returns:
-            None.
-        """
+    def upsert_parse_error_many(self, items: list[ParseCacheErrorWrite]) -> None:
+        """Bulk upsert parse error rows in one transaction."""
+        if not items:
+            return
         now = utc_now_sqlite_text()
+        params = [
+            (
+                item.media_file_id,
+                item.parser_version,
+                item.parse_input_signature,
+                _ERROR_DTO_JSON,
+                item.error_code,
+                item.error_message,
+                now,
+                now,
+            )
+            for item in items
+        ]
         with self._lock:
             try:
-                self._conn.execute(
-                    _PARSE_ERROR_UPSERT_SQL,
-                    (
-                        media_file_id,
-                        parser_version,
-                        parse_input_signature,
-                        _ERROR_DTO_JSON,
-                        error_code,
-                        error_message,
-                        now,
-                        now,
-                    ),
-                )
+                self._conn.executemany(_PARSE_ERROR_UPSERT_SQL, params)
                 self._conn.commit()
             except sqlite3.Error as e:
                 self._conn.rollback()
                 logger.exception(
-                    "parse_cache upsert_parse_error 실패 media_file_id=%s: %s",
-                    media_file_id,
+                    "parse_cache upsert_parse_error_many failed count=%s: %s",
+                    len(items),
                     e,
                 )

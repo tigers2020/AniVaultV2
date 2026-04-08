@@ -23,10 +23,7 @@ from anivault.application.dto.library_index import (
     MediaFileRecord,
 )
 from anivault.application.ports.library_index_port import ScanSessionStatus
-from anivault.domain.path_norm import (
-    dir_norm_for_relative,
-    normalize_path_key,
-)
+from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.services.sidecar_group_key import compute_sidecar_group_key
 
 _MARK_MISSING_INLINE_LIMIT = 500
@@ -49,9 +46,17 @@ class _MediaFileUpsertRow:
     sidecar_group_key: str | None
 
 
-def _path_key_from_known_path(path: Path) -> str:
-    """Normalize a path that is already anchored to the resolved library root."""
-    s = path.as_posix()
+@dataclass(frozen=True)
+class _ResolvedRootPath:
+    root_text: str
+    root_posix: str
+    root_cmp: str
+    root_cmp_prefix: str
+
+
+def _path_key_from_posix(path_posix: str) -> str:
+    """Normalize a POSIX path string that is already anchored to the library root."""
+    s = path_posix
     if len(s) > 1 and s.endswith("/"):
         s = s.rstrip("/")
         if s.endswith(":"):
@@ -61,20 +66,50 @@ def _path_key_from_known_path(path: Path) -> str:
     return s
 
 
+def _path_key_from_known_path(path: Path) -> str:
+    """Normalize a path that is already anchored to the resolved library root."""
+    return _path_key_from_posix(path.as_posix())
+
+
+def _resolved_root_path(root: str | Path) -> _ResolvedRootPath:
+    root_resolved = Path(root).expanduser().resolve()
+    root_text = os.path.normpath(os.fspath(root_resolved))
+    root_cmp = os.path.normcase(root_text)
+    return _ResolvedRootPath(
+        root_text=root_text,
+        root_posix=root_resolved.as_posix().rstrip("/"),
+        root_cmp=root_cmp,
+        root_cmp_prefix=root_cmp.rstrip("\\/") + os.sep,
+    )
+
+
 def _relative_posix_under_resolved_root(
-    root_resolved: Path,
+    root: _ResolvedRootPath,
     absolute_path: str | PathLike[str],
 ) -> tuple[str, str]:
     """Return relative POSIX path and normalized key without resolving each file."""
-    path = Path(absolute_path).expanduser()
-    try:
-        rel_text = Path(os.path.relpath(str(path), str(root_resolved))).as_posix()
-    except (OSError, ValueError):
-        rel_text = path.resolve().relative_to(root_resolved).as_posix()
-    if rel_text == "." or rel_text.startswith("../") or rel_text == "..":
-        rel = path.resolve().relative_to(root_resolved)
-        rel_text = rel.as_posix()
-    return rel_text, _path_key_from_known_path(root_resolved / Path(rel_text))
+    path_text = os.path.abspath(os.path.expanduser(os.fspath(absolute_path)))
+    path_cmp = os.path.normcase(os.path.normpath(path_text))
+    if not path_cmp.startswith(root.root_cmp_prefix):
+        raise ValueError(f"path not under root: {path_text} vs {root.root_text}")
+    rel_text = path_text[len(root.root_text.rstrip("\\/")) + 1 :]
+    rel_posix = rel_text.replace("\\", "/")
+    return rel_posix, _path_key_from_posix(f"{root.root_posix}/{rel_posix}")
+
+
+def _dir_norm_for_relative_text(relative_posix: str) -> str:
+    parent, sep, _name = relative_posix.rpartition("/")
+    return parent if sep else ""
+
+
+def _split_file_name_parts(relative_posix: str) -> tuple[str, str, str]:
+    file_name = relative_posix.rsplit("/", 1)[-1]
+    if file_name in {"", ".", ".."}:
+        return file_name, file_name, ""
+    stem, dot, suffix = file_name.rpartition(".")
+    if dot and stem:
+        return file_name, stem, f".{suffix}".lower()
+    return file_name, file_name, ""
 
 
 class SqliteLibraryIndexRepository:
@@ -263,20 +298,19 @@ class SqliteLibraryIndexRepository:
         self,
         item: BulkMediaUpsertItem,
         *,
-        root_resolved: Path,
+        root: _ResolvedRootPath,
     ) -> _MediaFileUpsertRow:
-        path = Path(item.absolute_path)
-        st = path.stat()
-        rel, pnorm = _relative_posix_under_resolved_root(root_resolved, item.absolute_path)
-        dnorm = dir_norm_for_relative(rel)
-        file_stem = path.stem
+        st = os.stat(item.absolute_path)
+        rel, pnorm = _relative_posix_under_resolved_root(root, item.absolute_path)
+        dnorm = _dir_norm_for_relative_text(rel)
+        file_name, file_stem, extension = _split_file_name_parts(rel)
         return _MediaFileUpsertRow(
             relative_path=rel,
             path_norm=pnorm,
             dir_norm=dnorm,
-            file_name=path.name,
+            file_name=file_name,
             file_stem=file_stem,
-            extension=path.suffix.lower() if path.suffix else "",
+            extension=extension,
             media_kind=item.media_kind,
             size_bytes=int(st.st_size),
             mtime_ns=int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1_000_000_000))),
@@ -325,10 +359,10 @@ class SqliteLibraryIndexRepository:
             )
         with self._lock:
             root_display = self._fetch_root_path(root_id)
-            root_resolved = Path(root_display).expanduser().resolve()
+            root = _resolved_root_path(root_display)
             rows_by_norm: dict[str, _MediaFileUpsertRow] = {}
             for item in files:
-                row = self._media_file_upsert_row(item, root_resolved=root_resolved)
+                row = self._media_file_upsert_row(item, root=root)
                 rows_by_norm[row.path_norm] = row
             rows = list(rows_by_norm.values())
             seen_path_norms = set(rows_by_norm)
@@ -517,13 +551,24 @@ class SqliteLibraryIndexRepository:
         """
         if not absolute_paths:
             return []
-        keys_in_order = [normalize_path_key(p) for p in absolute_paths]
+        with self._lock:
+            root_display = self._fetch_root_path(root_id)
+        root = _resolved_root_path(root_display)
+        keys_in_order: list[str | None] = []
         unique_keys: list[str] = []
         seen_u: set[str] = set()
-        for k in keys_in_order:
-            if k not in seen_u:
-                seen_u.add(k)
-                unique_keys.append(k)
+        for path in absolute_paths:
+            try:
+                _rel, key = _relative_posix_under_resolved_root(root, path)
+            except ValueError:
+                keys_in_order.append(None)
+                continue
+            keys_in_order.append(key)
+            if key not in seen_u:
+                seen_u.add(key)
+                unique_keys.append(key)
+        if not unique_keys:
+            return [None for _ in keys_in_order]
         placeholders = ",".join("?" * len(unique_keys))
         sql = f"""
             SELECT path_norm, id, size_bytes, mtime_ns
@@ -534,7 +579,6 @@ class SqliteLibraryIndexRepository:
         with self._lock:
             cur = self._conn.execute(sql, params)
             rows = cur.fetchall()
-            self._conn.commit()
         by_norm: dict[str, IndexedMediaForParse] = {}
         for r in rows:
             pn = str(r[0])
@@ -544,7 +588,7 @@ class SqliteLibraryIndexRepository:
                 size_bytes=int(r[2]),
                 mtime_ns=int(r[3]),
             )
-        return [by_norm.get(k) for k in keys_in_order]
+        return [by_norm.get(k) if k is not None else None for k in keys_in_order]
 
     def list_media_by_root(
         self,

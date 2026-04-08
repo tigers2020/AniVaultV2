@@ -101,8 +101,13 @@ def test_sqlite_bulk_upsert_counts_and_seen_paths(tmp_path: Path) -> None:
     library_root.mkdir()
     first = library_root / "first.mkv"
     second = library_root / "second.mkv"
+    root_level_no_ext = library_root / "README"
+    dotted = library_root / "Season 1" / "show.name.E01.MKV"
     first.write_bytes(b"first")
     second.write_bytes(b"second")
+    root_level_no_ext.write_bytes(b"readme")
+    dotted.parent.mkdir()
+    dotted.write_bytes(b"dotted")
     conn = create_connection(tmp_path / "anivault.db")
     repo = SqliteLibraryIndexRepository(conn, threading.Lock())
     root_id = repo.upsert_root(str(library_root))
@@ -115,15 +120,37 @@ def test_sqlite_bulk_upsert_counts_and_seen_paths(tmp_path: Path) -> None:
             [
                 BulkMediaUpsertItem(str(first), "video"),
                 BulkMediaUpsertItem(str(second), "video"),
+                BulkMediaUpsertItem(str(root_level_no_ext), "video"),
+                BulkMediaUpsertItem(str(dotted), "video"),
             ],
         )
 
-        assert initial.files_added == 2
+        assert initial.files_added == 4
         assert initial.files_updated == 0
         assert initial.seen_path_norms == {
             normalize_path_key(first),
             normalize_path_key(second),
+            normalize_path_key(root_level_no_ext),
+            normalize_path_key(dotted),
         }
+        meta_rows = conn.execute(
+            """
+            SELECT relative_path, dir_norm, file_name, file_stem, extension
+            FROM media_files
+            WHERE root_id = ?
+            """,
+            (root_id,),
+        ).fetchall()
+        meta_by_relative = {
+            str(row[0]): tuple(str(value) for value in row[1:]) for row in meta_rows
+        }
+        assert meta_by_relative["README"] == ("", "README", "README", "")
+        assert meta_by_relative["Season 1/show.name.E01.MKV"] == (
+            "Season 1",
+            "show.name.E01.MKV",
+            "show.name.E01",
+            ".mkv",
+        )
 
         third = library_root / "third.mkv"
         third.write_bytes(b"third")
@@ -140,18 +167,29 @@ def test_sqlite_bulk_upsert_counts_and_seen_paths(tmp_path: Path) -> None:
 
         assert updated.files_added == 1
         assert updated.files_updated == 1
-        assert removed == 1
+        assert removed == 3
         records = repo.list_media_by_root(root_id, include_deleted=True)
         deleted_by_path = {record.path_norm: record.is_deleted for record in records}
         assert deleted_by_path[normalize_path_key(first)] is False
         assert deleted_by_path[normalize_path_key(second)] is True
+        assert deleted_by_path[normalize_path_key(root_level_no_ext)] is True
+        assert deleted_by_path[normalize_path_key(dotted)] is True
         assert deleted_by_path[normalize_path_key(third)] is False
         resolved = repo.resolve_media_for_parse(
             root_id,
-            [str(first), str(second), str(third)],
+            [
+                str(first),
+                str(first),
+                str(second),
+                str(third).replace("\\", "/"),
+                str(tmp_path / "outside.mkv"),
+            ],
         )
         assert resolved[0] is not None
-        assert resolved[1] is None
-        assert resolved[2] is not None
+        assert resolved[1] is not None
+        assert resolved[0].id == resolved[1].id
+        assert resolved[2] is None
+        assert resolved[3] is not None
+        assert resolved[4] is None
     finally:
         conn.close()

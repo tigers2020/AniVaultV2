@@ -18,6 +18,8 @@ from anivault.application.dto.title_groups import (
 )
 from anivault.domain.services.title_grouping import TitleGroupingInputRow
 
+_LOOKUP_CHUNK = 500
+
 
 class SqliteTitleGroupRepository:
     """title_groups·title_group_members 테이블."""
@@ -281,21 +283,42 @@ class SqliteTitleGroupRepository:
         Returns:
             그룹 id. 없으면 None.
         """
-        pn = (path_norm or "").strip()
-        if not pn:
-            return None
+        matches = self.get_group_ids_for_path_norms(root_id, [path_norm])
+        return matches.get((path_norm or "").strip())
+
+    def get_group_ids_for_path_norms(
+        self,
+        root_id: int,
+        path_norms: list[str],
+    ) -> dict[str, int]:
+        """Return owning title group ids for multiple `path_norm` values."""
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for path_norm in path_norms:
+            pn = (path_norm or "").strip()
+            if pn and pn not in seen:
+                seen.add(pn)
+                cleaned.append(pn)
+        if not cleaned:
+            return {}
+        out: dict[str, int] = {}
         with self._lock:
-            cur = self._conn.execute(
-                """
-                SELECT g.id
-                FROM title_groups g
-                INNER JOIN title_group_members m ON m.group_id = g.id
-                INNER JOIN media_files f ON f.id = m.media_file_id
-                WHERE g.root_id = ? AND f.path_norm = ?
-                LIMIT 1
-                """,
-                (int(root_id), pn),
-            )
-            row = cur.fetchone()
-            self._conn.commit()
-        return int(row[0]) if row is not None else None
+            for start in range(0, len(cleaned), _LOOKUP_CHUNK):
+                chunk = cleaned[start : start + _LOOKUP_CHUNK]
+                placeholders = ",".join("?" for _ in chunk)
+                cur = self._conn.execute(
+                    f"""
+                    SELECT f.path_norm, g.id
+                    FROM media_files f
+                    INNER JOIN title_group_members m ON m.media_file_id = f.id
+                    INNER JOIN title_groups g ON g.id = m.group_id
+                    WHERE g.root_id = ?
+                      AND f.path_norm IN ({placeholders})
+                    """,
+                    (int(root_id), *chunk),
+                )
+                for row in cur.fetchall():
+                    pn = str(row[0])
+                    if pn not in out:
+                        out[pn] = int(row[1])
+        return out
