@@ -12,12 +12,26 @@ from __future__ import annotations
 import re
 
 _LEADING_BRACKET = re.compile(r"^\s*\[[^\]]+\]\s*")
-_TRAIL_TECH_PAREN = re.compile(
-    r"\s*\((?:[^)]*(?:1080|720|480|576|1440|2160|4320|2k|4k|8k|sd|hd|fhd|qhd|uhd|p|x264|x265|hevc|aac|ac3|dvd|bd|bluray)[^)]*)\)\s*$",
-    re.I,
-)
+_TRAIL_PAREN = re.compile(r"\s*\(([^)]*)\)\s*$")
 _TRAIL_BRACKET = re.compile(r"\s*\[[^\]]+\]\s*$")
 _MULTI_SPACE = re.compile(r"\s+")
+_TECH_TOKEN = re.compile(r"[a-z0-9]+", re.I)
+_RESOLUTION_TOKEN = re.compile(r"^(?:\d{3,4}p?|[248]k)$", re.I)
+_TECH_HINTS = {
+    "sd",
+    "hd",
+    "fhd",
+    "qhd",
+    "uhd",
+    "x264",
+    "x265",
+    "hevc",
+    "aac",
+    "ac3",
+    "dvd",
+    "bd",
+    "bluray",
+}
 
 
 def compact_compare_key(s: str) -> str:
@@ -50,7 +64,7 @@ def normalize_tmdb_search_query(raw: str) -> str:
             break
         s = t
     for _ in range(12):
-        u = _TRAIL_TECH_PAREN.sub("", s)
+        u = _strip_trailing_tech_paren(s)
         u = _TRAIL_BRACKET.sub("", u)
         if u == s:
             break
@@ -59,6 +73,22 @@ def normalize_tmdb_search_query(raw: str) -> str:
     s = re.sub(r"!+", " ", s)
     s = _MULTI_SPACE.sub(" ", s).strip()
     return s
+
+
+def _strip_trailing_tech_paren(text: str) -> str:
+    """문자열 끝의 기술 꼬리 괄호를 감지하면 제거한다."""
+    m = _TRAIL_PAREN.search(text)
+    if not m:
+        return text
+    inner = m.group(1)
+    tokens = [tok.lower() for tok in _TECH_TOKEN.findall(inner)]
+    if not tokens:
+        return text
+    if any(t in _TECH_HINTS for t in tokens):
+        return text[: m.start()].rstrip()
+    if any(_RESOLUTION_TOKEN.match(t) for t in tokens):
+        return text[: m.start()].rstrip()
+    return text
 
 
 def iter_strip_last_word_chain(query: str) -> list[str]:
