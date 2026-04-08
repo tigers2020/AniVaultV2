@@ -66,35 +66,46 @@ class ImageLoader(QObject):
         if u in self._cache:
             self.loaded.emit(u, self._cache[u])
             return
-        if u.startswith("file:"):
-            q = QUrl(u)
-            local = q.toLocalFile()
-            if local:
-                pix = QPixmap(local)
-                if not pix.isNull():
-                    self._cache[u] = pix
-                self.loaded.emit(u, pix if not pix.isNull() else QPixmap())
-            else:
-                self.loaded.emit(u, QPixmap())
+        if self._load_local(u):
             return
+        self._load_remote(u)
+
+    def _emit_local_pixmap(self, cache_key: str, pixmap: QPixmap) -> None:
+        """로컬에서 읽은 pixmap을 캐시하고 emit한다."""
+        if not pixmap.isNull():
+            self._cache[cache_key] = pixmap
+            self.loaded.emit(cache_key, pixmap)
+            return
+        self.loaded.emit(cache_key, QPixmap())
+
+    def _load_local(self, url: str) -> bool:
+        """file URL/절대 경로를 동기 로드하고 처리 여부를 반환한다."""
+        if url.startswith("file:"):
+            local = QUrl(url).toLocalFile()
+            pix = QPixmap(local) if local else QPixmap()
+            self._emit_local_pixmap(url, pix)
+            return True
+
         try:
-            p = Path(u)
-            if p.is_absolute() and p.is_file():
-                pix = QPixmap(str(p))
-                if not pix.isNull():
-                    self._cache[u] = pix
-                self.loaded.emit(u, pix if not pix.isNull() else QPixmap())
-                return
+            path = Path(url)
         except OSError:
-            pass
-        if not u.startswith("http"):
+            return False
+
+        if not (path.is_absolute() and path.is_file()):
+            return False
+
+        self._emit_local_pixmap(url, QPixmap(str(path)))
+        return True
+
+    def _load_remote(self, url: str) -> None:
+        """http(s) URL만 비동기 요청한다."""
+        if not url.startswith("http") or url in self._inflight_urls:
             return
-        if u in self._inflight_urls:
-            return
-        self._inflight_urls.add(u)
-        request = QNetworkRequest(QUrl(u))
+
+        self._inflight_urls.add(url)
+        request = QNetworkRequest(QUrl(url))
         reply = self._nam.get(request)
-        self._pending[reply] = u
+        self._pending[reply] = url
 
     def _on_finished(self, reply: QNetworkReply) -> None:
         """응답을 pixmap으로 디코딩해 캐시·emit한다.
