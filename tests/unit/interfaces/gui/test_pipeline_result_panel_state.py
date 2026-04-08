@@ -35,7 +35,7 @@ class _FakePosterCard:
 def test_normalize_ui_state_maps_legacy_tiles_to_content() -> None:
     panel = PipelineResultPanel.__new__(PipelineResultPanel)
     normalized = panel._normalize_ui_state(  # type: ignore[attr-defined]
-        {"view_key": "tiles", "details_pane": False, "preview_pane": False, "selected_index": 0}
+        {"view_key": "tiles", "details_pane": False, "selected_index": 0}
     )
     assert normalized["view_key"] == VIEW_CONTENT
 
@@ -43,7 +43,7 @@ def test_normalize_ui_state_maps_legacy_tiles_to_content() -> None:
 def test_normalize_ui_state_maps_legacy_list_to_details() -> None:
     panel = PipelineResultPanel.__new__(PipelineResultPanel)
     normalized = panel._normalize_ui_state(  # type: ignore[attr-defined]
-        {"view_key": "list", "details_pane": False, "preview_pane": False, "selected_index": 0}
+        {"view_key": "list", "details_pane": False, "selected_index": 0}
     )
     assert normalized["view_key"] == VIEW_DETAILS
 
@@ -55,13 +55,11 @@ def test_normalize_ui_state_applies_fallbacks() -> None:
         {
             "view_key": "unknown",
             "details_pane": "yes",
-            "preview_pane": "no",
             "selected_index": "bad",
         }
     )
     assert normalized["view_key"] == "details"
     assert normalized["details_pane"] is False
-    assert normalized["preview_pane"] is False
     assert normalized["selected_index"] == -1
 
 

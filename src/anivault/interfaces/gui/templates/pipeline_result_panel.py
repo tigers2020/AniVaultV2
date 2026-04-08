@@ -1,6 +1,6 @@
 """pipeline_result_panel.py
 
-파이프라인 결과 영역: 보기 전환·테이블·콘텐츠·포스터 그리드·상세/미리보기 패널을 통합한다.
+파이프라인 결과 영역: 보기 전환·테이블·콘텐츠·포스터 그리드·상세 패널을 통합한다.
 
 Author: Pom Kim
 """
@@ -41,7 +41,6 @@ from anivault.interfaces.gui.components.organisms.content_view import ContentVie
 from anivault.interfaces.gui.components.organisms.details_pane import DetailsPane
 from anivault.interfaces.gui.components.organisms.pipeline_table import PipelineTable
 from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
-from anivault.interfaces.gui.components.organisms.preview_pane import PreviewPane
 from anivault.interfaces.gui.models import (
     PipelineGroupRow,
     PipelineTableModel,
@@ -97,7 +96,6 @@ class PipelineResultUiState(TypedDict):
 
     view_key: str
     details_pane: bool
-    preview_pane: bool
     selected_index: int
 
 
@@ -105,7 +103,6 @@ ICON_SIZES = {VIEW_ICON_XL: 220, VIEW_ICON_L: 180, VIEW_ICON_M: 140, VIEW_ICON_S
 DEFAULT_UI_STATE: PipelineResultUiState = {
     "view_key": VIEW_DETAILS,
     "details_pane": False,
-    "preview_pane": False,
     "selected_index": -1,
 }
 
@@ -135,7 +132,7 @@ class PipelineResultPanel(QFrame):
         self._model = model if model is not None else PipelineTableModel()
         self._rows: list[PipelineGroupRow] = []
         self._selected_index = -1
-        self._pane_mode: str | None = None  # "details" | "preview" | None
+        self._pane_mode: str | None = None  # "details" | None
         self._restoring_state = False
         self._pending_selected_index = -1
         self._cards_by_url: dict[str, list[_ImageRowTarget]] = {}
@@ -220,7 +217,7 @@ class PipelineResultPanel(QFrame):
 
         main_splitter.addWidget(self._stack)
 
-        # Right pane placeholder (DetailsPane or PreviewPane)
+        # Right pane: empty placeholder or DetailsPane
         self._pane_stack = QStackedWidget()
         self._pane_stack.setSizePolicy(
             QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
@@ -228,9 +225,7 @@ class PipelineResultPanel(QFrame):
         self._pane_stack.setMinimumHeight(0)
         self._pane_stack.addWidget(QWidget())  # empty
         self._details_pane = DetailsPane()
-        self._preview_pane = PreviewPane()
         self._pane_stack.addWidget(self._details_pane)
-        self._pane_stack.addWidget(self._preview_pane)
         main_splitter.addWidget(self._pane_stack)
         self._details_pane.manual_match_requested.connect(self.manual_match_requested.emit)
         self._main_splitter = main_splitter
@@ -253,7 +248,6 @@ class PipelineResultPanel(QFrame):
 
         self._view_bar.view_changed.connect(self._on_view_changed)
         self._view_bar.details_pane_changed.connect(self._on_details_pane)
-        self._view_bar.preview_pane_changed.connect(self._on_preview_pane)
 
         # Sync content/poster grids when model changes
         self._model.modelReset.connect(self._sync_views_from_model)
@@ -364,7 +358,7 @@ class PipelineResultPanel(QFrame):
         self._unmatched_table.select_row(-1)
 
     def _apply_unified_selection(self, index: int) -> None:
-        """통합 그룹 인덱스로 상세·미리보기·분할 테이블 선택을 맞춘다.
+        """통합 그룹 인덱스로 상세 패널·분할 테이블 선택을 맞춘다.
 
         Args:
             self: 이 패널 인스턴스.
@@ -377,12 +371,11 @@ class PipelineResultPanel(QFrame):
         self.selection_changed.emit(index)
         row = self._rows[index] if 0 <= index < len(self._rows) else None
         self._details_pane.set_row(row)
-        self._preview_pane.set_row(row)
         self._sync_split_tables_selection(index)
         self._persist_ui_state()
 
     def _on_selection(self, index: int) -> None:
-        """선택 인덱스를 반영하고 상세·미리보기 패널과 외부 시그널을 갱신한다.
+        """선택 인덱스를 반영하고 상세 패널과 외부 시그널을 갱신한다.
 
         Args:
             self: 이 패널 인스턴스.
@@ -445,54 +438,11 @@ class PipelineResultPanel(QFrame):
                 [max(self._main_min_width, w - self._pane_width), self._pane_width]
             )
         else:
-            # If both toggles are on, turning off the inactive one should not hide the
-            # currently displayed pane.
             if self._pane_mode == "details":
-                if self._view_bar.preview_pane_checked():
-                    self._pane_mode = "preview"
-                    self._pane_stack.setCurrentIndex(2)
-                    w = self._main_splitter.width()
-                    self._main_splitter.setSizes(
-                        [max(self._main_min_width, w - self._pane_width), self._pane_width]
-                    )
-                else:
-                    self._pane_mode = None
-                    self._pane_stack.setCurrentIndex(0)
-                    w = self._main_splitter.width()
-                    self._main_splitter.setSizes([w, 0])
-        self._persist_ui_state()
-
-    def _on_preview_pane(self, checked: bool) -> None:
-        """미리보기 패널 토글에 따라 우측 스택·스플리터 크기를 조정한다.
-
-        Args:
-            self: 이 패널 인스턴스.
-            checked: 미리보기 패널 표시 여부.
-
-        Returns:
-            None.
-        """
-        if checked:
-            self._pane_mode = "preview"
-            self._pane_stack.setCurrentIndex(2)
-            w = self._main_splitter.width()
-            self._main_splitter.setSizes(
-                [max(self._main_min_width, w - self._pane_width), self._pane_width]
-            )
-        else:
-            if self._pane_mode == "preview":
-                if self._view_bar.details_pane_checked():
-                    self._pane_mode = "details"
-                    self._pane_stack.setCurrentIndex(1)
-                    w = self._main_splitter.width()
-                    self._main_splitter.setSizes(
-                        [max(self._main_min_width, w - self._pane_width), self._pane_width]
-                    )
-                else:
-                    self._pane_mode = None
-                    self._pane_stack.setCurrentIndex(0)
-                    w = self._main_splitter.width()
-                    self._main_splitter.setSizes([w, 0])
+                self._pane_mode = None
+                self._pane_stack.setCurrentIndex(0)
+                w = self._main_splitter.width()
+                self._main_splitter.setSizes([w, 0])
         self._persist_ui_state()
 
     def _make_card_clickable(self, card: PosterCard, index: int) -> None:
@@ -684,7 +634,6 @@ class PipelineResultPanel(QFrame):
         self._pending_selected_index = normalized["selected_index"]
         self._on_view_changed(normalized["view_key"])
         self._on_details_pane(bool(normalized["details_pane"]))
-        self._on_preview_pane(bool(normalized["preview_pane"]))
         self._restoring_state = False
 
     def _normalize_ui_state(self, data: dict[str, object]) -> PipelineResultUiState:
@@ -699,12 +648,10 @@ class PipelineResultPanel(QFrame):
         """
         view_key = data.get("view_key")
         details_pane = data.get("details_pane")
-        preview_pane = data.get("preview_pane")
         selected_index = data.get("selected_index")
         normalized: PipelineResultUiState = {
             "view_key": DEFAULT_UI_STATE["view_key"],
             "details_pane": DEFAULT_UI_STATE["details_pane"],
-            "preview_pane": DEFAULT_UI_STATE["preview_pane"],
             "selected_index": DEFAULT_UI_STATE["selected_index"],
         }
         if isinstance(view_key, str):
@@ -713,8 +660,6 @@ class PipelineResultPanel(QFrame):
                 normalized["view_key"] = view_key
         if isinstance(details_pane, bool):
             normalized["details_pane"] = details_pane
-        if isinstance(preview_pane, bool):
-            normalized["preview_pane"] = preview_pane
         if isinstance(selected_index, int):
             normalized["selected_index"] = selected_index
         return normalized
@@ -736,7 +681,6 @@ class PipelineResultPanel(QFrame):
                     "pipeline_results": {
                         "view_key": self._view_bar.current_view(),
                         "details_pane": self._view_bar.details_pane_checked(),
-                        "preview_pane": self._view_bar.preview_pane_checked(),
                         "selected_index": self._selected_index,
                     }
                 }
@@ -813,18 +757,18 @@ class PipelineResultPanel(QFrame):
         if header_h > 0:
             self._header.setFixedHeight(header_h)
 
-    def changeEvent(self, event: QEvent) -> None:
+    def changeEvent(self, arg__1: QEvent) -> None:
         """폰트·스타일 등 변경 시 헤더 높이를 재계산한다.
 
         Args:
             self: 이 패널 인스턴스.
-            event: Qt 변경 이벤트.
+            arg__1: Qt 변경 이벤트 (QFrame.changeEvent 시그니처와 동일한 매개변수명).
 
         Returns:
             None.
         """
-        super().changeEvent(event)
-        if event.type() in {
+        super().changeEvent(arg__1)
+        if arg__1.type() in {
             QEvent.Type.FontChange,
             QEvent.Type.StyleChange,
             QEvent.Type.Polish,

@@ -132,6 +132,37 @@ class PipelineTableModel(QAbstractTableModel):
         self._rows = list(rows)
         self.endResetModel()
 
+    def clear_with_reset(self) -> None:
+        """그룹을 비우고 modelReset을 낸다(청크 적용 전 초기화용).
+
+        Args:
+            self: 이 모델.
+
+        Returns:
+            None.
+        """
+        self.beginResetModel()
+        self._rows.clear()
+        self.endResetModel()
+
+    def append_row_groups(self, groups: list[PipelineGroupRow]) -> None:
+        """끝에 그룹 행을 붙이고 rowsInserted만 발생시킨다.
+
+        Args:
+            self: 이 모델.
+            groups: 추가할 `PipelineGroupRow` 목록.
+
+        Returns:
+            None.
+        """
+        if not groups:
+            return
+        first = len(self._rows)
+        last = first + len(groups) - 1
+        self.beginInsertRows(_INVALID_INDEX, first, last)
+        self._rows.extend(groups)
+        self.endInsertRows()
+
     def rows(self) -> list[PipelineGroupRow]:
         """다른 뷰 동기화용 현재 그룹 행 복사본.
 

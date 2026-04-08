@@ -50,7 +50,6 @@ class ViewToggleBar(QWidget):
 
     view_changed = Signal(str)
     details_pane_changed = Signal(bool)
-    preview_pane_changed = Signal(bool)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """콤보·토글·시그널을 초기화한다.
@@ -70,7 +69,6 @@ class ViewToggleBar(QWidget):
 
         self._current_view = VIEW_DETAILS
         self._details_pane_checked = False
-        self._preview_pane_checked = False
 
         # Layout selection (details/content/icon-group)
         self._layout_combo = ComboBox()
@@ -91,12 +89,6 @@ class ViewToggleBar(QWidget):
             object_name="view_toggle_details_pane_btn",
         )
 
-        self._preview_btn = ViewToggleButton(
-            "미리 보기 창",
-            checked=self._preview_pane_checked,
-            object_name="view_toggle_preview_pane_btn",
-        )
-
         # Visual layout
         self._label = Label("보기", "muted")
         self._label.setStyleSheet(theme.label_muted())
@@ -105,7 +97,6 @@ class ViewToggleBar(QWidget):
         layout.addWidget(self._layout_combo)
         layout.addWidget(self._icon_size_combo)
         layout.addWidget(self._details_btn)
-        layout.addWidget(self._preview_btn)
 
         # Set initial UI state without emitting.
         self._sync_ui_from_view(self._current_view)
@@ -114,7 +105,6 @@ class ViewToggleBar(QWidget):
         self._layout_combo.currentIndexChanged.connect(self._on_layout_changed)
         self._icon_size_combo.currentIndexChanged.connect(self._on_icon_size_changed)
         self._details_btn.toggled.connect(self._on_details_pane_toggled)
-        self._preview_btn.toggled.connect(self._on_preview_pane_toggled)
 
     def _sync_icon_size_combo_visibility(self) -> None:
         """아이콘 그룹 레이아웃일 때만 아이콘 크기 콤보를 보인다.
@@ -219,19 +209,6 @@ class ViewToggleBar(QWidget):
         self._details_pane_checked = checked
         self.details_pane_changed.emit(self._details_pane_checked)
 
-    def _on_preview_pane_toggled(self, checked: bool) -> None:
-        """미리보기 창 토글 상태를 저장·전파한다.
-
-        Args:
-            self: 이 위젯.
-            checked: 체크 여부.
-
-        Returns:
-            None.
-        """
-        self._preview_pane_checked = checked
-        self.preview_pane_changed.emit(self._preview_pane_checked)
-
     def set_details_pane_checked(self, checked: bool) -> None:
         """UI만 맞춘다(시그널 없음).
 
@@ -245,20 +222,6 @@ class ViewToggleBar(QWidget):
         self._details_pane_checked = checked
         with QSignalBlocker(self._details_btn):
             self._details_btn.setChecked(checked)
-
-    def set_preview_pane_checked(self, checked: bool) -> None:
-        """UI만 맞춘다(시그널 없음).
-
-        Args:
-            self: 이 위젯.
-            checked: 버튼 체크 상태.
-
-        Returns:
-            None.
-        """
-        self._preview_pane_checked = checked
-        with QSignalBlocker(self._preview_btn):
-            self._preview_btn.setChecked(checked)
 
     def set_current_view(self, key: str) -> None:
         """외부에서 뷰 키에 맞춰 콤보만 동기화한다(시그널 없음).
@@ -293,14 +256,3 @@ class ViewToggleBar(QWidget):
             켜짐 여부.
         """
         return self._details_pane_checked
-
-    def preview_pane_checked(self) -> bool:
-        """미리보기 창 토글 상태를 반환한다.
-
-        Args:
-            self: 이 위젯.
-
-        Returns:
-            켜짐 여부.
-        """
-        return self._preview_pane_checked
