@@ -9,8 +9,8 @@ from threading import Event
 
 
 def execute(
-    input_dto: object,
-    progress_callback: object,
+    # input_dto: object,
+    # progress_callback: object,
     cancel_token: Event,
 ) -> object:
     """롤백을 수행한다(스텁: 빈 dict).
