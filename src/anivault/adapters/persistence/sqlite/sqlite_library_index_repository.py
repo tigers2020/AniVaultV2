@@ -24,7 +24,10 @@ from anivault.application.dto.library_index import (
     IndexedMediaForParse,
     MediaFileRecord,
 )
-from anivault.application.ports.library_index_port import ScanSessionStatus
+from anivault.application.ports.library_index_port import (
+    LibraryIndexRepository,
+    ScanSessionStatus,
+)
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.services.sidecar_group_key import compute_sidecar_group_key
 
@@ -114,7 +117,7 @@ def _split_file_name_parts(relative_posix: str) -> tuple[str, str, str]:
     return file_name, file_name, ""
 
 
-class SqliteLibraryIndexRepository:
+class SqliteLibraryIndexRepository(LibraryIndexRepository):
     """라이브러리 인덱스 SQLite 저장소."""
 
     def __init__(self, conn: sqlite3.Connection, lock: Lock) -> None:
@@ -649,3 +652,93 @@ class SqliteLibraryIndexRepository:
                 )
             )
         return out
+
+    def relocate_media_file(
+        self,
+        root_id: int,
+        *,
+        old_absolute_path: str,
+        new_absolute_path: str,
+    ) -> bool:
+        """Reflect one filesystem move in `media_files`."""
+        with self._lock:
+            root_display = self._fetch_root_path(root_id)
+            root = _resolved_root_path(root_display)
+            try:
+                _old_rel, old_path_norm = _relative_posix_under_resolved_root(root, old_absolute_path)
+                new_rel, new_path_norm = _relative_posix_under_resolved_root(root, new_absolute_path)
+            except ValueError:
+                return False
+
+            cur = self._conn.execute(
+                """
+                SELECT media_kind
+                FROM media_files
+                WHERE root_id = ? AND path_norm = ?
+                LIMIT 1
+                """,
+                (root_id, old_path_norm),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return False
+
+            media_kind = str(row[0])
+            st = os.stat(new_absolute_path)
+            file_name, file_stem, extension = _split_file_name_parts(new_rel)
+            now = utc_now_sqlite_text()
+            self._conn.execute(
+                """
+                UPDATE media_files
+                SET relative_path = ?,
+                    path_norm = ?,
+                    dir_norm = ?,
+                    file_name = ?,
+                    file_stem = ?,
+                    extension = ?,
+                    size_bytes = ?,
+                    mtime_ns = ?,
+                    ctime_ns = ?,
+                    inode_hint = ?,
+                    sidecar_group_key = ?,
+                    is_deleted = 0,
+                    updated_at = ?
+                WHERE root_id = ? AND path_norm = ?
+                """,
+                (
+                    new_rel,
+                    new_path_norm,
+                    _dir_norm_for_relative_text(new_rel),
+                    file_name,
+                    file_stem,
+                    extension,
+                    int(st.st_size),
+                    int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1_000_000_000))),
+                    int(st.st_ctime_ns) if hasattr(st, "st_ctime_ns") else None,
+                    str(st.st_ino) if hasattr(st, "st_ino") else None,
+                    compute_sidecar_group_key(
+                        media_kind=media_kind,
+                        dir_norm=_dir_norm_for_relative_text(new_rel),
+                        file_stem=file_stem,
+                    ),
+                    now,
+                    root_id,
+                    old_path_norm,
+                ),
+            )
+            self._conn.commit()
+            return True
+
+    def relocate_media_files(
+        self,
+        root_id: int,
+        *,
+        pairs: tuple[tuple[str, str], ...],
+    ) -> None:
+        """Reflect many filesystem moves in order."""
+        for old_absolute_path, new_absolute_path in pairs:
+            self.relocate_media_file(
+                root_id,
+                old_absolute_path=old_absolute_path,
+                new_absolute_path=new_absolute_path,
+            )
