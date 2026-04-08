@@ -199,7 +199,7 @@ def _persist_index_and_resolve(
     if not callable(resolve_media):
         return index_root_id, None
     resolved = resolve_media(index_root_id, str_paths)
-    return index_root_id, resolved
+    return index_root_id, cast(list[IndexedMediaForParse | None], resolved)
 
 
 def _resolve_resolution_for_scanned_path(
