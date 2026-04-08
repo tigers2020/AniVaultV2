@@ -27,7 +27,6 @@ SCAN_BUILD_BOOL_KEYS: Final[frozenset[str]] = frozenset({"auto_scan_on_first_sho
 PIPELINE_RESULTS_KEYS: Final[tuple[str, ...]] = (
     "view_key",
     "details_pane",
-    "preview_pane",
     "selected_index",
 )
 
@@ -52,6 +51,5 @@ DEFAULT_SCAN_BUILD: Final[dict[str, object]] = {
 DEFAULT_PIPELINE_RESULTS: Final[dict[str, object]] = {
     "view_key": "details",
     "details_pane": False,
-    "preview_pane": False,
     "selected_index": -1,
 }

@@ -1,8 +1,8 @@
 """OrganizerPresenter scan entrypoint delegation tests."""
 
 from anivault.interfaces.gui.models import PipelineTableModel
+from anivault.interfaces.gui.presenters import organizer_presenter
 from anivault.interfaces.gui.presenters.organizer_presenter import OrganizerPresenter
-from anivault.interfaces.gui.presenters.organizing import scan_parse_coordinator
 
 
 def test_on_scan_clicked_delegates_to_scan_parse_coordinator(monkeypatch) -> None:
@@ -16,7 +16,7 @@ def test_on_scan_clicked_delegates_to_scan_parse_coordinator(monkeypatch) -> Non
             calls.append(path)
 
     monkeypatch.setattr(
-        scan_parse_coordinator,
+        organizer_presenter,
         "ScanParseCoordinator",
         FakeScanParseCoordinator,
     )

@@ -21,6 +21,7 @@ from anivault.adapters.operation_log import FsOperationLogRepository
 from anivault.adapters.parser import AnitopyTitleParser
 from anivault.adapters.persistence.sqlite import (
     SqliteLibraryIndexRepository,
+    SqliteOrganizePlanRepository,
     SqliteParseCacheRepository,
     SqliteTitleGroupRepository,
     SqliteTitleMatchRepository,
@@ -76,6 +77,7 @@ TmdbSearchExecute = Callable[
 @dataclass(frozen=True)
 class _SqliteRepositories:
     library_index: SqliteLibraryIndexRepository
+    organize_plan: SqliteOrganizePlanRepository
     parse_cache: SqliteParseCacheRepository
     title_groups: SqliteTitleGroupRepository
     title_match: SqliteTitleMatchRepository
@@ -191,8 +193,13 @@ def _create_organizer_page(
         parse_execute=parse_execute,
         match_execute=match_execute,
         tmdb_search_execute=tmdb_search_execute,
-        plan_execute=make_plan_execute(),
-        apply_execute=make_apply_execute(file_repo, _make_operation_log_repository),
+        plan_execute=make_plan_execute(organize_plan=repos.organize_plan),
+        apply_execute=make_apply_execute(
+            file_repo,
+            _make_operation_log_repository,
+            library_index=repos.library_index,
+            organize_plan=repos.organize_plan,
+        ),
         progress_dialog=progress_dialog,
         include_companion_subtitles=include_companion_subtitles,
         exclude_subtitles_with_paired_video=exclude_subtitles_with_paired_video,
@@ -213,6 +220,7 @@ def _create_sqlite_repositories() -> _SqliteRepositories:
     lock = threading.Lock()
     return _SqliteRepositories(
         library_index=SqliteLibraryIndexRepository(conn, lock),
+        organize_plan=SqliteOrganizePlanRepository(conn, lock),
         parse_cache=SqliteParseCacheRepository(conn, lock),
         title_groups=SqliteTitleGroupRepository(conn, lock),
         title_match=SqliteTitleMatchRepository(conn, lock),

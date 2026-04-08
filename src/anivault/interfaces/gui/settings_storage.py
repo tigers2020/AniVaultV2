@@ -205,7 +205,6 @@ def _merge_pipeline_results(
     typed_assignments: tuple[tuple[str, type[Any]], ...] = (
         ("selected_index", int),
         ("details_pane", bool),
-        ("preview_pane", bool),
         ("view_key", str),
     )
     for key, expected_type in typed_assignments:

@@ -44,6 +44,9 @@ def test_container_factory_helpers_wire_dependencies(monkeypatch, tmp_path) -> N
         container_module, "SqliteLibraryIndexRepository", lambda conn, lock: "library-index"
     )
     monkeypatch.setattr(
+        container_module, "SqliteOrganizePlanRepository", lambda conn, lock: "organize-plan"
+    )
+    monkeypatch.setattr(
         container_module, "SqliteParseCacheRepository", lambda conn, lock: "parse-cache"
     )
     monkeypatch.setattr(
@@ -59,6 +62,7 @@ def test_container_factory_helpers_wire_dependencies(monkeypatch, tmp_path) -> N
     )
     repos = _create_sqlite_repositories()
     assert repos.library_index is not None
+    assert repos.organize_plan is not None
     assert repos.parse_cache is not None
     assert repos.title_groups is not None
     assert repos.title_match is not None
@@ -122,6 +126,7 @@ def test_create_organizer_page_handles_api_key_and_scan_extensions(monkeypatch) 
         "_create_sqlite_repositories",
         lambda: SimpleNamespace(
             library_index="library-index",
+            organize_plan="organize-plan",
             parse_cache="parse-cache",
             title_groups="title-groups",
             title_match="title-match",
@@ -135,8 +140,10 @@ def test_create_organizer_page_handles_api_key_and_scan_extensions(monkeypatch) 
     monkeypatch.setattr(
         container_module, "make_cached_tmdb_hydrate_execute", lambda **kwargs: "hydrate"
     )
-    monkeypatch.setattr(container_module, "make_plan_execute", lambda: "plan")
-    monkeypatch.setattr(container_module, "make_apply_execute", lambda *args: "apply")
+    monkeypatch.setattr(container_module, "make_plan_execute", lambda **kwargs: ("plan", kwargs))
+    monkeypatch.setattr(
+        container_module, "make_apply_execute", lambda *args, **kwargs: ("apply", args, kwargs)
+    )
     monkeypatch.setattr(container_module, "make_sync_title_groups_execute", lambda repo: "sync")
     monkeypatch.setattr(
         container_module, "OrganizerPresenterPorts", lambda **kwargs: ("ports", kwargs)
@@ -167,3 +174,7 @@ def test_create_organizer_page_handles_api_key_and_scan_extensions(monkeypatch) 
     )
 
     assert page[0] == "page"
+    presenter_kwargs = page[1]["presenter"][1]
+    assert presenter_kwargs["plan_execute"][1]["organize_plan"] == "organize-plan"
+    assert presenter_kwargs["apply_execute"][2]["library_index"] == "library-index"
+    assert presenter_kwargs["apply_execute"][2]["organize_plan"] == "organize-plan"
