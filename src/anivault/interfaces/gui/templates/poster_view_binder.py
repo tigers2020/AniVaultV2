@@ -12,7 +12,6 @@ from typing import Protocol
 
 from PySide6.QtGui import QPixmap
 
-from anivault.interfaces.gui.components.organisms.preview_pane import PreviewPane
 from anivault.interfaces.gui.models import PipelineGroupRow, pipeline_group_display_image_url
 from anivault.interfaces.gui.services.image_loader import ImageLoader
 
@@ -45,10 +44,18 @@ class _ImageRowTarget(Protocol):
         ...
 
 
+class _PreviewTarget(Protocol):
+    """미리보기 패널이 제공해야 하는 최소 계약."""
+
+    def set_pixmap(self, pixmap: QPixmap | None) -> None:
+        """미리보기 이미지 픽스맵을 반영한다."""
+        ...
+
+
 class PosterViewBinder:
     """포스터 대상 목록과 미리보기 패널을 ``ImageLoader``에 연결한다."""
 
-    def __init__(self, image_loader: ImageLoader, preview_pane: PreviewPane) -> None:
+    def __init__(self, image_loader: ImageLoader, preview_pane: _PreviewTarget) -> None:
         """로더·미리보기 참조를 저장하고 ``loaded`` 시그널을 연결한다.
 
         Args:
