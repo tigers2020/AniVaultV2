@@ -7,6 +7,7 @@ Author: Pom Kim
 
 import logging
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from threading import Event
 from typing import Any, cast
 
@@ -26,6 +27,7 @@ from anivault.application.use_cases.match_series import (
     apply_tmdb_candidate_to_file_rows,
     persist_manual_tmdb_selection,
 )
+from anivault.domain.models.parsed_info import ParsedInfo
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.poster_display import resolve_final_poster_display_source
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
@@ -59,6 +61,15 @@ ApplyExecuteFn = Callable[
     ApplyResult,
 ]
 CachedTmdbHydrateFn = Callable[[MatchInput], MatchResult]
+
+
+@dataclass(frozen=True, slots=True)
+class OrganizerPresenterPorts:
+    """TMDB/포스터 영속화에 쓰는 저장소·동기화 포트 묶음."""
+
+    title_match: TitleMatchRepository | None = None
+    title_groups: TitleGroupRepository | None = None
+    poster_sync: PosterAssetSyncPort | None = None
 
 
 class _ManualTmdbSearchRelay(QObject):
@@ -141,9 +152,7 @@ class OrganizerPresenter(QObject):
         include_companion_subtitles: bool = True,
         sync_title_groups_execute: Callable[[int], None] | None = None,
         cached_tmdb_hydrate_execute: CachedTmdbHydrateFn | None = None,
-        title_match: TitleMatchRepository | None = None,
-        title_groups: TitleGroupRepository | None = None,
-        poster_sync: PosterAssetSyncPort | None = None,
+        ports: OrganizerPresenterPorts | None = None,
         parent: QObject | None = None,
     ) -> None:
         """파이프라인 모델과 유스케이스 실행 콜백·진행 다이얼로그를 연결한다.
@@ -160,9 +169,8 @@ class OrganizerPresenter(QObject):
             progress_dialog: 진행률 UI. None이면 다이얼로그 없음.
             include_companion_subtitles: 플랜에 동반 자막 이동을 포함할지 여부.
             sync_title_groups_execute: 파싱·캐시 완료 후 `root_id`로 title_groups 동기화. None이면 생략.
-            title_match: 포스터 로컬 경로 조회·수동 매칭 영속. None이면 CDN만 표시.
-            title_groups: 수동 매칭 시 그룹–TMDB 영속. None이면 해당 생략.
-            poster_sync: 수동 매칭 후 포스터 다운로드. None이면 생략.
+            cached_tmdb_hydrate_execute: 캐시된 TMDB 메타 하이드레이션. None이면 생략.
+            ports: title_match·title_groups·poster_sync 묶음. None이면 모두 미사용.
             parent: Qt 부모 객체.
 
         Returns:
@@ -180,9 +188,10 @@ class OrganizerPresenter(QObject):
         self._progress_dialog = progress_dialog
         self._sync_title_groups_execute = sync_title_groups_execute
         self._cached_tmdb_hydrate_execute = cached_tmdb_hydrate_execute
-        self._title_match = title_match
-        self._title_groups = title_groups
-        self._poster_sync = poster_sync
+        _ports = ports or OrganizerPresenterPorts()
+        self._title_match = _ports.title_match
+        self._title_groups = _ports.title_groups
+        self._poster_sync = _ports.poster_sync
         self._parse_index_root_id: int | None = None
         self._current_library_root_id: int | None = None
         self._worker_thread: QThread | None = None
@@ -286,6 +295,18 @@ class OrganizerPresenter(QObject):
         else:
             thread = run_worker(worker)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
+        self._worker_thread = thread
+
+    def register_worker_thread(self, thread: QThread) -> None:
+        """ScanParseCoordinator 등에서 활성 워커 스레드 참조를 등록한다.
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            thread: `run_worker` 또는 `run_use_case_worker_with_progress_dialog` 결과.
+
+        Returns:
+            None.
+        """
         self._worker_thread = thread
 
     def _on_scan_thread_finished(self, dialog: ProgressDialog) -> None:
@@ -452,6 +473,106 @@ class OrganizerPresenter(QObject):
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
         self._worker_thread = thread
 
+    def _merge_parse_into_row(
+        self,
+        row: PipelineRow,
+        parsed: ParsedInfo | None,
+        parsed_from_cache: bool,
+    ) -> PipelineRow:
+        """단일 파이프라인 행에 ParsedInfo를 병합한다(없으면 원본 행 복제).
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            row: 기존 파이프라인 행.
+            parsed: 파싱 결과. None이면 파싱 전 상태를 유지한다.
+            parsed_from_cache: 파싱 캐시 히트 여부(상태 문자열에만 사용).
+
+        Returns:
+            병합된 PipelineRow.
+        """
+        if parsed is None:
+            return PipelineRow(
+                original_file=row.original_file,
+                parsed_title=row.parsed_title,
+                parse_group=row.parse_group,
+                tmdb_korean_title_group=row.tmdb_korean_title_group,
+                tmdb_series_id=row.tmdb_series_id,
+                tmdb_poster_path=row.tmdb_poster_path,
+                tmdb_backdrop_path=row.tmdb_backdrop_path,
+                year=row.year,
+                season=row.season,
+                resolution=row.resolution,
+                status=row.status,
+                poster_url=row.poster_url,
+                backdrop_url=row.backdrop_url,
+                target_path=row.target_path,
+                episode=row.episode,
+            )
+        merged_res = (parsed.resolution or "").strip() or row.resolution
+        return PipelineRow(
+            original_file=row.original_file,
+            parsed_title=parsed.title,
+            parse_group=parsed.parse_group,
+            tmdb_korean_title_group=row.tmdb_korean_title_group,
+            tmdb_series_id=row.tmdb_series_id,
+            tmdb_poster_path=row.tmdb_poster_path,
+            tmdb_backdrop_path=row.tmdb_backdrop_path,
+            year=parsed.year,
+            season=parsed.season,
+            resolution=merged_res,
+            status="파싱 캐시" if parsed_from_cache else "파싱됨",
+            poster_url=row.poster_url,
+            backdrop_url=row.backdrop_url,
+            target_path=row.target_path,
+            episode=parsed.episode,
+        )
+
+    def _try_sync_title_groups_after_parse(self, root_for_sync: int | None) -> None:
+        """인덱스 루트가 있으면 title_groups 동기화를 시도한다(실패는 로그만).
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            root_for_sync: 스캔 인덱스 루트 ID.
+
+        Returns:
+            None.
+        """
+        sync_fn = self._sync_title_groups_execute
+        if root_for_sync is None or sync_fn is None:
+            return
+        try:
+            sync_fn(root_for_sync)
+        except Exception:
+            logger.exception("title_groups 동기화 실패")
+
+    def _try_hydrate_cached_tmdb(
+        self, root_for_sync: int | None, merged: list[PipelineRow]
+    ) -> list[PipelineRow]:
+        """캐시된 TMDB 메타데이터로 행을 보강한다(실패 시 merged 그대로).
+
+        Args:
+            self: 이 프레젠터 인스턴스.
+            root_for_sync: 스캔 인덱스 루트 ID.
+            merged: 파싱 병합 직후 행 목록.
+
+        Returns:
+            보강된 행 목록 또는 실패 시 입력과 동일한 목록.
+        """
+        hydrate_fn = self._cached_tmdb_hydrate_execute
+        if root_for_sync is None or hydrate_fn is None:
+            return merged
+        try:
+            hydrated = hydrate_fn(
+                MatchInput(
+                    files=tuple(pipeline_row_to_match_file(r) for r in merged),
+                    index_root_id=root_for_sync,
+                )
+            )
+            return [self._match_file_to_pipeline_row(m) for m in hydrated.files]
+        except Exception:
+            logger.exception("TMDB cache hydration failed")
+            return merged
+
     def _on_parse_result(self, result: ParseResult) -> None:
         """인덱스 기준으로 현재 행에 파싱 정보를 병합하고 모델을 갱신한다.
 
@@ -469,68 +590,11 @@ class OrganizerPresenter(QObject):
         for i, row in enumerate(rows):
             p = parsed_list[i] if i < len(parsed_list) else None
             parsed_from_cache = cache_hits[i] if i < len(cache_hits) else False
-            if p is None:
-                merged.append(
-                    PipelineRow(
-                        original_file=row.original_file,
-                        parsed_title=row.parsed_title,
-                        parse_group=row.parse_group,
-                        tmdb_korean_title_group=row.tmdb_korean_title_group,
-                        tmdb_series_id=row.tmdb_series_id,
-                        tmdb_poster_path=row.tmdb_poster_path,
-                        tmdb_backdrop_path=row.tmdb_backdrop_path,
-                        year=row.year,
-                        season=row.season,
-                        resolution=row.resolution,
-                        status=row.status,
-                        poster_url=row.poster_url,
-                        backdrop_url=row.backdrop_url,
-                        target_path=row.target_path,
-                        episode=row.episode,
-                    )
-                )
-            else:
-                merged_res = (p.resolution or "").strip() or row.resolution
-                merged.append(
-                    PipelineRow(
-                        original_file=row.original_file,
-                        parsed_title=p.title,
-                        parse_group=p.parse_group,
-                        tmdb_korean_title_group=row.tmdb_korean_title_group,
-                        tmdb_series_id=row.tmdb_series_id,
-                        tmdb_poster_path=row.tmdb_poster_path,
-                        tmdb_backdrop_path=row.tmdb_backdrop_path,
-                        year=p.year,
-                        season=p.season,
-                        resolution=merged_res,
-                        status="파싱 캐시" if parsed_from_cache else "파싱됨",
-                        poster_url=row.poster_url,
-                        backdrop_url=row.backdrop_url,
-                        target_path=row.target_path,
-                        episode=p.episode,
-                    )
-                )
+            merged.append(self._merge_parse_into_row(row, p, parsed_from_cache))
         root_for_sync = self._parse_index_root_id
-        sync_fn = self._sync_title_groups_execute
         self._parse_index_root_id = None
-        if root_for_sync is not None and sync_fn is not None:
-            try:
-                sync_fn(root_for_sync)
-            except Exception:
-                logger.exception("title_groups 동기화 실패")
-
-        hydrate_fn = self._cached_tmdb_hydrate_execute
-        if root_for_sync is not None and hydrate_fn is not None:
-            try:
-                hydrated = hydrate_fn(
-                    MatchInput(
-                        files=tuple(pipeline_row_to_match_file(r) for r in merged),
-                        index_root_id=root_for_sync,
-                    )
-                )
-                merged = [self._match_file_to_pipeline_row(m) for m in hydrated.files]
-            except Exception:
-                logger.exception("TMDB cache hydration failed")
+        self._try_sync_title_groups_after_parse(root_for_sync)
+        merged = self._try_hydrate_cached_tmdb(root_for_sync, merged)
         self._model.set_rows(group_pipeline_rows(merged))
         self._notify_dry_run(self._dry_run_should_enable())
 
