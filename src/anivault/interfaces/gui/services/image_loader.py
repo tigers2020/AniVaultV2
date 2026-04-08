@@ -36,6 +36,7 @@ class ImageLoader(QObject):
         self._nam.finished.connect(self._on_finished)
         self._cache: dict[str, QPixmap] = {}
         self._pending: dict[QNetworkReply, str] = {}
+        self._inflight_urls: set[str] = set()
 
     def get(self, url: str) -> QPixmap | None:
         """캐시에 있으면 pixmap을, 없으면 None을 반환한다.
@@ -88,6 +89,9 @@ class ImageLoader(QObject):
             pass
         if not u.startswith("http"):
             return
+        if u in self._inflight_urls:
+            return
+        self._inflight_urls.add(u)
         request = QNetworkRequest(QUrl(u))
         reply = self._nam.get(request)
         self._pending[reply] = u
@@ -105,6 +109,7 @@ class ImageLoader(QObject):
         url = self._pending.pop(reply, None)
         if url is None:
             return
+        self._inflight_urls.discard(url)
         reply.deleteLater()
         if reply.error() != QNetworkReply.NetworkError.NoError:
             self.loaded.emit(url, QPixmap())

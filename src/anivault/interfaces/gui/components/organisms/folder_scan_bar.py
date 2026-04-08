@@ -99,7 +99,8 @@ class FolderScanBar(QFrame):
         Returns:
             None.
         """
-        h = int(self.layout().sizeHint().height()) if self.layout() is not None else 0
+        layout = self.layout()
+        h = int(layout.sizeHint().height()) if layout is not None else 0
         if h <= 0:
             h = int(self.sizeHint().height())
         if h > 0:

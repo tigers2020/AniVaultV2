@@ -127,6 +127,25 @@ def _resolution_label_from_text(text: str) -> str:
     return _width_token_label(text)
 
 
+def resolution_label_from_stream_dimensions(width: int, height: int) -> str:
+    """비디오 스트림 너비·높이에서 표시용 해상도 라벨을 만든다.
+
+    Args:
+        width: 스트림 가로 픽셀.
+        height: 스트림 세로 픽셀.
+
+    Returns:
+        720p/1080p 같은 라벨 또는 ``WxH``. 입력이 유효하지 않으면 빈 문자열.
+    """
+    if width <= 0 or height <= 0:
+        return ""
+    video_height = _video_height(width, height)
+    label = _height_to_label(video_height)
+    if label:
+        return label
+    return f"{width}x{height}"
+
+
 def resolution_from_filename(filename: str) -> str:
     """Extract a normalized standard resolution tier from a path or filename."""
     try:

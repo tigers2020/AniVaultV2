@@ -108,6 +108,24 @@ class TitleMatchRepository(Protocol):
         """Multiple TMDB ids to non-expired series candidates."""
         ...
 
+    def find_series_candidates_by_title(
+        self,
+        query: str,
+        *,
+        limit: int = 10,
+    ) -> list[TmdbSeriesCandidateDTO]:
+        """미만료 `tmdb_series`에서 제목 유사 후보를 찾는다.
+
+        Args:
+            self: 저장소.
+            query: 사용자 검색어(원문).
+            limit: 최대 반환 개수.
+
+        Returns:
+            점수 순 후보 리스트. 없으면 빈 리스트.
+        """
+        ...
+
     def get_group_match(self, group_id: int) -> GroupTmdbMatchRecord | None:
         """그룹의 저장된 TMDB 매칭을 조회한다.
 

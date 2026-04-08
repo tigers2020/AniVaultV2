@@ -122,8 +122,13 @@ class OrganizerPage(QWidget):
             None.
         """
         super().showEvent(event)
-        source_path = load_all().get("scan_build", {}).get("source_path", "") or ""
+        settings = load_all()
+        sb = settings.get("scan_build", {}) or {}
+        source_path = sb.get("source_path", "") or ""
         self._scan_bar.set_path(source_path)
-        if source_path and not self._auto_scan_done:
+        auto_scan = sb.get("auto_scan_on_first_show", True)
+        if not isinstance(auto_scan, bool):
+            auto_scan = str(auto_scan).strip().lower() in ("1", "true", "yes")
+        if source_path and not self._auto_scan_done and auto_scan:
             self._auto_scan_done = True
             QTimer.singleShot(100, lambda: self._presenter.on_scan_clicked(source_path))

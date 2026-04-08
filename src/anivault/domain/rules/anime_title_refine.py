@@ -30,6 +30,8 @@ _ORDINAL_TV_YEAR_TAIL = re.compile(
 _ORDINAL_TAIL = re.compile(r"\s+(\d+)(?:st|nd|rd|th)\s*$", re.I)
 _ORDINAL_TIGHT = re.compile(r"(\d+)(?:st|nd|rd|th)\s*$", re.I)
 _MULTI_SPACE = re.compile(r"\s+")
+_LEADING_THEATER_BRACKET = re.compile(r"^\s*\[(?:극장판|劇場版|Gekijouban)\]\s*", re.I)
+_THEATER_TOKEN = re.compile(r"(?:^|\s)(?:극장판|劇場版|Gekijouban)(?:\s|$)", re.I)
 
 
 def _strip_first_korean_hwa_from_title(title: str) -> tuple[str, str | None]:
@@ -99,6 +101,25 @@ def _canonicalize_durarara_family(title: str) -> str:
     return raw
 
 
+def _strip_theater_title_tokens(title: str) -> str:
+    """극장판 표기를 제목에서 제거한다.
+
+    Args:
+        title: 정리 중인 제목.
+
+    Returns:
+        ``[극장판]`` 같은 선행 태그와 ``극장판/劇場版/Gekijouban`` 토큰을 뺀 제목.
+    """
+    t = title.strip()
+    while True:
+        n = _LEADING_THEATER_BRACKET.sub("", t).strip()
+        if n == t:
+            break
+        t = n
+    t = _THEATER_TOKEN.sub(" ", t)
+    return _MULTI_SPACE.sub(" ", t).strip()
+
+
 def apply_anime_title_refine(stem: str, info: ParsedInfo) -> ParsedInfo:
     """stem·초기 파싱 결과로 표시용 제목·에피소드를 다듬는다.
 
@@ -128,6 +149,7 @@ def apply_anime_title_refine(stem: str, info: ParsedInfo) -> ParsedInfo:
     title = _strip_ordinal_tv_year_release(title)
     title = _ORDINAL_TAIL.sub("", title).strip()
     title = _ORDINAL_TIGHT.sub("", title).strip()
+    title = _strip_theater_title_tokens(title)
 
     if not title:
         title = (info.title or "").strip()

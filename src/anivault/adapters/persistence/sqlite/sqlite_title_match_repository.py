@@ -14,6 +14,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
+from anivault.adapters.persistence.sqlite.sql_queries import GROUP_TMDB_MATCH_UPSERT_SQL
 from anivault.adapters.persistence.sqlite.sqlite_time import (
     is_utc_sqlite_text_expired,
     utc_now_sqlite_text,
@@ -21,6 +22,10 @@ from anivault.adapters.persistence.sqlite.sqlite_time import (
 from anivault.application.dto.title_match import GroupTmdbMatchRecord, MatchStatusDto
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
+from anivault.domain.rules.tmdb_search_query import (
+    compact_compare_key,
+    normalize_tmdb_search_query,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,17 +56,6 @@ ON CONFLICT(tmdb_id) DO UPDATE SET
     poster_path = excluded.poster_path,
     raw_json = excluded.raw_json,
     expires_at = excluded.expires_at,
-    updated_at = excluded.updated_at
-"""
-
-_GROUP_MATCH_UPSERT = """
-INSERT INTO group_tmdb_matches (
-    group_id, tmdb_id, match_status, match_score, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(group_id) DO UPDATE SET
-    tmdb_id = excluded.tmdb_id,
-    match_status = excluded.match_status,
-    match_score = excluded.match_score,
     updated_at = excluded.updated_at
 """
 
@@ -113,7 +107,6 @@ class SqliteTitleMatchRepository:
                 (k,),
             )
             row = cur.fetchone()
-            self._conn.commit()
         if row is None:
             return None
         js, exp = str(row[0]), str(row[1])
@@ -276,7 +269,6 @@ class SqliteTitleMatchRepository:
                 (int(tmdb_id),),
             )
             row = cur.fetchone()
-            self._conn.commit()
         if row is None:
             return None
         raw, exp = str(row[0]), str(row[1])
@@ -329,6 +321,44 @@ class SqliteTitleMatchRepository:
                         )
         return out
 
+    def find_series_candidates_by_title(
+        self,
+        query: str,
+        *,
+        limit: int = 10,
+    ) -> list[TmdbSeriesCandidateDTO]:
+        """미만료 `tmdb_series`에서 제목 유사 후보를 찾는다.
+
+        Args:
+            self: 저장소.
+            query: 사용자 검색어.
+            limit: 최대 반환 개수.
+
+        Returns:
+            후보 리스트. 없으면 빈 리스트.
+        """
+        cap = max(1, int(limit))
+        norm = normalize_tmdb_search_query(query)
+        needle = compact_compare_key(norm)
+        if len(needle) < 2:
+            return []
+        with self._lock:
+            cur = self._conn.execute(
+                """
+                SELECT raw_json, expires_at
+                FROM tmdb_series
+                WHERE instr(lower(name_ko), lower(?)) > 0
+                   OR instr(lower(original_name), lower(?)) > 0
+                ORDER BY updated_at DESC, tmdb_id ASC
+                LIMIT 40
+                """,
+                (norm, norm),
+            )
+            rows = cur.fetchall()
+        scored = _rank_local_title_hits(rows, needle)
+        scored.sort(key=lambda item: (item[0], item[1], int(item[2].tmdb_id)))
+        return [item[2] for item in scored[:cap]]
+
     def get_group_match(self, group_id: int) -> GroupTmdbMatchRecord | None:
         """그룹 매칭 행을 조회한다.
 
@@ -349,7 +379,6 @@ class SqliteTitleMatchRepository:
                 (int(group_id),),
             )
             row = cur.fetchone()
-            self._conn.commit()
         if row is None:
             return None
         st = str(row[2])
@@ -424,7 +453,7 @@ class SqliteTitleMatchRepository:
             self._conn.execute("BEGIN")
             try:
                 self._conn.execute(
-                    _GROUP_MATCH_UPSERT,
+                    GROUP_TMDB_MATCH_UPSERT_SQL,
                     (gid, tid, match_status, match_score, now, now),
                 )
                 if match_status == "rejected":
@@ -516,16 +545,13 @@ class SqliteTitleMatchRepository:
             )
             row = cur.fetchone()
             if row is None:
-                self._conn.commit()
                 return None
             local_path, st = str(row[0] or ""), str(row[1] or "")
             if st != "ready" or not local_path.strip():
-                self._conn.commit()
                 return None
             try:
                 p = Path(local_path)
                 if p.is_file():
-                    self._conn.commit()
                     return str(p.resolve())
             except OSError:
                 pass
@@ -641,3 +667,75 @@ def _candidate_from_raw_json(raw: str) -> TmdbSeriesCandidateDTO:
         backdrop_path=str(data.get("backdrop_path", "") or ""),
         popularity=float(data.get("popularity", 0.0) or 0.0),
     )
+
+
+def _rank_local_title_hits(
+    rows: list[tuple[object, object]],
+    needle: str,
+) -> list[tuple[int, float, TmdbSeriesCandidateDTO]]:
+    """로컬 조회 raw 행을 매칭 점수와 함께 정렬 후보로 바꾼다.
+
+    Args:
+        rows: (raw_json, expires_at) 튜플 목록.
+        needle: 비교용 검색 키.
+
+    Returns:
+        (rank, -popularity, candidate) 튜플 목록.
+    """
+    scored: list[tuple[int, float, TmdbSeriesCandidateDTO]] = []
+    seen_ids: set[int] = set()
+    for raw, exp in rows:
+        cand = _decode_unexpired_candidate(raw, exp)
+        if cand is None:
+            continue
+        tid = int(cand.tmdb_id)
+        if tid in seen_ids:
+            continue
+        seen_ids.add(tid)
+        rank = _rank_title_match(cand, needle)
+        if rank is None:
+            continue
+        scored.append((rank, -float(cand.popularity or 0.0), cand))
+    return scored
+
+
+def _decode_unexpired_candidate(raw: object, exp: object) -> TmdbSeriesCandidateDTO | None:
+    """만료 검사 후 후보 DTO를 복원한다.
+
+    Args:
+        raw: raw_json 값.
+        exp: expires_at 값.
+
+    Returns:
+        DTO 또는 None.
+    """
+    if is_utc_sqlite_text_expired(str(exp)):
+        return None
+    try:
+        return _candidate_from_raw_json(str(raw))
+    except (KeyError, OSError, TypeError, ValueError):
+        return None
+
+
+def _rank_title_match(cand: TmdbSeriesCandidateDTO, needle: str) -> int | None:
+    """후보 제목과 검색 키의 매칭 랭크를 계산한다.
+
+    Args:
+        cand: 시리즈 후보.
+        needle: 비교용 검색 키.
+
+    Returns:
+        정확 일치 0, 부분 일치 1, 불일치 None.
+    """
+    keys = [
+        compact_compare_key(cand.name_ko),
+        compact_compare_key(cand.original_name),
+    ]
+    keys = [k for k in keys if k]
+    if not keys:
+        return None
+    if any(k == needle for k in keys):
+        return 0
+    if any(needle in k or k in needle for k in keys):
+        return 1
+    return None

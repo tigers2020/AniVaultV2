@@ -10,6 +10,7 @@ from __future__ import annotations
 import sqlite3
 from threading import Lock
 
+from anivault.adapters.persistence.sqlite.sql_queries import GROUP_TMDB_MATCH_UPSERT_SQL
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
 from anivault.application.dto.title_groups import (
     TitleGroupListRecord,
@@ -146,12 +147,17 @@ class SqliteTitleGroupRepository:
                     gid = int(rid)
                     if preserved is not None:
                         self._conn.execute(
-                            """
-                            INSERT INTO group_tmdb_matches (
-                                group_id, tmdb_id, match_status, match_score, created_at, updated_at
-                            ) VALUES (?, ?, ?, ?, ?, ?)
-                            """,
+                            GROUP_TMDB_MATCH_UPSERT_SQL,
                             (gid, preserved[0], preserved[1], preserved[2], now, now),
+                        )
+                        tmdb_series_id = None if preserved[1] == "rejected" else preserved[0]
+                        self._conn.execute(
+                            """
+                            UPDATE title_groups
+                            SET tmdb_series_id = ?, updated_at = ?
+                            WHERE id = ?
+                            """,
+                            (tmdb_series_id, now, gid),
                         )
                     self._conn.executemany(
                         """

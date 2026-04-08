@@ -74,6 +74,7 @@ def try_build_plan_input_from_settings(
     path_rules: dict[str, Any],
     *,
     include_companion_subtitles: bool = True,
+    index_root_id: int | None = None,
 ) -> tuple[PlanInput | None, str | None]:
     """path_rules와 파이프라인 행으로 PlanInput을 만든다.
 
@@ -81,6 +82,7 @@ def try_build_plan_input_from_settings(
         rows: 평탄화된 파이프라인 행.
         path_rules: Settings의 path_rules 섹션.
         include_companion_subtitles: True면 플랜에 동반 자막 이동을 포함한다.
+        index_root_id: 스캔 인덱스 `library_roots.id`. None이면 플랜 DB 저장 생략.
 
     Returns:
         (PlanInput, None) 또는 (None, 오류 키: empty | no_matched | path_rules).
@@ -107,6 +109,7 @@ def try_build_plan_input_from_settings(
             ).strip()
             or "Needs_Review",
             include_companion_subtitles=include_companion_subtitles,
+            index_root_id=index_root_id,
         ),
         None,
     )

@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from threading import Event
@@ -28,6 +30,7 @@ from anivault.application.ports.title_match_port import TitleMatchRepository
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.tmdb_image_url import tmdb_backdrop_cdn_url, tmdb_poster_cdn_url
 from anivault.domain.rules.tmdb_search_query import (
+    compact_compare_key,
     iter_strip_last_word_chain,
     iter_tmdb_search_queries,
 )
@@ -69,18 +72,6 @@ def _group_key(row: MatchFileRow) -> str:
     return row.original_file
 
 
-def _normalize_key(s: str) -> str:
-    """비교용 키: 공백 제거 후 소문자만 남긴다.
-
-    Args:
-        s: 원본 문자열.
-
-    Returns:
-        정규화된 키.
-    """
-    return "".join(c.lower() for c in s if not c.isspace())
-
-
 def _year_prefix(iso_date: str) -> str:
     """ISO 날짜 문자열에서 연도 4자리 접두를 반환한다.
 
@@ -113,7 +104,7 @@ def _score_one_candidate(
     """
     score = 0.0
     reason = reason_in
-    names = [_normalize_key(c.name_ko), _normalize_key(c.original_name)]
+    names = [compact_compare_key(c.name_ko), compact_compare_key(c.original_name)]
     names = [n for n in names if n]
     if qn and any(qn == n for n in names):
         score += 10.0
@@ -148,7 +139,7 @@ def _select_best_candidate(
     """
     if not candidates:
         return None, 0.0, "no_results"
-    qn = _normalize_key(query)
+    qn = compact_compare_key(query)
     best: TmdbSeriesCandidateDTO | None = None
     best_score = -1.0
     reason = "fallback_first"
@@ -332,7 +323,10 @@ def persist_manual_tmdb_selection(
     title_match: TitleMatchRepository | None,
     title_groups: TitleGroupRepository | None,
 ) -> None:
-    """수동 매칭 선택을 tmdb_series·group_tmdb_matches에 반영한다.
+    """수동 매칭 선택을 tmdb_series·(가능 시) group_tmdb_matches에 반영한다.
+
+    `title_groups`에서 그룹 id를 못 찾아도 `tmdb_series`는 항상 갱신해
+    로컬 DB 우선 검색·포스터 캐시에 반영된다.
 
     Args:
         files: 전체 파일 행(참조만).
@@ -346,29 +340,98 @@ def persist_manual_tmdb_selection(
     Returns:
         None.
     """
-    if (
-        root_id is None
-        or not representative_path_norm
-        or title_match is None
-        or title_groups is None
-        or not indices
-        or max(indices) >= len(files)
-    ):
+    if title_match is None or not indices or max(indices) >= len(files):
         return
-    gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
-    if gid is None:
+    if not chosen.tmdb_id:
         return
     raw_json = json.dumps(asdict(chosen), ensure_ascii=False, separators=(",", ":"))
     exp = _utc_plus_days_iso_z(7)
     try:
         title_match.upsert_series(chosen, raw_json=raw_json, expires_at=exp)
+    except Exception:
+        logger.exception("수동 TMDB tmdb_series upsert 실패 tmdb_id=%s", chosen.tmdb_id)
+        return
+    if root_id is None or not representative_path_norm or title_groups is None:
+        return
+    gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
+    if gid is None:
+        logger.warning(
+            "수동 TMDB: title_groups에 대표 경로 없음 root_id=%s path_norm=%s",
+            root_id,
+            representative_path_norm,
+        )
+        return
+    try:
         title_match.set_group_match(gid, int(chosen.tmdb_id), "confirmed", None)
     except Exception:
         logger.exception(
-            "수동 TMDB 영속 실패 group_id=%s tmdb_id=%s",
+            "수동 TMDB group 매칭 영속 실패 group_id=%s tmdb_id=%s",
             gid,
             chosen.tmdb_id,
         )
+
+
+def _try_series_from_title_match_db(
+    *,
+    root_id: int | None,
+    representative_path_norm: str | None,
+    title_match: TitleMatchRepository | None,
+    title_groups: TitleGroupRepository | None,
+) -> list[TmdbSeriesCandidateDTO] | None:
+    """로컬 DB에 확정·자동 매칭이 있으면 해당 시리즈 후보 한 건만 반환한다.
+
+    Args:
+        root_id: 인덱스 루트. None이면 단축 경로 없음.
+        representative_path_norm: 그룹 대표 파일 `path_norm`.
+        title_match: TMDB 매칭 저장소.
+        title_groups: 작품 그룹 저장소.
+
+    Returns:
+        단축 경로로 후보를 찾았으면 길이 1 목록. 아니면 None(호출 측에서 API 검색 계속).
+    """
+    if (
+        root_id is None
+        or not representative_path_norm
+        or title_match is None
+        or title_groups is None
+    ):
+        return None
+    gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
+    if gid is None:
+        return None
+    gm = title_match.get_group_match(gid)
+    if gm is None or gm.match_status not in ("auto_matched", "confirmed"):
+        return None
+    cand = title_match.get_series_candidate(gm.tmdb_id)
+    if cand is None:
+        return None
+    return [cand]
+
+
+def _search_series_via_provider(
+    group_key: str,
+    provider: MetadataProvider,
+) -> list[TmdbSeriesCandidateDTO]:
+    """변형 검색어·끝단어 제거 체인으로 포트 검색을 시도해 첫 비어 있지 않은 결과를 반환한다.
+
+    Args:
+        group_key: 파싱 그룹 식별 문자열.
+        provider: 메타데이터 검색 포트.
+
+    Returns:
+        첫 비어 있지 않은 검색 결과. 없으면 빈 목록.
+    """
+    seen_attempts: set[str] = set()
+    for q in iter_tmdb_search_queries(group_key):
+        for attempt in iter_strip_last_word_chain(q):
+            ak = attempt.lower()
+            if ak in seen_attempts:
+                continue
+            seen_attempts.add(ak)
+            raw_candidates = list(provider.search_series(attempt, year=None))
+            if raw_candidates:
+                return raw_candidates
+    return []
 
 
 def _search_series_candidates_for_group(
@@ -395,6 +458,107 @@ def _search_series_candidates_for_group(
     Returns:
         첫 비어 있지 않은 검색 결과. 없으면 빈 목록.
     """
+    from_db = _try_series_from_title_match_db(
+        root_id=root_id,
+        representative_path_norm=representative_path_norm,
+        title_match=title_match,
+        title_groups=title_groups,
+    )
+    if from_db is not None:
+        return from_db
+    return _search_series_via_provider(group_key, provider)
+
+
+def _match_single_group_search_phase(
+    group_key: str,
+    provider: MetadataProvider,
+    *,
+    root_id: int | None = None,
+    representative_path_norm: str | None = None,
+    title_match: TitleMatchRepository | None = None,
+    title_groups: TitleGroupRepository | None = None,
+) -> tuple[GroupMatchResultDTO, TmdbSeriesCandidateDTO | None]:
+    """한 그룹에 대해 TMDB 검색·후보 선택만 수행한다(파일 행·DB 갱신 없음).
+
+    Args:
+        group_key: 그룹 식별 키.
+        provider: 메타데이터 검색 포트.
+        root_id: DB 단축 경로용 루트 id.
+        representative_path_norm: 그룹 대표 path_norm.
+        title_match: TMDB 매칭 저장소.
+        title_groups: 작품 그룹 저장소.
+
+    Returns:
+        (그룹 결과 DTO, 적용할 후보 또는 None).
+    """
+    raw_candidates = _search_series_candidates_for_group(
+        group_key,
+        provider,
+        root_id=root_id,
+        representative_path_norm=representative_path_norm,
+        title_match=title_match,
+        title_groups=title_groups,
+    )
+    best, conf, reason = _select_best_candidate(raw_candidates, group_key, "")
+
+    if best is None or not best.tmdb_id:
+        return (
+            GroupMatchResultDTO(
+                group_key=group_key,
+                matched=False,
+                tmdb_id=None,
+                korean_group_title="",
+                original_title="",
+                confidence=0.0,
+                reason=reason,
+            ),
+            None,
+        )
+
+    korean = (best.name_ko or "").strip()
+    original = (best.original_name or "").strip()
+    dto = GroupMatchResultDTO(
+        group_key=group_key,
+        matched=bool(korean),
+        tmdb_id=best.tmdb_id,
+        korean_group_title=korean,
+        original_title=original,
+        confidence=conf,
+        reason=reason,
+    )
+    return dto, best
+
+
+def _match_single_group_apply_persist(
+    files: list[MatchFileRow],
+    _group_key: str,
+    indices: list[int],
+    best: TmdbSeriesCandidateDTO,
+    conf: float,
+    *,
+    root_id: int | None = None,
+    representative_path_norm: str | None = None,
+    title_match: TitleMatchRepository | None = None,
+    title_groups: TitleGroupRepository | None = None,
+) -> None:
+    """선택된 후보로 파일 행·그룹 매칭 DB를 갱신한다.
+
+    Args:
+        files: 전체 파일 행(제자리 수정).
+        _group_key: 그룹 식별 키(시그니처 호환·로깅은 gid 사용).
+        indices: 그룹 행 인덱스.
+        best: 선택된 시리즈 후보.
+        conf: 매칭 점수(0~1).
+        root_id: DB 영속화용 루트 id.
+        representative_path_norm: 그룹 대표 path_norm.
+        title_match: TMDB 매칭 저장소.
+        title_groups: 작품 그룹 저장소.
+
+    Returns:
+        None.
+    """
+    apply_tmdb_candidate_to_file_rows(files, indices, best)
+
     if (
         root_id is not None
         and representative_path_norm
@@ -403,22 +567,29 @@ def _search_series_candidates_for_group(
     ):
         gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
         if gid is not None:
-            gm = title_match.get_group_match(gid)
-            if gm is not None and gm.match_status in ("auto_matched", "confirmed"):
-                cand = title_match.get_series_candidate(gm.tmdb_id)
-                if cand is not None:
-                    return [cand]
-    seen_attempts: set[str] = set()
-    for q in iter_tmdb_search_queries(group_key):
-        for attempt in iter_strip_last_word_chain(q):
-            ak = attempt.lower()
-            if ak in seen_attempts:
-                continue
-            seen_attempts.add(ak)
-            raw_candidates = list(provider.search_series(attempt, year=None))
-            if raw_candidates:
-                return raw_candidates
-    return []
+            raw_json = json.dumps(asdict(best), ensure_ascii=False, separators=(",", ":"))
+            exp = _utc_plus_days_iso_z(7)
+            try:
+                title_match.upsert_series(best, raw_json=raw_json, expires_at=exp)
+                existing = title_match.get_group_match(gid)
+                preserve_confirmed = (
+                    existing is not None
+                    and existing.match_status == "confirmed"
+                    and int(existing.tmdb_id) == int(best.tmdb_id)
+                )
+                if not preserve_confirmed:
+                    title_match.set_group_match(
+                        gid,
+                        int(best.tmdb_id),
+                        "auto_matched",
+                        conf,
+                    )
+            except Exception:
+                logger.exception(
+                    "group TMDB persist 실패 group_id=%s tmdb_id=%s",
+                    gid,
+                    best.tmdb_id,
+                )
 
 
 def _match_single_group(
@@ -447,7 +618,7 @@ def _match_single_group(
     Returns:
         해당 그룹의 매칭 결과 DTO.
     """
-    raw_candidates = _search_series_candidates_for_group(
+    dto, cand = _match_single_group_search_phase(
         group_key,
         provider,
         root_id=root_id,
@@ -455,52 +626,227 @@ def _match_single_group(
         title_match=title_match,
         title_groups=title_groups,
     )
-    best, conf, reason = _select_best_candidate(raw_candidates, group_key, "")
-
-    if best is None or not best.tmdb_id:
-        return GroupMatchResultDTO(
-            group_key=group_key,
-            matched=False,
-            tmdb_id=None,
-            korean_group_title="",
-            original_title="",
-            confidence=0.0,
-            reason=reason,
+    if cand is not None:
+        _match_single_group_apply_persist(
+            files,
+            group_key,
+            indices,
+            cand,
+            dto.confidence,
+            root_id=root_id,
+            representative_path_norm=representative_path_norm,
+            title_match=title_match,
+            title_groups=title_groups,
         )
+    return dto
 
-    korean = (best.name_ko or "").strip()
-    original = (best.original_name or "").strip()
-    apply_tmdb_candidate_to_file_rows(files, indices, best)
 
-    if (
-        root_id is not None
-        and representative_path_norm
-        and title_match is not None
-        and title_groups is not None
-    ):
-        gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
-        if gid is not None:
-            raw_json = json.dumps(asdict(best), ensure_ascii=False, separators=(",", ":"))
-            exp = _utc_plus_days_iso_z(7)
-            try:
-                title_match.upsert_series(best, raw_json=raw_json, expires_at=exp)
-                title_match.set_group_match(gid, int(best.tmdb_id), "auto_matched", conf)
-            except Exception:
-                logger.exception(
-                    "group TMDB persist 실패 group_id=%s tmdb_id=%s",
-                    gid,
-                    best.tmdb_id,
-                )
+def _representative_path_norm_for_group(
+    files: list[MatchFileRow],
+    root_scope: int | None,
+    indices: list[int],
+) -> str | None:
+    """스캔 루트 스코프가 있을 때 그룹 대표 파일의 정규화 경로 키를 만든다.
 
-    return GroupMatchResultDTO(
-        group_key=group_key,
-        matched=bool(korean),
-        tmdb_id=best.tmdb_id,
-        korean_group_title=korean,
-        original_title=original,
-        confidence=conf,
-        reason=reason,
+    Args:
+        files: 전체 파일 행 목록.
+        root_scope: 인덱스 루트 ID. None이면 경로 키를 만들지 않음.
+        indices: 그룹에 속한 행 인덱스 목록.
+
+    Returns:
+        정규화 경로 키. 스코프 없음·빈 그룹·경로 오류 시 None.
+    """
+    if root_scope is None or not indices:
+        return None
+    try:
+        return normalize_path_key(files[indices[0]].original_file)
+    except OSError:
+        return None
+
+
+def _match_max_workers() -> int:
+    """병렬 그룹 매칭 스레드 상한을 반환한다.
+
+    기본값은 1(직렬)이다.
+
+    근거:
+    - TMDB 쿼리는 요청 간격/레이트 제한이 있고(공유 락/슬립 등), 그룹 단위 병렬이 항상 이득이 아니다.
+    - SQLite는 단일 연결 + 락(또는 직렬화)이 개입되므로, 병렬이 오히려 대기/경합만 늘 수 있다.
+    - GUI/worker 디버깅 복잡도를 불필요하게 키우지 않기 위해 기본은 직렬로 둔다.
+
+    병렬이 실제로 이득인 환경에서만 실험적으로 ``ANIVAULT_MATCH_MAX_WORKERS``를 2~8로 설정한다.
+
+    Args:
+        없음.
+
+    Returns:
+        1 이상 8 이하 정수.
+    """
+    try:
+        w = int(os.environ.get("ANIVAULT_MATCH_MAX_WORKERS", "1"))
+    except ValueError:
+        w = 1
+    return max(1, min(8, w))
+
+
+def _search_one_group_for_parallel(
+    files: list[MatchFileRow],
+    entry: tuple[str, list[int]],
+    *,
+    provider: MetadataProvider,
+    root_scope: int | None,
+    cancel_token: Event,
+    title_match: TitleMatchRepository | None,
+    title_groups: TitleGroupRepository | None,
+) -> tuple[str, list[int], str | None, GroupMatchResultDTO, TmdbSeriesCandidateDTO | None]:
+    """워커 스레드에서 단일 그룹 검색·후보 선택을 수행한다.
+
+    Args:
+        files: 전체 파일 행(경로 정규화만 읽음).
+        entry: (그룹 키, 행 인덱스 목록).
+        provider: 메타데이터 검색 포트.
+        root_scope: 라이브러리 루트 ID.
+        cancel_token: 설정 시 취소 결과 DTO만 반환.
+        title_match: TMDB 매칭 저장소.
+        title_groups: title_groups 포트.
+
+    Returns:
+        (그룹 키, 인덱스, 대표 path_norm, DTO, 후보).
+    """
+    key, indices = entry
+    path_norm = _representative_path_norm_for_group(files, root_scope, indices)
+    if cancel_token.is_set():
+        return (
+            key,
+            indices,
+            path_norm,
+            GroupMatchResultDTO(
+                group_key=key,
+                matched=False,
+                tmdb_id=None,
+                korean_group_title="",
+                original_title="",
+                confidence=0.0,
+                reason="cancelled",
+            ),
+            None,
+        )
+    dto, cand = _match_single_group_search_phase(
+        key,
+        provider,
+        root_id=root_scope,
+        representative_path_norm=path_norm,
+        title_match=title_match,
+        title_groups=title_groups,
     )
+    return key, indices, path_norm, dto, cand
+
+
+def _collect_group_match_results(
+    files: list[MatchFileRow],
+    key_to_indices: dict[str, list[int]],
+    *,
+    provider: MetadataProvider,
+    root_scope: int | None,
+    progress_callback: MatchProgressCallback | None,
+    cancel_token: Event,
+    title_match: TitleMatchRepository | None,
+    title_groups: TitleGroupRepository | None,
+) -> list[GroupMatchResultDTO]:
+    """그룹 키 순서대로 TMDB 매칭을 수행하고 결과 DTO 목록을 만든다.
+
+    Args:
+        files: 전체 파일 행(제자리 갱신).
+        key_to_indices: 그룹 키 → 행 인덱스 목록.
+        provider: 메타데이터 검색 포트.
+        root_scope: 인덱스 루트 ID(경로 대표 키용).
+        progress_callback: 진행 이벤트 콜백.
+        cancel_token: 설정 시 루프 중단.
+        title_match: TMDB·그룹 매칭 저장소.
+        title_groups: title_groups 조회 포트.
+
+    Returns:
+        그룹별 매칭 결과 DTO 리스트(중단 시 이때까지 누적).
+    """
+    items = list(key_to_indices.items())
+    total = len(items)
+    _notify_match_progress_prepare(progress_callback, total)
+    group_results: list[GroupMatchResultDTO] = []
+    if not total:
+        return group_results
+
+    workers = _match_max_workers()
+    if workers <= 1:
+        ordered: list[
+            tuple[str, list[int], str | None, GroupMatchResultDTO, TmdbSeriesCandidateDTO | None]
+        ] = []
+        for key, indices in items:
+            ordered.append(
+                _search_one_group_for_parallel(
+                    files,
+                    (key, indices),
+                    provider=provider,
+                    root_scope=root_scope,
+                    cancel_token=cancel_token,
+                    title_match=title_match,
+                    title_groups=title_groups,
+                ),
+            )
+    else:
+
+        def _parallel_entry(
+            entry: tuple[str, list[int]],
+        ) -> tuple[
+            str,
+            list[int],
+            str | None,
+            GroupMatchResultDTO,
+            TmdbSeriesCandidateDTO | None,
+        ]:
+            """단일 그룹 검색 태스크 어댑터.
+
+            Args:
+                entry: (그룹 키, 인덱스 목록).
+
+            Returns:
+                `_search_one_group_for_parallel`와 동일 튜플.
+            """
+            return _search_one_group_for_parallel(
+                files,
+                entry,
+                provider=provider,
+                root_scope=root_scope,
+                cancel_token=cancel_token,
+                title_match=title_match,
+                title_groups=title_groups,
+            )
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            ordered = list(pool.map(_parallel_entry, items))
+
+    for n, (key, indices, path_norm, dto, cand) in enumerate(ordered):
+        if cancel_token.is_set():
+            break
+        _notify_match_progress_step(
+            progress_callback,
+            total,
+            n + 1,
+            f"TMDB 검색 ({n + 1}/{total}): {key[:60]}",
+        )
+        if cand is not None:
+            _match_single_group_apply_persist(
+                files,
+                key,
+                indices,
+                cand,
+                dto.confidence,
+                root_id=root_scope,
+                representative_path_norm=path_norm,
+                title_match=title_match,
+                title_groups=title_groups,
+            )
+        group_results.append(dto)
+    return group_results
 
 
 def make_execute(
@@ -542,39 +888,16 @@ def make_execute(
             return MatchResult(files=tuple(files), groups=())
 
         key_to_indices = _index_files_by_group_key(files)
-        total = len(key_to_indices)
-        group_results: list[GroupMatchResultDTO] = []
-
-        _notify_match_progress_prepare(progress_callback, total)
-
-        root_scope = input_dto.index_root_id
-        for n, (key, indices) in enumerate(key_to_indices.items()):
-            if cancel_token.is_set():
-                break
-            _notify_match_progress_step(
-                progress_callback,
-                total,
-                n + 1,
-                f"TMDB 검색 ({n + 1}/{total}): {key[:60]}",
-            )
-            path_norm: str | None = None
-            if root_scope is not None and indices:
-                try:
-                    path_norm = normalize_path_key(files[indices[0]].original_file)
-                except OSError:
-                    path_norm = None
-            group_results.append(
-                _match_single_group(
-                    files,
-                    key,
-                    indices,
-                    provider,
-                    root_id=root_scope,
-                    representative_path_norm=path_norm,
-                    title_match=title_match,
-                    title_groups=title_groups,
-                ),
-            )
+        group_results = _collect_group_match_results(
+            files,
+            key_to_indices,
+            provider=provider,
+            root_scope=input_dto.index_root_id,
+            progress_callback=progress_callback,
+            cancel_token=cancel_token,
+            title_match=title_match,
+            title_groups=title_groups,
+        )
 
         result = MatchResult(files=tuple(files), groups=tuple(group_results))
         if poster_sync is not None:

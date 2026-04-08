@@ -5,6 +5,8 @@
 Author: Pom Kim
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, QPersistentModelIndex, Qt
@@ -121,6 +123,9 @@ class PipelineTableModel(QAbstractTableModel):
     def set_rows(self, rows: list[PipelineGroupRow]) -> None:
         """그룹 목록을 통째로 바꾸고 모델을 리셋한다.
 
+        전체 ``modelReset``은 뷰 동기화 비용이 크므로, 동일 구조에서 셀만 바뀌는 경우
+        향후 ``dataChanged``·증분 갱신으로 대체할 여지가 있다.
+
         Args:
             self: 이 모델.
             rows: 새 그룹 행 목록.
@@ -132,36 +137,42 @@ class PipelineTableModel(QAbstractTableModel):
         self._rows = list(rows)
         self.endResetModel()
 
-    def clear_with_reset(self) -> None:
-        """그룹을 비우고 modelReset을 낸다(청크 적용 전 초기화용).
+    def update_rows_if_compatible(self, rows: list[PipelineGroupRow]) -> bool:
+        """구조가 호환되면 modelReset 없이 dataChanged로만 갱신한다.
+
+        이 경로는 P1-B-1의 1차 범위(매칭/수동 TMDB 후, 그룹 수·순서·멤버십 동일)에서만
+        사용한다. 구조가 조금이라도 다르면 안전하게 False를 반환해 호출부가 `set_rows`로
+        폴백하도록 한다.
+
+        호환 조건:
+        - 그룹 개수 동일
+        - 각 그룹의 member 개수 동일
+        - 각 member의 original_file 순서가 동일
 
         Args:
             self: 이 모델.
+            rows: 새 그룹 행 목록.
 
         Returns:
-            None.
+            호환 갱신을 적용했으면 True, 아니면 False.
         """
-        self.beginResetModel()
-        self._rows.clear()
-        self.endResetModel()
+        if len(rows) != len(self._rows):
+            return False
+        for _i, (old_g, new_g) in enumerate(zip(self._rows, rows, strict=True)):
+            if len(old_g.members) != len(new_g.members):
+                return False
+            old_paths = [m.original_file for m in old_g.members]
+            new_paths = [m.original_file for m in new_g.members]
+            if old_paths != new_paths:
+                return False
 
-    def append_row_groups(self, groups: list[PipelineGroupRow]) -> None:
-        """끝에 그룹 행을 붙이고 rowsInserted만 발생시킨다.
-
-        Args:
-            self: 이 모델.
-            groups: 추가할 `PipelineGroupRow` 목록.
-
-        Returns:
-            None.
-        """
-        if not groups:
-            return
-        first = len(self._rows)
-        last = first + len(groups) - 1
-        self.beginInsertRows(_INVALID_INDEX, first, last)
-        self._rows.extend(groups)
-        self.endInsertRows()
+        self._rows = list(rows)
+        if not self._rows:
+            return True
+        top_left = self.index(0, 0)
+        bottom_right = self.index(len(self._rows) - 1, len(COLUMNS) - 1)
+        self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DisplayRole])
+        return True
 
     def rows(self) -> list[PipelineGroupRow]:
         """다른 뷰 동기화용 현재 그룹 행 복사본.

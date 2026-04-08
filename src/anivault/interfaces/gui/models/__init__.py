@@ -11,6 +11,7 @@ from anivault.interfaces.gui.models.ui_rows import (
     PipelineGroupRow,
     PipelineRow,
     group_pipeline_rows,
+    pipeline_group_display_image_url,
     pipeline_row_ready_for_plan,
     pipeline_rows_ready_for_plan,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "PipelineProxyModel",
     "PipelineTableModel",
     "group_pipeline_rows",
+    "pipeline_group_display_image_url",
     "pipeline_row_ready_for_plan",
     "pipeline_rows_ready_for_plan",
 ]

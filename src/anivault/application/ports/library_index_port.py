@@ -7,6 +7,7 @@ Author: Pom Kim
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from typing import Literal, Protocol, runtime_checkable
 
 from anivault.application.dto.library_index import (
@@ -118,6 +119,19 @@ class LibraryIndexRepository(Protocol):
         """
         ...
 
+    def media_upsert_batch(self) -> AbstractContextManager[None]:
+        """스캔 루프에서 다수의 `upsert_media_file` 호출을 한 트랜잭션으로 묶을 때 사용한다.
+
+        구현체가 지원하지 않으면 단일 파일마다 커밋하는 동작과 동일한 no-op 컨텍스트를 쓴다.
+
+        Args:
+            self: 이 저장소.
+
+        Returns:
+            컨텍스트 매니저. 블록을 빠져나올 때 한 번 커밋하는 구현이 일반적이다.
+        """
+        ...
+
     def mark_missing_deleted(self, root_id: int, session_id: int, seen_path_norms: set[str]) -> int:
         """이번 스캔에 나타나지 않은 기존 행을 `is_deleted=1`로 표시한다.
 
@@ -167,5 +181,45 @@ class LibraryIndexRepository(Protocol):
 
         Returns:
             `MediaFileRecord` 목록.
+        """
+        ...
+
+    def relocate_media_file(
+        self,
+        root_id: int,
+        *,
+        old_absolute_path: str,
+        new_absolute_path: str,
+    ) -> bool:
+        """파일 이동 반영: 동일 행(id·media_kind 등 유지)에 경로·크기·mtime만 갱신.
+
+        `old_absolute_path`에 해당하는 행이 없으면 False(스킵).
+
+        Args:
+            self: 저장소.
+            root_id: `library_roots.id`.
+            old_absolute_path: 이동 직전 절대 경로.
+            new_absolute_path: 이동 직후 절대 경로.
+
+        Returns:
+            행을 갱신했으면 True, 대상 없음이면 False.
+        """
+        ...
+
+    def relocate_media_files(
+        self,
+        root_id: int,
+        *,
+        pairs: tuple[tuple[str, str], ...],
+    ) -> None:
+        """`relocate_media_file`를 순서대로 호출한다.
+
+        Args:
+            self: 저장소.
+            root_id: `library_roots.id`.
+            pairs: `(old_absolute_path, new_absolute_path)` 들.
+
+        Returns:
+            None.
         """
         ...

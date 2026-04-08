@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from threading import Lock
 from typing import Any
 
@@ -75,6 +77,26 @@ ON CONFLICT(media_file_id) DO UPDATE SET
     updated_at = excluded.updated_at
 """
 
+_RESOLUTION_CACHE_UPSERT_SQL = """
+INSERT INTO parse_cache (
+    media_file_id,
+    parser_version,
+    parse_status,
+    parse_input_signature,
+    dto_json,
+    resolution_value,
+    resolution_source,
+    resolution_signature,
+    created_at,
+    updated_at
+) VALUES (?, 'resolution-only', 'error', '', '{}', ?, ?, ?, ?, ?)
+ON CONFLICT(media_file_id) DO UPDATE SET
+    resolution_value = excluded.resolution_value,
+    resolution_source = excluded.resolution_source,
+    resolution_signature = excluded.resolution_signature,
+    updated_at = excluded.updated_at
+"""
+
 
 class SqliteParseCacheRepository:
     """Access parse_cache rows."""
@@ -82,6 +104,37 @@ class SqliteParseCacheRepository:
     def __init__(self, conn: sqlite3.Connection, lock: Lock) -> None:
         self._conn = conn
         self._lock = lock
+        self._resolution_write_depth = 0
+
+    @contextmanager
+    def resolution_write_batch(self) -> Iterator[None]:
+        """`upsert_resolution` 다건을 한 트랜잭션으로 묶는다.
+
+        Args:
+            self: 이 저장소.
+
+        Yields:
+            None.
+
+        Returns:
+            None.
+        """
+        with self._lock:
+            self._resolution_write_depth += 1
+            if self._resolution_write_depth == 1:
+                self._conn.execute("BEGIN IMMEDIATE")
+        ok = False
+        try:
+            yield
+            ok = True
+        finally:
+            with self._lock:
+                self._resolution_write_depth -= 1
+                if self._resolution_write_depth == 0:
+                    if ok:
+                        self._conn.commit()
+                    else:
+                        self._conn.rollback()
 
     def get_valid_parse(self, media_file_id: int, signature: str) -> ParsedInfo | None:
         """Return one valid cache hit, or None."""
@@ -258,5 +311,83 @@ class SqliteParseCacheRepository:
                 logger.exception(
                     "parse_cache upsert_parse_error_many failed count=%s: %s",
                     len(items),
+                    e,
+                )
+
+    def get_valid_resolution(self, media_file_id: int, signature: str) -> str | None:
+        """서명이 일치하는 해상도 캐시를 반환한다.
+
+        Args:
+            self: 저장소.
+            media_file_id: 미디어 행 ID.
+            signature: 해상도 캐시 무효화 서명.
+
+        Returns:
+            해상도 문자열. miss면 None.
+        """
+        with self._lock:
+            cur = self._conn.execute(
+                """
+                SELECT resolution_value, resolution_signature
+                FROM parse_cache
+                WHERE media_file_id = ?
+                """,
+                (media_file_id,),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        value = row[0]
+        stored_sig = row[1]
+        if not isinstance(value, str) or not value.strip():
+            return None
+        if not isinstance(stored_sig, str) or stored_sig != signature:
+            return None
+        return value.strip()
+
+    def upsert_resolution(
+        self,
+        *,
+        media_file_id: int,
+        signature: str,
+        value: str,
+        source: str,
+    ) -> None:
+        """해상도 캐시를 upsert한다.
+
+        Args:
+            self: 저장소.
+            media_file_id: 미디어 행 ID.
+            signature: 해상도 캐시 무효화 서명.
+            value: 저장할 해상도 값.
+            source: 값 출처.
+
+        Returns:
+            None.
+        """
+        normalized = (value or "").strip()
+        if not normalized:
+            return
+        now = utc_now_sqlite_text()
+        with self._lock:
+            try:
+                self._conn.execute(
+                    _RESOLUTION_CACHE_UPSERT_SQL,
+                    (
+                        media_file_id,
+                        normalized,
+                        (source or "").strip() or "unknown",
+                        signature,
+                        now,
+                        now,
+                    ),
+                )
+                if self._resolution_write_depth == 0:
+                    self._conn.commit()
+            except sqlite3.Error as e:
+                self._conn.rollback()
+                logger.exception(
+                    "parse_cache upsert_resolution 실패 media_file_id=%s: %s",
+                    media_file_id,
                     e,
                 )

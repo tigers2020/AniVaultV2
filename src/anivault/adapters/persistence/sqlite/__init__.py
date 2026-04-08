@@ -11,6 +11,9 @@ from anivault.adapters.persistence.sqlite.sqlite_cache_repository import SqliteC
 from anivault.adapters.persistence.sqlite.sqlite_library_index_repository import (
     SqliteLibraryIndexRepository,
 )
+from anivault.adapters.persistence.sqlite.sqlite_organize_plan_repository import (
+    SqliteOrganizePlanRepository,
+)
 from anivault.adapters.persistence.sqlite.sqlite_parse_cache_repository import (
     SqliteParseCacheRepository,
 )
@@ -24,6 +27,7 @@ from anivault.adapters.persistence.sqlite.sqlite_title_match_repository import (
 __all__ = [
     "SqliteCacheRepository",
     "SqliteLibraryIndexRepository",
+    "SqliteOrganizePlanRepository",
     "SqliteParseCacheRepository",
     "SqliteTitleGroupRepository",
     "SqliteTitleMatchRepository",

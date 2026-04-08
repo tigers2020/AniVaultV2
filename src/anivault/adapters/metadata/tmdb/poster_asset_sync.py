@@ -10,10 +10,12 @@ from __future__ import annotations
 import contextlib
 import logging
 import os
+import random
 import tempfile
-import urllib.error
+import time
 import urllib.request
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from anivault.adapters.persistence.sqlite.db_path import ensure_poster_cache_dir
@@ -27,6 +29,38 @@ from anivault.domain.rules.tmdb_image_url import tmdb_poster_cdn_url
 logger = logging.getLogger(__name__)
 
 _USER_AGENT = "AniVault/2 (poster cache)"
+
+
+def _poster_max_workers() -> int:
+    """포스터 다운로드 동시 실행 상한을 반환한다.
+
+    Args:
+        없음.
+
+    Returns:
+        1 이상 8 이하 정수.
+    """
+    try:
+        w = int(os.environ.get("ANIVAULT_POSTER_MAX_WORKERS", "4"))
+    except ValueError:
+        w = 4
+    return max(1, min(8, w))
+
+
+def _poster_download_retries() -> int:
+    """포스터 HTTP 실패 시 재시도 횟수를 반환한다.
+
+    Args:
+        없음.
+
+    Returns:
+        1 이상 정수.
+    """
+    try:
+        r = int(os.environ.get("ANIVAULT_POSTER_DOWNLOAD_RETRIES", "3"))
+    except ValueError:
+        r = 3
+    return max(1, r)
 
 
 def iter_unique_poster_jobs(
@@ -86,9 +120,29 @@ def download_image_atomic(url: str, dest: Path) -> bool:
             if os.path.isfile(tmp_name):
                 with contextlib.suppress(OSError):
                     os.unlink(tmp_name)
-    except (OSError, urllib.error.URLError, ValueError) as e:
+    except (OSError, ValueError) as e:
         logger.warning("포스터 다운로드 실패 %s: %s", url, e)
         return False
+
+
+def download_image_atomic_with_retry(url: str, dest: Path) -> bool:
+    """지수 백오프를 두고 `download_image_atomic`을 여러 번 시도한다.
+
+    Args:
+        url: http(s) 이미지 URL.
+        dest: 최종 경로.
+
+    Returns:
+        한 번이라도 성공하면 True.
+    """
+    retries = _poster_download_retries()
+    for attempt in range(retries):
+        if download_image_atomic(url, dest):
+            return True
+        if attempt + 1 < retries:
+            delay = 0.2 * (2**attempt) + random.random() * 0.05
+            time.sleep(delay)
+    return False
 
 
 class TmdbPosterAssetSync:
@@ -148,8 +202,18 @@ class TmdbPosterAssetSync:
         Returns:
             None.
         """
-        for tmdb_id, remote in iter_unique_poster_jobs(files):
-            self.ensure_poster_cached(tmdb_id, remote)
+        jobs = iter_unique_poster_jobs(files)
+        if not jobs:
+            return
+        workers = _poster_max_workers()
+        if workers <= 1:
+            for tmdb_id, remote in jobs:
+                self.ensure_poster_cached(tmdb_id, remote)
+            return
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(self.ensure_poster_cached, tid, rp) for tid, rp in jobs]
+            for fut in futures:
+                fut.result()
 
     def ensure_poster_cached(self, tmdb_id: int, remote_path: str) -> None:
         """단일 포스터가 로컬 ready이면 생략하고, 아니면 다운로드한다.
@@ -175,7 +239,7 @@ class TmdbPosterAssetSync:
         if not url:
             return
         dest = poster_cache_file_path(self._dir(), tmdb_id, "poster", norm)
-        ok = download_image_atomic(url, dest)
+        ok = download_image_atomic_with_retry(url, dest)
         now = utc_now_sqlite_text()
         if ok:
             self._title_match.save_poster_asset(

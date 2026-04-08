@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 import sqlite3
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
@@ -283,6 +285,11 @@ class SqliteLibraryIndexRepository:
             [BulkMediaUpsertItem(absolute_path=absolute_path, media_kind=media_kind)],
         )
         return (result.files_added == 1, result.files_updated == 1)
+
+    @contextmanager
+    def media_upsert_batch(self) -> Iterator[None]:
+        """Provide protocol compatibility for repositories that support per-file batching."""
+        yield
 
     def _fetch_root_path(self, root_id: int) -> str:
         cur = self._conn.execute(
