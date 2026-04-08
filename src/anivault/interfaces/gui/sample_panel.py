@@ -19,6 +19,61 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from anivault.constants.gui.sample import (
+    SAMPLE_PANEL_ATOM_BADGE_TEXT,
+    SAMPLE_PANEL_ATOM_BUTTON_DANGER,
+    SAMPLE_PANEL_ATOM_BUTTON_DEFAULT,
+    SAMPLE_PANEL_ATOM_BUTTON_PRIMARY,
+    SAMPLE_PANEL_ATOM_BUTTON_SUCCESS,
+    SAMPLE_PANEL_ATOM_BUTTON_WARN,
+    SAMPLE_PANEL_ATOM_COMBO_OPTIONS,
+    SAMPLE_PANEL_ATOM_INPUT_PLACEHOLDER,
+    SAMPLE_PANEL_ATOM_INPUT_TEXT,
+    SAMPLE_PANEL_ATOM_LABEL_DEFAULT,
+    SAMPLE_PANEL_ATOM_LABEL_MUTED,
+    SAMPLE_PANEL_ATOM_LABEL_TITLE,
+    SAMPLE_PANEL_ATOM_PILL_BLUE,
+    SAMPLE_PANEL_ATOM_PILL_GREEN,
+    SAMPLE_PANEL_ATOM_PILL_YELLOW,
+    SAMPLE_PANEL_ATOM_TOGGLE_TEXT,
+    SAMPLE_PANEL_MOLECULE_FORM_COMBO_LABEL,
+    SAMPLE_PANEL_MOLECULE_FORM_COMBO_VALUE,
+    SAMPLE_PANEL_MOLECULE_FORM_LINE_LABEL,
+    SAMPLE_PANEL_MOLECULE_FORM_LINE_VALUE,
+    SAMPLE_PANEL_MOLECULE_FORM_PATH_LABEL,
+    SAMPLE_PANEL_MOLECULE_FORM_PATH_VALUE,
+    SAMPLE_PANEL_MOLECULE_HEADER_DESCRIPTION,
+    SAMPLE_PANEL_MOLECULE_HEADER_PILL_TEXT,
+    SAMPLE_PANEL_MOLECULE_HEADER_TITLE,
+    SAMPLE_PANEL_MOLECULE_NAV_ORGANIZER,
+    SAMPLE_PANEL_MOLECULE_NAV_SETTINGS,
+    SAMPLE_PANEL_MOLECULE_PATH_BOX_VALUE,
+    SAMPLE_PANEL_MOLECULE_PATH_SELECT_PLACEHOLDER,
+    SAMPLE_PANEL_MOLECULE_POSTER_PRIMARY_META,
+    SAMPLE_PANEL_MOLECULE_POSTER_PRIMARY_PATH,
+    SAMPLE_PANEL_MOLECULE_POSTER_PRIMARY_TITLE,
+    SAMPLE_PANEL_MOLECULE_POSTER_SECONDARY_META,
+    SAMPLE_PANEL_MOLECULE_POSTER_SECONDARY_TITLE,
+    SAMPLE_PANEL_MOLECULE_STAT_TITLE,
+    SAMPLE_PANEL_MOLECULE_STAT_VALUE,
+    SAMPLE_PANEL_MOLECULE_STEP_DESCRIPTION,
+    SAMPLE_PANEL_MOLECULE_STEP_TITLE,
+    SAMPLE_PANEL_ROW_1,
+    SAMPLE_PANEL_ROW_2,
+    SAMPLE_PANEL_ORGANISM_POSTER_GROUP_META_TEMPLATE,
+    SAMPLE_PANEL_SECTION_ATOMS_NAME,
+    SAMPLE_PANEL_SECTION_ATOMS_NOTE,
+    SAMPLE_PANEL_SECTION_ATOMS_TITLE,
+    SAMPLE_PANEL_SECTION_MOLECULES_NAME,
+    SAMPLE_PANEL_SECTION_MOLECULES_NOTE,
+    SAMPLE_PANEL_SECTION_MOLECULES_TITLE,
+    SAMPLE_PANEL_SECTION_ORGANISMS_NAME,
+    SAMPLE_PANEL_SECTION_ORGANISMS_NOTE,
+    SAMPLE_PANEL_SECTION_ORGANISMS_TITLE,
+    SAMPLE_PANEL_SUBTITLE,
+    SAMPLE_PANEL_TITLE,
+    SAMPLE_PANEL_WINDOW_TITLE,
+)
 from anivault.interfaces.gui.components.atoms import (
     Badge,
     Button,
@@ -66,15 +121,7 @@ from anivault.interfaces.gui.themes import load_saved_theme
 
 
 def _section_title(text: str, note: str) -> QWidget:
-    """섹션 제목·설명·구분선을 담은 위젯을 만든다.
-
-    Args:
-        text: 섹션 제목.
-        note: 부가 설명.
-
-    Returns:
-        구성된 QWidget.
-    """
+    """섹션 제목·설명·구분선을 담은 위젯을 만든다."""
     wrapper = QWidget()
     layout = QVBoxLayout(wrapper)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -93,18 +140,7 @@ def _section_title(text: str, note: str) -> QWidget:
 
 
 def _add_section(layout: QVBoxLayout, name: str, title: str, note: str, widget: QWidget) -> None:
-    """이름이 있는 프레임으로 섹션을 감싸 부모 수직 레이아웃에 추가한다.
-
-    Args:
-        layout: 루트 수직 레이아웃.
-        name: objectName으로 쓸 식별자.
-        title: 섹션 제목.
-        note: 섹션 설명.
-        widget: 섹션 본문 위젯.
-
-    Returns:
-        None.
-    """
+    """이름이 붙은 프레임으로 섹션을 감싼 뒤 부모 레이아웃에 추가한다."""
     section = QFrame()
     section.setObjectName(name)
     section_layout = QVBoxLayout(section)
@@ -116,61 +152,15 @@ def _add_section(layout: QVBoxLayout, name: str, title: str, note: str, widget: 
 
 
 def _sample_rows() -> list[PipelineRow]:
-    """데모용 파이프라인 행 두 건을 반환한다.
-
-    Args:
-        없음.
-
-    Returns:
-        PipelineRow 목록.
-    """
+    """데모용 파이프라인 샘플 행을 반환한다."""
     return [
-        PipelineRow(
-            original_file="[SubsPlease] Frieren - 01 (1080p).mkv",
-            parsed_title="Frieren",
-            parse_group="frieren",
-            tmdb_korean_title_group="장송의 프리렌",
-            tmdb_series_id="",
-            tmdb_poster_path="",
-            tmdb_backdrop_path="",
-            year="2023",
-            season="01",
-            resolution="FHD",
-            status="Ready",
-            poster_url="",
-            backdrop_url="",
-            target_path=r"G:\AniSorted\FHD\2023\장송의 프리렌\Season01\ep01.mkv",
-            episode="",
-        ),
-        PipelineRow(
-            original_file="[SubsPlease] Kusuriya - 03 (1080p).mkv",
-            parsed_title="Kusuriya no Hitorigoto",
-            parse_group="kusuriya",
-            tmdb_korean_title_group="약사의 혼잣말",
-            tmdb_series_id="",
-            tmdb_poster_path="",
-            tmdb_backdrop_path="",
-            year="2023",
-            season="01",
-            resolution="FHD",
-            status="Needs Review",
-            poster_url="",
-            backdrop_url="",
-            target_path=r"G:\AniSorted\FHD\2023\약사의 혼잣말\Season01\ep03.mkv",
-            episode="",
-        ),
+        PipelineRow(**SAMPLE_PANEL_ROW_1),
+        PipelineRow(**SAMPLE_PANEL_ROW_2),
     ]
 
 
 def _atoms_preview() -> QWidget:
-    """Atom 컴포넌트 미리보기 위젯을 구성한다.
-
-    Args:
-        없음.
-
-    Returns:
-        프리뷰 QFrame.
-    """
+    """Atom 컴포넌트 미리보기 위젯을 구성한다."""
     box = QFrame()
     layout = QVBoxLayout(box)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -180,30 +170,30 @@ def _atoms_preview() -> QWidget:
     labels_layout = QHBoxLayout(labels)
     labels_layout.setContentsMargins(0, 0, 0, 0)
     labels_layout.setSpacing(10)
-    labels_layout.addWidget(Label("Label default"))
-    labels_layout.addWidget(Label("Label muted", "muted"))
-    labels_layout.addWidget(Label("Label title", "title"))
+    labels_layout.addWidget(Label(SAMPLE_PANEL_ATOM_LABEL_DEFAULT))
+    labels_layout.addWidget(Label(SAMPLE_PANEL_ATOM_LABEL_MUTED, "muted"))
+    labels_layout.addWidget(Label(SAMPLE_PANEL_ATOM_LABEL_TITLE, "title"))
     layout.addWidget(labels)
 
     buttons = QWidget()
     buttons_layout = QHBoxLayout(buttons)
     buttons_layout.setContentsMargins(0, 0, 0, 0)
     buttons_layout.setSpacing(10)
-    buttons_layout.addWidget(Button("Default"))
-    buttons_layout.addWidget(Button("Primary", "primary"))
-    buttons_layout.addWidget(Button("Success", "success"))
-    buttons_layout.addWidget(Button("Warn", "warn"))
-    buttons_layout.addWidget(Button("Danger", "danger"))
+    buttons_layout.addWidget(Button(SAMPLE_PANEL_ATOM_BUTTON_DEFAULT))
+    buttons_layout.addWidget(Button(SAMPLE_PANEL_ATOM_BUTTON_PRIMARY, "primary"))
+    buttons_layout.addWidget(Button(SAMPLE_PANEL_ATOM_BUTTON_SUCCESS, "success"))
+    buttons_layout.addWidget(Button(SAMPLE_PANEL_ATOM_BUTTON_WARN, "warn"))
+    buttons_layout.addWidget(Button(SAMPLE_PANEL_ATOM_BUTTON_DANGER, "danger"))
     layout.addWidget(buttons)
 
     inputs = QWidget()
     inputs_layout = QHBoxLayout(inputs)
     inputs_layout.setContentsMargins(0, 0, 0, 0)
     inputs_layout.setSpacing(10)
-    line = LineEdit("placeholder")
-    line.setText("sample text")
+    line = LineEdit(SAMPLE_PANEL_ATOM_INPUT_PLACEHOLDER)
+    line.setText(SAMPLE_PANEL_ATOM_INPUT_TEXT)
     combo = ComboBox()
-    combo.addItems(["Option A", "Option B", "Option C"])
+    combo.addItems(list(SAMPLE_PANEL_ATOM_COMBO_OPTIONS))
     inputs_layout.addWidget(line, 1)
     inputs_layout.addWidget(combo, 1)
     layout.addWidget(inputs)
@@ -212,26 +202,19 @@ def _atoms_preview() -> QWidget:
     chips_layout = QHBoxLayout(chips)
     chips_layout.setContentsMargins(0, 0, 0, 0)
     chips_layout.setSpacing(10)
-    chips_layout.addWidget(Pill("Blue", "blue"))
-    chips_layout.addWidget(Pill("Green", "green"))
-    chips_layout.addWidget(Pill("Yellow", "yellow"))
-    chips_layout.addWidget(Badge("A"))
+    chips_layout.addWidget(Pill(SAMPLE_PANEL_ATOM_PILL_BLUE, "blue"))
+    chips_layout.addWidget(Pill(SAMPLE_PANEL_ATOM_PILL_GREEN, "green"))
+    chips_layout.addWidget(Pill(SAMPLE_PANEL_ATOM_PILL_YELLOW, "yellow"))
+    chips_layout.addWidget(Badge(SAMPLE_PANEL_ATOM_BADGE_TEXT))
     chips_layout.addWidget(StepIndex(3))
-    chips_layout.addWidget(ViewToggleButton("Toggle", checked=True))
+    chips_layout.addWidget(ViewToggleButton(SAMPLE_PANEL_ATOM_TOGGLE_TEXT, checked=True))
     chips_layout.addStretch(1)
     layout.addWidget(chips)
     return box
 
 
 def _molecules_preview() -> QWidget:
-    """Molecule 컴포넌트 미리보기 위젯을 구성한다.
-
-    Args:
-        없음.
-
-    Returns:
-        프리뷰 QFrame.
-    """
+    """Molecule 컴포넌트 미리보기 위젯을 구성한다."""
     box = QFrame()
     layout = QVBoxLayout(box)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -239,7 +222,12 @@ def _molecules_preview() -> QWidget:
 
     layout.addWidget(Brand())
     layout.addWidget(
-        PanelHeader("Panel Header", "설명 텍스트와 오른쪽 pill 확인", "Ready", "green")
+        PanelHeader(
+            SAMPLE_PANEL_MOLECULE_HEADER_TITLE,
+            SAMPLE_PANEL_MOLECULE_HEADER_DESCRIPTION,
+            SAMPLE_PANEL_MOLECULE_HEADER_PILL_TEXT,
+            "green",
+        )
     )
 
     forms = QWidget()
@@ -247,26 +235,52 @@ def _molecules_preview() -> QWidget:
     forms_layout.setContentsMargins(0, 0, 0, 0)
     forms_layout.setHorizontalSpacing(14)
     forms_layout.setVerticalSpacing(10)
-    forms_layout.addWidget(FormField("Line Field", "line", "Sample"), 0, 0)
-    forms_layout.addWidget(FormField("Combo Field", "combo", "First"), 0, 1)
-    forms_layout.addWidget(FormField("Path Field", "path", r"G:\Ani"), 1, 0)
-    forms_layout.addWidget(PathSelectField("폴더 선택 테스트"), 1, 1)
+    forms_layout.addWidget(
+        FormField(
+            SAMPLE_PANEL_MOLECULE_FORM_LINE_LABEL,
+            "line",
+            SAMPLE_PANEL_MOLECULE_FORM_LINE_VALUE,
+        ),
+        0,
+        0,
+    )
+    forms_layout.addWidget(
+        FormField(
+            SAMPLE_PANEL_MOLECULE_FORM_COMBO_LABEL,
+            "combo",
+            SAMPLE_PANEL_MOLECULE_FORM_COMBO_VALUE,
+        ),
+        0,
+        1,
+    )
+    forms_layout.addWidget(
+        FormField(
+            SAMPLE_PANEL_MOLECULE_FORM_PATH_LABEL,
+            "path",
+            SAMPLE_PANEL_MOLECULE_FORM_PATH_VALUE,
+        ),
+        1,
+        0,
+    )
+    forms_layout.addWidget(PathSelectField(SAMPLE_PANEL_MOLECULE_PATH_SELECT_PLACEHOLDER), 1, 1)
     layout.addWidget(forms)
 
-    layout.addWidget(PathBox(r"G:\AniSorted\FHD\2024\애니제목\Season01\ep01.mkv"))
+    layout.addWidget(PathBox(SAMPLE_PANEL_MOLECULE_PATH_BOX_VALUE))
 
     toggles = QWidget()
     toggles_layout = QHBoxLayout(toggles)
     toggles_layout.setContentsMargins(0, 0, 0, 0)
     toggles_layout.setSpacing(10)
-    toggles_layout.addWidget(NavItem("Organizer", "organizer"))
-    toggles_layout.addWidget(NavItem("Settings", "settings"))
+    toggles_layout.addWidget(NavItem(SAMPLE_PANEL_MOLECULE_NAV_ORGANIZER, "organizer"))
+    toggles_layout.addWidget(NavItem(SAMPLE_PANEL_MOLECULE_NAV_SETTINGS, "settings"))
     toggles_layout.addWidget(ViewToggleBar(), 1)
     layout.addWidget(toggles)
 
     layout.addWidget(SettingsActionBar())
-    layout.addWidget(StatCard("Scanned Files", "9,048"))
-    layout.addWidget(StepRow(1, "폴더 스캔", "비디오 파일 수집"))
+    layout.addWidget(StatCard(SAMPLE_PANEL_MOLECULE_STAT_TITLE, SAMPLE_PANEL_MOLECULE_STAT_VALUE))
+    layout.addWidget(
+        StepRow(1, SAMPLE_PANEL_MOLECULE_STEP_TITLE, SAMPLE_PANEL_MOLECULE_STEP_DESCRIPTION)
+    )
 
     posters = QWidget()
     posters_layout = QHBoxLayout(posters)
@@ -274,17 +288,17 @@ def _molecules_preview() -> QWidget:
     posters_layout.setSpacing(10)
     posters_layout.addWidget(
         PosterCard(
-            title="장송의 프리렌",
-            meta="2023 • Season01 • FHD",
-            path=r"G:\AniSorted\FHD\2023\장송의 프리렌",
+            title=SAMPLE_PANEL_MOLECULE_POSTER_PRIMARY_TITLE,
+            meta=SAMPLE_PANEL_MOLECULE_POSTER_PRIMARY_META,
+            path=SAMPLE_PANEL_MOLECULE_POSTER_PRIMARY_PATH,
             variant="poster",
         ),
         1,
     )
     posters_layout.addWidget(
         PosterCard(
-            title="약사의 혼잣말",
-            meta="2023 • Season01 • FHD",
+            title=SAMPLE_PANEL_MOLECULE_POSTER_SECONDARY_TITLE,
+            meta=SAMPLE_PANEL_MOLECULE_POSTER_SECONDARY_META,
             path="",
             variant="compact",
         ),
@@ -295,14 +309,7 @@ def _molecules_preview() -> QWidget:
 
 
 def _organisms_preview() -> QWidget:
-    """Organism 컴포넌트 미리보기 위젯을 구성한다.
-
-    Args:
-        없음.
-
-    Returns:
-        프리뷰 QFrame.
-    """
+    """Organism 컴포넌트 미리보기 위젯을 구성한다."""
     box = QFrame()
     layout = QVBoxLayout(box)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -328,7 +335,11 @@ def _organisms_preview() -> QWidget:
         [
             PosterCard(
                 title=g.tmdb_korean_title_group,
-                meta=f"{g.year} • S{g.season} • {g.resolution}",
+                meta=SAMPLE_PANEL_ORGANISM_POSTER_GROUP_META_TEMPLATE.format(
+                    year=g.year,
+                    season=g.season,
+                    resolution=g.resolution,
+                ),
                 path=g.target_path,
             )
             for g in groups
@@ -356,23 +367,14 @@ def _organisms_preview() -> QWidget:
 
 
 def build_sample_panel_widget() -> QWidget:
-    """Atom/Molecule/Organism 프리뷰가 담긴 스크롤 가능한 루트 위젯을 만든다.
-
-    Args:
-        없음.
-
-    Returns:
-        구성된 QWidget.
-    """
+    """Atom/Molecule/Organism 프리뷰가 담긴 스크롤 가능한 루트 위젯을 만든다."""
     root = QWidget()
     root_layout = QVBoxLayout(root)
     root_layout.setContentsMargins(20, 20, 20, 20)
     root_layout.setSpacing(16)
 
-    title = QLabel("AniVault Sample Panel")
-    subtitle = QLabel(
-        "기본 컴포넌트(Atoms/Molecules/Organisms) 디자인, 레이아웃, margin/padding 점검용 화면"
-    )
+    title = QLabel(SAMPLE_PANEL_TITLE)
+    subtitle = QLabel(SAMPLE_PANEL_SUBTITLE)
     subtitle.setWordWrap(True)
     root_layout.addWidget(title)
     root_layout.addWidget(subtitle)
@@ -389,23 +391,23 @@ def build_sample_panel_widget() -> QWidget:
 
     _add_section(
         content_layout,
-        "section_atoms",
-        "Atoms",
-        "기본 원자 컴포넌트의 스타일과 기본 간격 확인",
+        SAMPLE_PANEL_SECTION_ATOMS_NAME,
+        SAMPLE_PANEL_SECTION_ATOMS_TITLE,
+        SAMPLE_PANEL_SECTION_ATOMS_NOTE,
         _atoms_preview(),
     )
     _add_section(
         content_layout,
-        "section_molecules",
-        "Molecules",
-        "원자 조합 컴포넌트의 레이아웃과 패딩 확인",
+        SAMPLE_PANEL_SECTION_MOLECULES_NAME,
+        SAMPLE_PANEL_SECTION_MOLECULES_TITLE,
+        SAMPLE_PANEL_SECTION_MOLECULES_NOTE,
         _molecules_preview(),
     )
     _add_section(
         content_layout,
-        "section_organisms",
-        "Organisms",
-        "상위 조합 컴포넌트의 카드/테이블/패널 레이아웃 확인",
+        SAMPLE_PANEL_SECTION_ORGANISMS_NAME,
+        SAMPLE_PANEL_SECTION_ORGANISMS_TITLE,
+        SAMPLE_PANEL_SECTION_ORGANISMS_NOTE,
         _organisms_preview(),
     )
     content_layout.addStretch(1)
@@ -417,31 +419,16 @@ class SamplePanelWindow(QMainWindow):
     """샘플 패널을 중앙 위젯으로 두는 메인 윈도우."""
 
     def __init__(self, parent=None) -> None:
-        """창 제목·크기·중앙 위젯을 초기화한다.
-
-        Args:
-            self: 이 윈도우 인스턴스.
-            parent: Qt 부모.
-
-        Returns:
-            None.
-        """
+        """창 제목·크기·중앙 위젯을 초기화한다."""
         super().__init__(parent)
-        self.setWindowTitle("AniVault V2 - Sample Panel")
+        self.setWindowTitle(SAMPLE_PANEL_WINDOW_TITLE)
         self.resize(1520, 980)
         self.setMinimumSize(1280, 800)
         self.setCentralWidget(build_sample_panel_widget())
 
 
 def run() -> None:
-    """테마·스타일을 적용한 뒤 샘플 패널 QApplication을 실행한다.
-
-    Args:
-        없음.
-
-    Returns:
-        None.
-    """
+    """테마·스타일시트를 적용한 뒤 샘플 패널 QApplication을 실행한다."""
     load_saved_theme()
     app = QApplication(sys.argv)
     app.setStyleSheet(global_stylesheet())

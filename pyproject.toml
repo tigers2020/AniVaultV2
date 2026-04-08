@@ -48,10 +48,22 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = '-v -m "not benchmark"'
+addopts = '-v -m "not benchmark" --cov=src/anivault --cov-report=term-missing'
 markers = [
     "benchmark: optional performance timing benchmarks (pytest -m benchmark tests/benchmarks)",
 ]
+
+[tool.coverage.run]
+source = ["src/anivault"]
+omit = [
+    "src/anivault/interfaces/gui/sample_panel.py",
+    "src/anivault/__main__.py",
+    "src/anivault/bootstrap/settings.py",
+]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
 
 # -----------------------------------------------------------------------------
 # 공통: Python 3.12, line-length 100, src 레이아웃

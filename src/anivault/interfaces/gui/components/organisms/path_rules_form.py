@@ -1,6 +1,6 @@
 """path_rules_form.py
 
-정리 대상 루트와 경로 템플릿, 미지정 그룹 폴더명 설정 폼.
+정리 대상 루트와 경로 템플릿 설정 폼.
 
 Author: Pom Kim
 """
@@ -10,16 +10,26 @@ import re
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QVBoxLayout
 
+from anivault.constants.gui.components import (
+    PATH_RULES_FORM_HEADER_DESCRIPTION,
+    PATH_RULES_FORM_HEADER_TITLE,
+    PATH_RULES_FORM_LABEL_TARGET_ROOT,
+    PATH_RULES_FORM_LABEL_TEMPLATE,
+    PATH_RULES_FORM_LABEL_UNKNOWN_GROUP,
+    PATH_RULES_FORM_LABEL_UNKNOWN_RESOLUTION,
+    PATH_RULES_FORM_TARGET_ROOT_DEFAULT,
+    PATH_RULES_FORM_TEMPLATE_DEFAULT,
+    PATH_RULES_FORM_UNKNOWN_GROUP_DEFAULT,
+    PATH_RULES_FORM_UNKNOWN_RESOLUTION_DEFAULT,
+)
 from anivault.constants.gui.forms import PATH_TEMPLATE_EXAMPLES
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import FormField, PanelHeader
 
 
 def _template_to_example(template: str) -> str:
-    """경로 템플릿의 `{...}` 자리를 예시 문자열로 치환해 미리보기를 만든다."""
-
-    def repl(m: re.Match[str]) -> str:
-        key = m.group(1)
+    def repl(match: re.Match[str]) -> str:
+        key = match.group(1)
         base = key.split(":")[0]
         return PATH_TEMPLATE_EXAMPLES.get(base, f"{{{key}}}")
 
@@ -27,46 +37,57 @@ def _template_to_example(template: str) -> str:
 
 
 def _path_template_label(template: str) -> str:
-    """FormField 레이블용 'Path template (예시)' 문자열을 만든다."""
     example = _template_to_example(template)
-    return f"Path template ({example})"
+    return f"{PATH_RULES_FORM_LABEL_TEMPLATE} ({example})"
 
 
 class PathRulesForm(QFrame):
-    """경로 규칙 입력 필드와 settings_changed 시그널."""
+    """경로 규칙 입력 폼."""
 
     settings_changed = Signal()
 
     def __init__(self, parent=None):
-        """필드와 시그널 연결을 구성한다."""
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(PanelHeader("Path Rules", "최종 출력 구조와 기본값 설정"))
+        layout.addWidget(
+            PanelHeader(PATH_RULES_FORM_HEADER_TITLE, PATH_RULES_FORM_HEADER_DESCRIPTION)
+        )
         body = QVBoxLayout()
         body.setContentsMargins(18, 18, 18, 18)
-        self._target_root = FormField("Target root folder", "path", "G:/AniSorted")
+        self._target_root = FormField(
+            PATH_RULES_FORM_LABEL_TARGET_ROOT,
+            "path",
+            PATH_RULES_FORM_TARGET_ROOT_DEFAULT,
+        )
         self._path_template = FormField(
-            "Path template",
+            PATH_RULES_FORM_LABEL_TEMPLATE,
             "line",
-            r"{target}\{resolution}\{year}\{korean_title_group}\Season{season:02}\{original_filename}",
+            PATH_RULES_FORM_TEMPLATE_DEFAULT,
             label_updater=_path_template_label,
         )
-        self._unknown_resolution = FormField("Unknown resolution", "line", "Unknown")
-        self._unknown_group = FormField("Unknown group folder", "line", "Needs_Review")
-        for f in (
+        self._unknown_resolution = FormField(
+            PATH_RULES_FORM_LABEL_UNKNOWN_RESOLUTION,
+            "line",
+            PATH_RULES_FORM_UNKNOWN_RESOLUTION_DEFAULT,
+        )
+        self._unknown_group = FormField(
+            PATH_RULES_FORM_LABEL_UNKNOWN_GROUP,
+            "line",
+            PATH_RULES_FORM_UNKNOWN_GROUP_DEFAULT,
+        )
+        for field in (
             self._target_root,
             self._path_template,
             self._unknown_resolution,
             self._unknown_group,
         ):
-            body.addWidget(f)
-            f.value_changed.connect(self.settings_changed.emit)
+            body.addWidget(field)
+            field.value_changed.connect(self.settings_changed.emit)
         layout.addLayout(body)
         self.setStyleSheet(theme.card_panel())
 
     def get_values(self) -> dict[str, str]:
-        """현재 경로 규칙 값을 딕셔너리로 반환한다."""
         return {
             "target_root": self._target_root.value(),
             "path_template": self._path_template.value(),
@@ -75,7 +96,6 @@ class PathRulesForm(QFrame):
         }
 
     def set_values(self, data: dict[str, str]) -> None:
-        """전달된 맵으로 필드를 채운다."""
         self.blockSignals(True)
         try:
             if "target_root" in data:

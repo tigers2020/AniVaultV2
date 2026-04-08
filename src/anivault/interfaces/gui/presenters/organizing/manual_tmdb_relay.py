@@ -12,6 +12,7 @@ from PySide6.QtCore import QObject, Slot
 from PySide6.QtWidgets import QMessageBox
 
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
+from anivault.constants.gui.components import MANUAL_TMDB_RELAY_ERROR_TITLE
 from anivault.interfaces.gui.dialogs.tmdb_manual_match_dialog import TmdbManualMatchDialog
 
 
@@ -64,4 +65,4 @@ class ManualTmdbSearchRelay(QObject):
             None.
         """
         self._dlg.set_search_busy(False)
-        QMessageBox.warning(self._dlg, "TMDB 검색 실패", str(exc))
+        QMessageBox.warning(self._dlg, MANUAL_TMDB_RELAY_ERROR_TITLE, str(exc))

@@ -23,7 +23,18 @@ from anivault.application.dto.progress import ProgressEvent, progress_dialog_val
 from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.constants.gui.components import (
     SCAN_PARSE_COORDINATOR_MID_SCAN_MODEL_MAX_GROUPS,
+    SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_MESSAGE,
+    SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_TITLE,
     SCAN_PARSE_COORDINATOR_RESULT_GROUP_CHUNK_SIZE,
+    SCAN_PARSE_COORDINATOR_SCAN_PATH_EMPTY_MESSAGE,
+    SCAN_PARSE_COORDINATOR_SCAN_PATH_ERROR_MESSAGE_TEMPLATE,
+    SCAN_PARSE_COORDINATOR_SCAN_PATH_ERROR_TITLE,
+    SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_MESSAGE_TEMPLATE,
+    SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_TITLE,
+    SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_MESSAGE,
+    SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_TITLE,
+    SCAN_PARSE_COORDINATOR_STATUS_PARSED,
+    SCAN_PARSE_COORDINATOR_STATUS_SCANNED,
 )
 from anivault.interfaces.gui.components.molecules import ProgressDialog
 from anivault.interfaces.gui.models import (
@@ -131,14 +142,16 @@ class ScanParseCoordinator(QObject):
                 return True
         except OSError as e:
             self._warn_scan_path(
-                "스캔 경로 오류",
-                "지정한 폴더에 접근할 수 없습니다(네트워크·권한·이동된 드라이브 등).\n\n"
-                f"{path}\n\n{e}",
+                SCAN_PARSE_COORDINATOR_SCAN_PATH_ERROR_TITLE,
+                SCAN_PARSE_COORDINATOR_SCAN_PATH_ERROR_MESSAGE_TEMPLATE.format(
+                    path=path,
+                    error=e,
+                ),
             )
             return False
         self._warn_scan_path(
-            "스캔 경로 없음",
-            f"폴더가 없거나 접근할 수 없습니다. 경로를 확인하거나 다시 선택하세요.\n\n{path}",
+            SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_TITLE,
+            SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_MESSAGE_TEMPLATE.format(path=path),
         )
         return False
 
@@ -153,7 +166,10 @@ class ScanParseCoordinator(QObject):
         """
         path = (path or "").strip()
         if not path:
-            self._warn_scan_path("스캔 경로 없음", "스캔할 폴더를 먼저 선택해 주세요.")
+            self._warn_scan_path(
+                SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_TITLE,
+                SCAN_PARSE_COORDINATOR_SCAN_PATH_EMPTY_MESSAGE,
+            )
             return
         if not self._scan_path_is_usable_directory(path):
             return
@@ -176,8 +192,8 @@ class ScanParseCoordinator(QObject):
                 dialog=dialog,
                 worker=worker,
                 signals=signals,
-                title="스캔 중",
-                message="폴더 스캔 중...",
+                title=SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_TITLE,
+                message=SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_MESSAGE,
                 indeterminate=True,
                 on_progress_with_token=self._on_progress,
                 on_finished=lambda: self._on_scan_thread_finished(dialog),
@@ -276,7 +292,7 @@ class ScanParseCoordinator(QObject):
                     year="",
                     season="",
                     resolution=res,
-                    status="스캔됨",
+                    status=SCAN_PARSE_COORDINATOR_STATUS_SCANNED,
                     poster_url="",
                     backdrop_url="",
                     target_path="",
@@ -340,8 +356,8 @@ class ScanParseCoordinator(QObject):
                 dialog=dialog,
                 worker=worker,
                 signals=signals,
-                title="Parse 중",
-                message="파일명 파싱 중...",
+                title=SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_TITLE,
+                message=SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_MESSAGE,
                 indeterminate=False,
                 on_progress_with_token=self._on_progress,
                 on_finished=lambda: self._p._finish_worker_session(dialog, True),  # noqa: SLF001
@@ -408,7 +424,7 @@ class ScanParseCoordinator(QObject):
                         year=p.year,
                         season=p.season,
                         resolution=merged_res,
-                        status="파싱됨",
+                        status=SCAN_PARSE_COORDINATOR_STATUS_PARSED,
                         poster_url=row.poster_url,
                         backdrop_url=row.backdrop_url,
                         target_path=row.target_path,

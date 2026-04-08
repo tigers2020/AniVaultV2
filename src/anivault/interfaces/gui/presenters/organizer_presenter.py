@@ -6,12 +6,12 @@ Author: Pom Kim
 """
 
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass
 from threading import Event
-from typing import Any, cast
+from typing import Any
 
-from PySide6.QtCore import QObject, Qt, QThread, QTimer, Slot
+from PySide6.QtCore import QObject, Qt, QThread, QTimer
 from PySide6.QtWidgets import QDialog, QMessageBox, QWidget
 
 from anivault.application.dto.match_result import MatchFileRow, MatchInput, MatchResult
@@ -27,7 +27,37 @@ from anivault.application.use_cases.match_series import (
     apply_tmdb_candidate_to_file_rows,
     persist_manual_tmdb_selection,
 )
-from anivault.domain.models.parsed_info import ParsedInfo
+from anivault.constants.gui.components import (
+    MATCH_COORDINATOR_EMPTY_QUERY_MESSAGE,
+    MATCH_COORDINATOR_EMPTY_QUERY_TITLE,
+    MATCH_COORDINATOR_MISSING_API_MESSAGE,
+    MATCH_COORDINATOR_MISSING_API_TITLE,
+    MATCH_COORDINATOR_NO_ROWS_MESSAGE,
+    MATCH_COORDINATOR_NO_ROWS_TITLE,
+    MATCH_COORDINATOR_NO_SELECTION_MESSAGE,
+    MATCH_COORDINATOR_NO_SELECTION_TITLE,
+    MATCH_COORDINATOR_PROGRESS_MESSAGE,
+    MATCH_COORDINATOR_PROGRESS_TITLE,
+    PLAN_APPLY_COMPLETE_MESSAGE_TEMPLATE,
+    PLAN_APPLY_COMPLETE_TITLE,
+    PLAN_APPLY_DRY_RUN_EMPTY_MESSAGE,
+    PLAN_APPLY_DRY_RUN_TITLE,
+    PLAN_APPLY_EMPTY_MESSAGE,
+    PLAN_APPLY_EMPTY_TITLE,
+    PLAN_APPLY_LOG_ROOT_MESSAGE,
+    PLAN_APPLY_LOG_ROOT_TITLE,
+    PLAN_APPLY_MOVE_ERROR_TITLE,
+    PLAN_APPLY_MOVE_PROGRESS_MESSAGE,
+    PLAN_APPLY_MOVE_PROGRESS_TITLE,
+    PLAN_APPLY_NO_MATCHED_MESSAGE,
+    PLAN_APPLY_NO_MATCHED_TITLE,
+    PLAN_APPLY_PATH_RULES_MESSAGE,
+    PLAN_APPLY_PATH_RULES_TITLE,
+    PLAN_APPLY_PLAN_ERROR_TITLE,
+    PLAN_APPLY_PLAN_PROGRESS_MESSAGE,
+    PLAN_APPLY_PLAN_PROGRESS_TITLE,
+)
+from anivault.interfaces.gui.presenters.organizing.manual_tmdb_relay import ManualTmdbSearchRelay
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.poster_display import resolve_final_poster_display_source
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
@@ -70,58 +100,6 @@ class OrganizerPresenterPorts:
     title_match: TitleMatchRepository | None = None
     title_groups: TitleGroupRepository | None = None
     poster_sync: PosterAssetSyncPort | None = None
-
-
-class _ManualTmdbSearchRelay(QObject):
-    """WorkerSignals를 메인 스레드의 수동 매칭 대화상자로 넘긴다(큐 연결 수신자 명시)."""
-
-    def __init__(self, dlg: TmdbManualMatchDialog, presenter: QObject) -> None:
-        """대화상자와 프레젠터(부모)를 저장한다.
-
-        Args:
-            dlg: TMDB 수동 매칭 대화상자.
-            presenter: OrganizerPresenter. 릴레이의 Qt 부모(스레드 소속).
-
-        Returns:
-            None.
-        """
-        super().__init__(presenter)
-        self._dlg = dlg
-
-    @Slot(object)
-    def on_result(self, result: object) -> None:
-        """검색 결과 튜플을 목록에 반영한다.
-
-        Args:
-            result: TMDB 후보 시퀀스.
-
-        Returns:
-            None.
-        """
-        self._dlg.set_candidates(list(cast(Sequence[TmdbSeriesCandidateDTO], result)))
-
-    @Slot()
-    def on_finished(self) -> None:
-        """워커 종료 시 검색 UI를 다시 켠다.
-
-        Returns:
-            None.
-        """
-        self._dlg.set_search_busy(False)
-        self.deleteLater()
-
-    @Slot(Exception)
-    def on_error(self, exc: Exception) -> None:
-        """검색 실패 시 메시지를 띄운다.
-
-        Args:
-            exc: 예외.
-
-        Returns:
-            None.
-        """
-        self._dlg.set_search_busy(False)
-        QMessageBox.warning(self._dlg, "TMDB 검색 실패", str(exc))
 
 
 class OrganizerPresenter(QObject):
@@ -254,60 +232,6 @@ class OrganizerPresenter(QObject):
         """Delegate scan/parse flow to the coordinator that applies parse results in chunks."""
         self._scan_parse_coordinator.on_scan_clicked(path)
 
-    def _on_scan_clicked_legacy(self, path: str) -> None:
-        """스캔 버튼 클릭: 경로 검증 후 워커를 시작하고 결과로 모델을 갱신한다.
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            path: 스캔할 폴더 경로.
-
-        Returns:
-            None.
-        """
-        path = (path or "").strip()
-        if not path:
-            parent = self.parent()
-            if isinstance(parent, QWidget):
-                QMessageBox.warning(
-                    parent,
-                    "스캔 경로 없음",
-                    "스캔할 폴더를 먼저 선택해 주세요.",
-                )
-            return
-        self._current_library_root_id = None
-        self._notify_dry_run(False)
-        if self._scan_execute is None:
-            return
-        self._scan_progress_handoff_done = False
-        signals = WorkerSignals()
-        worker = UseCaseWorker(
-            execute_fn=self._scan_execute,
-            input_dto=ScanInput(path=path, recursive=True),
-            signals=signals,
-        )
-        signals.result.connect(self._on_scan_result)
-        signals.error.connect(self._on_scan_error)
-        dialog = self._progress_dialog
-        if dialog is not None:
-            token = dialog.mark_work_started()
-            signals.started.connect(
-                lambda: dialog.show_progress("스캔 중", "폴더 스캔 중...", True)
-            )
-            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
-            signals.finished.connect(
-                lambda: self._on_scan_thread_finished(dialog),
-            )
-            signals.cancelled.connect(dialog.hide_progress)
-            cancel_slot = worker.cancel
-            dialog.canceled.connect(cancel_slot)
-
-            thread = run_worker(worker)
-            self._disconnect_cancel_on_thread_finished(dialog, cancel_slot, thread)
-        else:
-            thread = run_worker(worker)
-        thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
-        self._worker_thread = thread
-
     def register_worker_thread(self, thread: QThread) -> None:
         """ScanParseCoordinator 등에서 활성 워커 스레드 참조를 등록한다.
 
@@ -322,20 +246,6 @@ class OrganizerPresenter(QObject):
         if thread not in self._worker_threads:
             self._worker_threads.append(thread)
         thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
-
-    def _on_scan_thread_finished(self, dialog: ProgressDialog) -> None:
-        """스캔 워커 스레드 finished: 이미 파싱으로 넘겼으면 mark 생략(이중 세션 방지).
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            dialog: 진행 대화상자.
-
-        Returns:
-            None.
-        """
-        if self._scan_progress_handoff_done:
-            return
-        self._finish_worker_session(dialog, hide=False)
 
     def _on_progress(self, event: ProgressEvent, token: int) -> None:
         """ProgressEvent로 진행 다이얼로그를 갱신한다.
@@ -358,260 +268,6 @@ class OrganizerPresenter(QObject):
                 value=value,
                 maximum=maximum,
             )
-
-    def _on_scan_result(self, result: ScanResult) -> None:
-        """ScanResult를 PipelineRow로 변환해 모델에 반영한 뒤 Parse 워커를 자동 시작한다.
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            result: 스캔 유스케이스 결과.
-
-        Returns:
-            None.
-        """
-        self._current_library_root_id = result.index_root_id
-        rows = self._scan_result_to_rows(result)
-        merged = group_pipeline_rows(rows)
-        if not rows or self._parse_execute is None:
-            self._model.set_rows(merged)
-            self._scan_progress_handoff_done = True
-            if self._progress_dialog is not None:
-                self._finish_worker_session(self._progress_dialog, True)
-            return
-        self._start_parse_worker(rows, merged, result.index_root_id)
-
-    def _apply_scan_rows_to_model(self, merged: list[PipelineGroupRow]) -> None:
-        """스캔 결과 그룹을 모델에 반영한다.
-
-        Parse 워커의 ``started``가 메인에서 처리된 뒤 ``QTimer.singleShot(0)``으로
-        한 틱 더 미룬 뒤 호출된다. 그렇지 않으면 ``QTimer(0)``가 워커 ``started``보다
-        먼저 실행되어 대량 ``set_rows``가 메인을 점유하고 진행 창이 늦게 뜬다.
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            merged: group_pipeline_rows 결과.
-
-        Returns:
-            None.
-        """
-        self._model.set_rows(merged)
-
-    def _scan_result_to_rows(self, result: ScanResult) -> list[PipelineRow]:
-        """ScanResult를 PipelineRow 목록으로 변환한다(경로·해상도 힌트 단계).
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            result: 스캔 유스케이스 결과.
-
-        Returns:
-            파이프라인 행 목록.
-        """
-        resolutions = result.resolutions or []
-        rows: list[PipelineRow] = []
-        for i, p in enumerate(result.paths):
-            res = resolutions[i] if i < len(resolutions) else ""
-            rows.append(
-                PipelineRow(
-                    original_file=p,
-                    parsed_title="",
-                    parse_group="",
-                    tmdb_korean_title_group="",
-                    tmdb_series_id="",
-                    tmdb_poster_path="",
-                    tmdb_backdrop_path="",
-                    year="",
-                    season="",
-                    resolution=res,
-                    status="스캔됨",
-                    poster_url="",
-                    backdrop_url="",
-                    target_path="",
-                )
-            )
-        return rows
-
-    def _start_parse_worker(
-        self,
-        scan_rows: list[PipelineRow],
-        merged_groups: list[PipelineGroupRow],
-        index_root_id: int | None = None,
-    ) -> None:
-        """Parse 워커를 시작하고, 완료 시 파싱 정보를 행에 병합해 모델을 갱신한다.
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            scan_rows: 스캔 직후의 파이프라인 행 목록.
-            merged_groups: 스캔 직후 파이프라인에 반영할 그룹 행(워커 ``started`` 이후 적용).
-            index_root_id: 스캔 인덱스 루트 ID. None이면 파싱 캐시 미사용.
-
-        Returns:
-            None.
-        """
-        parse_execute = self._parse_execute
-        if parse_execute is None:
-            return
-        self._parse_index_root_id = index_root_id
-        paths = [r.original_file for r in scan_rows]
-        signals = WorkerSignals()
-        worker = UseCaseWorker(
-            execute_fn=parse_execute,
-            input_dto=ParseInput(paths=paths, index_root_id=index_root_id),
-            signals=signals,
-        )
-        signals.result.connect(self._on_parse_result)
-        signals.error.connect(self._on_scan_error)
-        dialog = self._progress_dialog
-
-        def _on_parse_worker_started() -> None:
-            """워커 run 진입 후 진행 UI를 먼저 띄우고, 다음 이벤트 루프 틱에 모델을 반영한다."""
-            if dialog is not None:
-                dialog.show_progress("Parse 중", "파일명 파싱 중...", False)
-            QTimer.singleShot(
-                0,
-                lambda m=merged_groups: self._apply_scan_rows_to_model(m),
-            )
-
-        signals.started.connect(_on_parse_worker_started)
-        if dialog is not None:
-            self._scan_progress_handoff_done = True
-            dialog.mark_work_finished()
-            token = dialog.mark_work_started()
-            signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
-            signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
-            cancel_slot = worker.cancel
-            dialog.canceled.connect(cancel_slot)
-
-            thread = run_worker(worker)
-            self._disconnect_cancel_on_thread_finished(dialog, cancel_slot, thread)
-        else:
-            thread = run_worker(worker)
-        thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
-        self._worker_thread = thread
-
-    def _merge_parse_into_row(
-        self,
-        row: PipelineRow,
-        parsed: ParsedInfo | None,
-        parsed_from_cache: bool,
-    ) -> PipelineRow:
-        """단일 파이프라인 행에 ParsedInfo를 병합한다(없으면 원본 행 복제).
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            row: 기존 파이프라인 행.
-            parsed: 파싱 결과. None이면 파싱 전 상태를 유지한다.
-            parsed_from_cache: 파싱 캐시 히트 여부(상태 문자열에만 사용).
-
-        Returns:
-            병합된 PipelineRow.
-        """
-        if parsed is None:
-            return PipelineRow(
-                original_file=row.original_file,
-                parsed_title=row.parsed_title,
-                parse_group=row.parse_group,
-                tmdb_korean_title_group=row.tmdb_korean_title_group,
-                tmdb_series_id=row.tmdb_series_id,
-                tmdb_poster_path=row.tmdb_poster_path,
-                tmdb_backdrop_path=row.tmdb_backdrop_path,
-                year=row.year,
-                season=row.season,
-                resolution=row.resolution,
-                status=row.status,
-                poster_url=row.poster_url,
-                backdrop_url=row.backdrop_url,
-                target_path=row.target_path,
-                episode=row.episode,
-            )
-        merged_res = (parsed.resolution or "").strip() or row.resolution
-        return PipelineRow(
-            original_file=row.original_file,
-            parsed_title=parsed.title,
-            parse_group=parsed.parse_group,
-            tmdb_korean_title_group=row.tmdb_korean_title_group,
-            tmdb_series_id=row.tmdb_series_id,
-            tmdb_poster_path=row.tmdb_poster_path,
-            tmdb_backdrop_path=row.tmdb_backdrop_path,
-            year=parsed.year,
-            season=parsed.season,
-            resolution=merged_res,
-            status="파싱 캐시" if parsed_from_cache else "파싱됨",
-            poster_url=row.poster_url,
-            backdrop_url=row.backdrop_url,
-            target_path=row.target_path,
-            episode=parsed.episode,
-        )
-
-    def _try_sync_title_groups_after_parse(self, root_for_sync: int | None) -> None:
-        """인덱스 루트가 있으면 title_groups 동기화를 시도한다(실패는 로그만).
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            root_for_sync: 스캔 인덱스 루트 ID.
-
-        Returns:
-            None.
-        """
-        sync_fn = self._sync_title_groups_execute
-        if root_for_sync is None or sync_fn is None:
-            return
-        try:
-            sync_fn(root_for_sync)
-        except Exception:
-            logger.exception("title_groups 동기화 실패")
-
-    def _try_hydrate_cached_tmdb(
-        self, root_for_sync: int | None, merged: list[PipelineRow]
-    ) -> list[PipelineRow]:
-        """캐시된 TMDB 메타데이터로 행을 보강한다(실패 시 merged 그대로).
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            root_for_sync: 스캔 인덱스 루트 ID.
-            merged: 파싱 병합 직후 행 목록.
-
-        Returns:
-            보강된 행 목록 또는 실패 시 입력과 동일한 목록.
-        """
-        hydrate_fn = self._cached_tmdb_hydrate_execute
-        if root_for_sync is None or hydrate_fn is None:
-            return merged
-        try:
-            hydrated = hydrate_fn(
-                MatchInput(
-                    files=tuple(pipeline_row_to_match_file(r) for r in merged),
-                    index_root_id=root_for_sync,
-                )
-            )
-            return [self._match_file_to_pipeline_row(m) for m in hydrated.files]
-        except Exception:
-            logger.exception("TMDB cache hydration failed")
-            return merged
-
-    def _on_parse_result(self, result: ParseResult) -> None:
-        """인덱스 기준으로 현재 행에 파싱 정보를 병합하고 모델을 갱신한다.
-
-        Args:
-            self: 이 프레젠터 인스턴스.
-            result: 파싱 유스케이스 결과.
-
-        Returns:
-            None.
-        """
-        rows = self._model.flat_rows()
-        parsed_list = result.parsed or []
-        cache_hits = result.cache_hits or []
-        merged: list[PipelineRow] = []
-        for i, row in enumerate(rows):
-            p = parsed_list[i] if i < len(parsed_list) else None
-            parsed_from_cache = cache_hits[i] if i < len(cache_hits) else False
-            merged.append(self._merge_parse_into_row(row, p, parsed_from_cache))
-        root_for_sync = self._parse_index_root_id
-        self._parse_index_root_id = None
-        self._try_sync_title_groups_after_parse(root_for_sync)
-        merged = self._try_hydrate_cached_tmdb(root_for_sync, merged)
-        self._model.set_rows(group_pipeline_rows(merged))
-        self._notify_dry_run(self._dry_run_should_enable())
 
     def _on_scan_error(self, exc: Exception) -> None:
         """오류 시 모델은 유지하고 진행 다이얼로그만 숨긴다.
@@ -669,8 +325,8 @@ class OrganizerPresenter(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.warning(
                     parent,
-                    "TMDB API 키 없음",
-                    "Settings → Parse/TMDB에서 API 키를 저장하거나 .env에 TMDB_API_KEY를 설정하세요.",
+                    MATCH_COORDINATOR_MISSING_API_TITLE,
+                    MATCH_COORDINATOR_MISSING_API_MESSAGE,
                 )
             return
         self._notify_dry_run(False)
@@ -680,8 +336,8 @@ class OrganizerPresenter(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.information(
                     parent,
-                    "매칭할 항목 없음",
-                    "먼저 폴더를 스캔하고 파싱이 끝난 뒤 다시 시도하세요.",
+                    MATCH_COORDINATOR_NO_ROWS_TITLE,
+                    MATCH_COORDINATOR_NO_ROWS_MESSAGE,
                 )
             return
         files = tuple(pipeline_row_to_match_file(r) for r in rows)
@@ -697,7 +353,11 @@ class OrganizerPresenter(QObject):
         if dialog is not None:
             token = dialog.mark_work_started()
             signals.started.connect(
-                lambda: dialog.show_progress("TMDB 매칭", "한글 제목 조회 중…", False)
+                lambda: dialog.show_progress(
+                    MATCH_COORDINATOR_PROGRESS_TITLE,
+                    MATCH_COORDINATOR_PROGRESS_MESSAGE,
+                    False,
+                )
             )
             signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
@@ -790,8 +450,8 @@ class OrganizerPresenter(QObject):
             return
         QMessageBox.warning(
             parent,
-            "TMDB API 키 없음",
-            "Settings → Parse/TMDB에서 API 키를 저장하거나 .env에 TMDB_API_KEY를 설정하세요.",
+            MATCH_COORDINATOR_MISSING_API_TITLE,
+            MATCH_COORDINATOR_MISSING_API_MESSAGE,
         )
 
     def _selected_pipeline_group_index_or_warn(
@@ -816,8 +476,8 @@ class OrganizerPresenter(QObject):
         if parent is not None:
             QMessageBox.information(
                 parent,
-                "선택 없음",
-                "파이프라인에서 항목을 먼저 선택하세요.",
+                MATCH_COORDINATOR_NO_SELECTION_TITLE,
+                MATCH_COORDINATOR_NO_SELECTION_MESSAGE,
             )
         return None
 
@@ -931,11 +591,15 @@ class OrganizerPresenter(QObject):
             dlg.set_search_busy(False)
             parent = self.parent()
             if isinstance(parent, QWidget):
-                QMessageBox.warning(parent, "검색어 없음", "검색어를 입력하세요.")
+                QMessageBox.warning(
+                    parent,
+                    MATCH_COORDINATOR_EMPTY_QUERY_TITLE,
+                    MATCH_COORDINATOR_EMPTY_QUERY_MESSAGE,
+                )
             return
         y: int | None = year if year is None or isinstance(year, int) else None
         signals = WorkerSignals()
-        relay = _ManualTmdbSearchRelay(dlg, self)
+        relay = ManualTmdbSearchRelay(dlg, self)
         worker = UseCaseWorker(
             execute_fn=execute,
             input_dto=TmdbSearchInput(query=q, year=y),
@@ -1027,24 +691,24 @@ class OrganizerPresenter(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.information(
                     parent,
-                    "항목 없음",
-                    "먼저 스캔·매칭을 완료하세요.",
+                    PLAN_APPLY_EMPTY_TITLE,
+                    PLAN_APPLY_EMPTY_MESSAGE,
                 )
             return
         if err == "no_matched":
             if isinstance(parent, QWidget):
                 QMessageBox.information(
                     parent,
-                    "TMDB 매칭 없음",
-                    "TMDB 한글 제목이 있는 항목이 없습니다. 자동·수동 매칭으로 준비한 뒤 다시 시도하세요.",
+                    PLAN_APPLY_NO_MATCHED_TITLE,
+                    PLAN_APPLY_NO_MATCHED_MESSAGE,
                 )
             return
         if err == "path_rules" or plan_input is None:
             if isinstance(parent, QWidget):
                 QMessageBox.warning(
                     parent,
-                    "경로 규칙",
-                    "Settings → Path Rules에서 Target root와 Path template을 설정하세요.",
+                    PLAN_APPLY_PATH_RULES_TITLE,
+                    PLAN_APPLY_PATH_RULES_MESSAGE,
                 )
             return
         signals = WorkerSignals()
@@ -1059,7 +723,11 @@ class OrganizerPresenter(QObject):
         if dialog is not None:
             token = dialog.mark_work_started()
             signals.started.connect(
-                lambda: dialog.show_progress("플랜 생성", "경로 계획 중…", False)
+                lambda: dialog.show_progress(
+                    PLAN_APPLY_PLAN_PROGRESS_TITLE,
+                    PLAN_APPLY_PLAN_PROGRESS_MESSAGE,
+                    False,
+                )
             )
             signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
@@ -1088,12 +756,16 @@ class OrganizerPresenter(QObject):
         parent = self.parent()
         if result.error:
             if isinstance(parent, QWidget):
-                QMessageBox.warning(parent, "플랜 오류", result.error)
+                QMessageBox.warning(parent, PLAN_APPLY_PLAN_ERROR_TITLE, result.error)
             self._notify_dry_run(self._dry_run_should_enable())
             return
         if not result.moves:
             if isinstance(parent, QWidget):
-                QMessageBox.information(parent, "Dry Run", "이동할 항목이 없습니다.")
+                QMessageBox.information(
+                    parent,
+                    PLAN_APPLY_DRY_RUN_TITLE,
+                    PLAN_APPLY_DRY_RUN_EMPTY_MESSAGE,
+                )
             self._notify_dry_run(self._dry_run_should_enable())
             return
         self._pending_plan = result
@@ -1142,8 +814,8 @@ class OrganizerPresenter(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.warning(
                     parent,
-                    "로그 경로",
-                    "스캔 소스 경로 또는 Target root를 설정해야 합니다.",
+                    PLAN_APPLY_LOG_ROOT_TITLE,
+                    PLAN_APPLY_LOG_ROOT_MESSAGE,
                 )
             return
         apply_input = ApplyInput(
@@ -1163,7 +835,13 @@ class OrganizerPresenter(QObject):
         dialog = self._progress_dialog
         if dialog is not None:
             token = dialog.mark_work_started()
-            signals.started.connect(lambda: dialog.show_progress("파일 이동", "이동 중…", False))
+            signals.started.connect(
+                lambda: dialog.show_progress(
+                    PLAN_APPLY_MOVE_PROGRESS_TITLE,
+                    PLAN_APPLY_MOVE_PROGRESS_MESSAGE,
+                    False,
+                )
+            )
             signals.progress.connect(lambda e, t=token: self._on_progress(e, t))
             signals.finished.connect(lambda: self._finish_worker_session(dialog, True))
             cancel_slot = worker.cancel
@@ -1192,7 +870,7 @@ class OrganizerPresenter(QObject):
         parent = self.parent()
         if result.error:
             if isinstance(parent, QWidget):
-                QMessageBox.critical(parent, "이동 오류", result.error)
+                QMessageBox.critical(parent, PLAN_APPLY_MOVE_ERROR_TITLE, result.error)
             self._notify_dry_run(self._dry_run_should_enable())
             return
         settings = load_all()
@@ -1201,8 +879,8 @@ class OrganizerPresenter(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.information(
                     parent,
-                    "완료",
-                    f"{result.moved_count}개 파일을 이동했습니다.",
+                    PLAN_APPLY_COMPLETE_TITLE,
+                    PLAN_APPLY_COMPLETE_MESSAGE_TEMPLATE.format(moved_count=result.moved_count),
                 )
             self._notify_dry_run(self._dry_run_should_enable())
             self.on_scan_clicked(scan_source)
@@ -1214,8 +892,8 @@ class OrganizerPresenter(QObject):
         if isinstance(parent, QWidget):
             QMessageBox.information(
                 parent,
-                "완료",
-                f"{result.moved_count}개 파일을 이동했습니다.",
+                PLAN_APPLY_COMPLETE_TITLE,
+                PLAN_APPLY_COMPLETE_MESSAGE_TEMPLATE.format(moved_count=result.moved_count),
             )
         self._notify_dry_run(self._dry_run_should_enable())
 

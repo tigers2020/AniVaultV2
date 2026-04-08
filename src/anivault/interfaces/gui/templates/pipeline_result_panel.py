@@ -21,6 +21,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from anivault.constants.gui.components import (
+    PIPELINE_RESULT_PANEL_HEADER_DESCRIPTION,
+    PIPELINE_RESULT_PANEL_HEADER_TITLE,
+    PIPELINE_RESULT_PANEL_MATCHED_LABEL,
+    PIPELINE_RESULT_PANEL_UNMATCHED_LABEL,
+)
 from anivault.constants.gui.navigation import ICON_SIZES, LEGACY_VIEW_KEY_MAP, VIEW_TO_INDEX
 from anivault.interfaces.gui.components.molecules import (
     PanelHeader,
@@ -132,8 +138,8 @@ class PipelineResultPanel(QFrame):
 
         self._view_bar = ViewToggleBar()
         self._header = PanelHeader(
-            "Pipeline Result",
-            "테이블·내용·아이콘 그리드로 결과를 볼 수 있습니다. 보기에서 레이아웃을 선택하세요.",
+            PIPELINE_RESULT_PANEL_HEADER_TITLE,
+            PIPELINE_RESULT_PANEL_HEADER_DESCRIPTION,
             right_widget=self._view_bar,
         )
         layout.addWidget(self._header)
@@ -169,14 +175,14 @@ class PipelineResultPanel(QFrame):
         top_l = QVBoxLayout(top_wrap)
         top_l.setContentsMargins(0, 0, 0, 0)
         top_l.setSpacing(4)
-        _lbl_m = QLabel("TMDB 매칭됨")
+        _lbl_m = QLabel(PIPELINE_RESULT_PANEL_MATCHED_LABEL)
         top_l.addWidget(_lbl_m)
         top_l.addWidget(self._matched_table, 1)
         bottom_wrap = QWidget()
         bottom_l = QVBoxLayout(bottom_wrap)
         bottom_l.setContentsMargins(0, 0, 0, 0)
         bottom_l.setSpacing(4)
-        _lbl_u = QLabel("미매칭·미진행")
+        _lbl_u = QLabel(PIPELINE_RESULT_PANEL_UNMATCHED_LABEL)
         bottom_l.addWidget(_lbl_u)
         bottom_l.addWidget(self._unmatched_table, 1)
         details_splitter.addWidget(top_wrap)
