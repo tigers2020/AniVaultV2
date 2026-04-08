@@ -11,6 +11,8 @@ import sqlite3
 from collections.abc import Callable
 from importlib import resources
 
+_MIGRATIONS_PACKAGE = "anivault.adapters.persistence.sqlite.migrations"
+
 
 def _migration_001_sql() -> str:
     """001_initial.sql 본문을 패키지 리소스에서 읽는다.
@@ -21,8 +23,7 @@ def _migration_001_sql() -> str:
     Returns:
         SQL 스크립트 문자열.
     """
-    pkg = "anivault.adapters.persistence.sqlite.migrations"
-    ref = resources.files(pkg).joinpath("001_initial.sql")
+    ref = resources.files(_MIGRATIONS_PACKAGE).joinpath("001_initial.sql")
     return ref.read_text(encoding="utf-8")
 
 
@@ -35,8 +36,7 @@ def _migration_002_sql() -> str:
     Returns:
         SQL 스크립트 문자열.
     """
-    pkg = "anivault.adapters.persistence.sqlite.migrations"
-    ref = resources.files(pkg).joinpath("002_parse_cache.sql")
+    ref = resources.files(_MIGRATIONS_PACKAGE).joinpath("002_parse_cache.sql")
     return ref.read_text(encoding="utf-8")
 
 
@@ -49,8 +49,7 @@ def _migration_003_sql() -> str:
     Returns:
         SQL 스크립트 문자열.
     """
-    pkg = "anivault.adapters.persistence.sqlite.migrations"
-    ref = resources.files(pkg).joinpath("003_title_groups.sql")
+    ref = resources.files(_MIGRATIONS_PACKAGE).joinpath("003_title_groups.sql")
     return ref.read_text(encoding="utf-8")
 
 
@@ -63,8 +62,7 @@ def _migration_004_sql() -> str:
     Returns:
         SQL 스크립트 문자열.
     """
-    pkg = "anivault.adapters.persistence.sqlite.migrations"
-    ref = resources.files(pkg).joinpath("004_tmdb_cache.sql")
+    ref = resources.files(_MIGRATIONS_PACKAGE).joinpath("004_tmdb_cache.sql")
     return ref.read_text(encoding="utf-8")
 
 
@@ -77,8 +75,7 @@ def _migration_005_sql() -> str:
     Returns:
         SQL 스크립트 문자열.
     """
-    pkg = "anivault.adapters.persistence.sqlite.migrations"
-    ref = resources.files(pkg).joinpath("005_poster_assets.sql")
+    ref = resources.files(_MIGRATIONS_PACKAGE).joinpath("005_poster_assets.sql")
     return ref.read_text(encoding="utf-8")
 
 
@@ -91,8 +88,7 @@ def _migration_006_sql() -> str:
     Returns:
         SQL 스크립트 문자열.
     """
-    pkg = "anivault.adapters.persistence.sqlite.migrations"
-    ref = resources.files(pkg).joinpath("006_organize_plans.sql")
+    ref = resources.files(_MIGRATIONS_PACKAGE).joinpath("006_organize_plans.sql")
     return ref.read_text(encoding="utf-8")
 
 
@@ -105,8 +101,7 @@ def _migration_007_sql() -> str:
     Returns:
         SQL 스크립트 문자열.
     """
-    pkg = "anivault.adapters.persistence.sqlite.migrations"
-    ref = resources.files(pkg).joinpath("007_resolution_cache.sql")
+    ref = resources.files(_MIGRATIONS_PACKAGE).joinpath("007_resolution_cache.sql")
     return ref.read_text(encoding="utf-8")
 
 
