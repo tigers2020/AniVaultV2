@@ -12,6 +12,18 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
+from anivault.constants.adapters.operation_log import (
+    OPERATION_LOG_DEFAULT_OPERATION_TYPE,
+    OPERATION_LOG_DIRNAME_LOGS,
+    OPERATION_LOG_DIRNAME_ROOT,
+    OPERATION_LOG_FILENAME_PREFIX,
+    OPERATION_LOG_FILENAME_SUFFIX,
+    OPERATION_LOG_JSON_ARRAY_ERROR,
+    OPERATION_LOG_KEY_DESTINATION_PATH,
+    OPERATION_LOG_KEY_OPERATION_TYPE,
+    OPERATION_LOG_KEY_RAW,
+    OPERATION_LOG_KEY_SOURCE_PATH,
+)
 from anivault.domain.models.file_operation import FileOperation, OperationType
 
 
@@ -43,24 +55,24 @@ class FsOperationLogRepository:
         Raises:
             OSError: 쓰기 실패 시.
         """
-        log_dir = self._log_root / ".anivault" / "logs"
+        log_dir = self._log_root / OPERATION_LOG_DIRNAME_ROOT / OPERATION_LOG_DIRNAME_LOGS
         log_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-        path = log_dir / f"organize{ts}.log"
+        path = log_dir / f"{OPERATION_LOG_FILENAME_PREFIX}{ts}{OPERATION_LOG_FILENAME_SUFFIX}"
         payload: list[dict[str, Any]] = []
         for op in operations:
             if isinstance(op, FileOperation):
                 payload.append(
                     {
-                        "operation_type": op.operation_type.value,
-                        "source_path": op.source_path,
-                        "destination_path": op.destination_path,
+                        OPERATION_LOG_KEY_OPERATION_TYPE: op.operation_type.value,
+                        OPERATION_LOG_KEY_SOURCE_PATH: op.source_path,
+                        OPERATION_LOG_KEY_DESTINATION_PATH: op.destination_path,
                     }
                 )
             elif isinstance(op, dict):
                 payload.append(op)
             else:
-                payload.append({"raw": repr(op)})
+                payload.append({OPERATION_LOG_KEY_RAW: repr(op)})
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return path
 
@@ -80,18 +92,27 @@ class FsOperationLogRepository:
         raw = log_path.read_text(encoding="utf-8")
         data = json.loads(raw)
         if not isinstance(data, list):
-            raise ValueError("log payload must be a JSON array")
+            raise ValueError(OPERATION_LOG_JSON_ARRAY_ERROR)
         out: list[FileOperation] = []
         for item in data:
             if not isinstance(item, dict):
                 continue
-            ot = str(item.get("operation_type", "MOVE")).upper()
-            op_type = OperationType.MOVE if ot == "MOVE" else OperationType.COPY
+            ot = str(
+                item.get(
+                    OPERATION_LOG_KEY_OPERATION_TYPE,
+                    OPERATION_LOG_DEFAULT_OPERATION_TYPE,
+                )
+            ).upper()
+            op_type = (
+                OperationType.MOVE
+                if ot == OPERATION_LOG_DEFAULT_OPERATION_TYPE
+                else OperationType.COPY
+            )
             out.append(
                 FileOperation(
                     operation_type=op_type,
-                    source_path=str(item.get("source_path", "")),
-                    destination_path=str(item.get("destination_path", "")),
+                    source_path=str(item.get(OPERATION_LOG_KEY_SOURCE_PATH, "")),
+                    destination_path=str(item.get(OPERATION_LOG_KEY_DESTINATION_PATH, "")),
                 )
             )
         return cast(list[object], out)

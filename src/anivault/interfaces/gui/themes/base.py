@@ -7,6 +7,31 @@ Author: Pom Kim
 
 from dataclasses import dataclass
 
+from anivault.constants.gui.theme import (
+    FONT_BODY,
+    FONT_CAPTION,
+    FONT_FAMILY,
+    FONT_LARGE_TITLE,
+    FONT_STAT,
+    FONT_SUBTITLE,
+    FONT_TITLE,
+    RADIUS_PX,
+    SIDEBAR_WIDTH_PX,
+)
+
+__all__ = [
+    "ColorPalette",
+    "FONT_FAMILY",
+    "FONT_TITLE",
+    "FONT_SUBTITLE",
+    "FONT_BODY",
+    "FONT_CAPTION",
+    "FONT_LARGE_TITLE",
+    "FONT_STAT",
+    "RADIUS_PX",
+    "SIDEBAR_WIDTH_PX",
+]
+
 
 @dataclass
 class ColorPalette:
@@ -59,16 +84,3 @@ class ColorPalette:
             "card_bg": self.card_bg,
         }
         return d
-
-
-FONT_FAMILY = "Segoe UI, Malgun Gothic, Apple SD Gothic Neo, sans-serif"
-# Qt stylesheet does not reliably support CSS rem units.
-# Prefer pt for font size to avoid pixel-size(pointSize=-1) warnings in Qt internals.
-FONT_TITLE = f"font-family: {FONT_FAMILY}; font-size: 13pt; font-weight: 700;"
-FONT_SUBTITLE = f"font-family: {FONT_FAMILY}; font-size: 10pt; font-weight: 500;"
-FONT_BODY = f"font-family: {FONT_FAMILY}; font-size: 11pt; font-weight: 400;"
-FONT_CAPTION = f"font-family: {FONT_FAMILY}; font-size: 10pt; font-weight: 400;"
-FONT_LARGE_TITLE = f"font-family: {FONT_FAMILY}; font-size: 18pt; font-weight: 700;"
-FONT_STAT = f"font-family: {FONT_FAMILY}; font-size: 10pt; font-weight: 500;"
-RADIUS_PX = 18
-SIDEBAR_WIDTH_PX = 260

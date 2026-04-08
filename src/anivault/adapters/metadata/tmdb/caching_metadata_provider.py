@@ -16,13 +16,16 @@ from anivault.adapters.persistence.sqlite.sqlite_time import utc_plus_days_sqlit
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.constants.adapters.tmdb import (
+    TMDB_LOCAL_CANDIDATE_LIMIT,
+    TMDB_SEARCH_CACHE_TTL_EMPTY_DAYS,
+    TMDB_SEARCH_CACHE_TTL_OK_DAYS,
+    UNKNOWN_TMDB_LANGUAGE,
+)
 from anivault.domain.rules.tmdb_search_cache_key import build_tmdb_search_cache_key
 from anivault.domain.rules.tmdb_search_query import normalize_tmdb_search_query
 
 logger = logging.getLogger(__name__)
-
-_SEARCH_TTL_OK_DAYS = 7
-_SEARCH_TTL_EMPTY_DAYS = 1
 
 
 class CachingMetadataProvider:
@@ -48,7 +51,7 @@ class CachingMetadataProvider:
         """
         self._inner = inner
         self._title_match = title_match
-        self._language = (language or "").strip() or "und"
+        self._language = (language or "").strip() or UNKNOWN_TMDB_LANGUAGE
 
     def search_series(
         self, query: str, *, year: int | None = None
@@ -74,7 +77,7 @@ class CachingMetadataProvider:
         local_candidates = list(
             self._title_match.find_series_candidates_by_title(
                 query,
-                limit=10,
+                limit=TMDB_LOCAL_CANDIDATE_LIMIT,
             ),
         )
         if local_candidates:
@@ -121,7 +124,7 @@ def _put_search_cache(
     Returns:
         None.
     """
-    days = _SEARCH_TTL_OK_DAYS if candidates else _SEARCH_TTL_EMPTY_DAYS
+    days = TMDB_SEARCH_CACHE_TTL_OK_DAYS if candidates else TMDB_SEARCH_CACHE_TTL_EMPTY_DAYS
     expires = utc_plus_days_sqlite_text(days)
     payload = _encode_candidates_json(candidates)
     nq = normalize_tmdb_search_query(query)

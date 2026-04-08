@@ -7,51 +7,22 @@ Author: Pom Kim
 
 import json
 from contextlib import suppress
-from pathlib import Path
 from typing import Any, cast
 
-CONFIG_DIR = Path.home() / ".anivault"
-CONFIG_FILE = CONFIG_DIR / "config.json"
-
-# Never persist in config.json (stored in `.env` only).
-PARSE_TMDB_SECRET_KEYS = frozenset({"tmdb_api_key"})
-
-# Schema keys for each settings group
-PATH_RULES_KEYS = ("target_root", "path_template", "unknown_resolution", "unknown_group_folder")
-PARSE_TMDB_KEYS = (
-    "ignore_tokens",
-    "video_extensions",
-    "tmdb_search_mode",
-    "season_folder_format",
+from anivault.constants.gui.settings import (
+    CONFIG_DIR,
+    CONFIG_FILE,
+    DEFAULT_PARSE_TMDB,
+    DEFAULT_PATH_RULES,
+    DEFAULT_PIPELINE_RESULTS,
+    DEFAULT_SCAN_BUILD,
+    DEFAULT_THEME_NAME,
+    PARSE_TMDB_KEYS,
+    PARSE_TMDB_SECRET_KEYS,
+    PATH_RULES_KEYS,
+    SCAN_BUILD_BOOL_KEYS,
+    SCAN_BUILD_KEYS,
 )
-SCAN_BUILD_KEYS = ("source_path", "tmdb_mode", "unknown_mode")
-SCAN_BUILD_BOOL_KEYS = frozenset({"auto_scan_on_first_show"})
-PIPELINE_RESULTS_KEYS = ("view_key", "details_pane", "preview_pane", "selected_index")
-
-DEFAULT_PATH_RULES = {
-    "target_root": "G:/AniSorted",
-    "path_template": r"{target}\{resolution}\{year}\{korean_title_group}\Season{season:02}\{original_filename}",
-    "unknown_resolution": "Unknown",
-    "unknown_group_folder": "Needs_Review",
-}
-DEFAULT_PARSE_TMDB = {
-    "ignore_tokens": "1080p, 720p, x264, WEBRip, BluRay, AAC, HEVC",
-    "video_extensions": ".mkv, .mp4, .avi",
-    "tmdb_search_mode": "Prefer TV and Korean localized title",
-    "season_folder_format": "Season{season:02}",
-}
-DEFAULT_SCAN_BUILD = {
-    "source_path": "",
-    "tmdb_mode": "TMDB TV Search",
-    "unknown_mode": "Unknown to Needs_Review",
-    "auto_scan_on_first_show": True,
-}
-DEFAULT_PIPELINE_RESULTS = {
-    "view_key": "details",
-    "details_pane": False,
-    "preview_pane": False,
-    "selected_index": -1,
-}
 
 
 def get_defaults() -> dict[str, Any]:
@@ -96,7 +67,7 @@ def _default_result() -> dict[str, Any]:
         기본 전체 설정.
     """
     return {
-        "theme": "dark",
+        "theme": DEFAULT_THEME_NAME,
         "path_rules": dict(DEFAULT_PATH_RULES),
         "parse_tmdb": dict(DEFAULT_PARSE_TMDB),
         "scan_build": dict(DEFAULT_SCAN_BUILD),
@@ -210,7 +181,9 @@ def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
     if not isinstance(pipeline_results, dict):
         return
 
-    result_pipeline = cast(dict[str, Any], cast(dict[str, Any], result["ui_state"])["pipeline_results"])
+    result_pipeline = cast(
+        dict[str, Any], cast(dict[str, Any], result["ui_state"])["pipeline_results"]
+    )
     _merge_pipeline_results(result_pipeline, pipeline_results)
 
 
@@ -225,7 +198,9 @@ def _merge_scan_build_bool_keys(result: dict[str, Any], scan_loaded: Any) -> Non
             scan_target[key] = value
 
 
-def _merge_pipeline_results(result_pipeline: dict[str, Any], pipeline_results: dict[str, Any]) -> None:
+def _merge_pipeline_results(
+    result_pipeline: dict[str, Any], pipeline_results: dict[str, Any]
+) -> None:
     """pipeline_results 하위 값들을 타입 검증 후 병합한다."""
     typed_assignments: tuple[tuple[str, type[Any]], ...] = (
         ("selected_index", int),

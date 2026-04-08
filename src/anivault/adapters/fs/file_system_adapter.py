@@ -10,8 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from anivault.application.ports.file_repository import FileRepository
-
-_PROGRESS_INTERVAL = 50  # report every N files during scan
+from anivault.constants.adapters.fs import SCAN_PROGRESS_INTERVAL
 
 
 def _extension_allowed_name(name: str, ext_set: set[str]) -> bool:
@@ -47,7 +46,7 @@ def _report_progress_if_due(
     """
     if progress_callback is None:
         return
-    if count % _PROGRESS_INTERVAL != 0:
+    if count % SCAN_PROGRESS_INTERVAL != 0:
         return
     progress_callback(count, last_path)
 

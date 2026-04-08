@@ -8,14 +8,10 @@ Author: Pom Kim
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
 
+from anivault.constants.gui.forms import TMDB_SEARCH_MODES
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import ComboBox
 from anivault.interfaces.gui.components.molecules import FormField, PanelHeader
-
-TMDB_MODES = [
-    "Prefer TV and Korean localized title",
-    "Prefer original title then localized fallback",
-]
 
 
 class ParseTmdbForm(QFrame):
@@ -55,7 +51,7 @@ class ParseTmdbForm(QFrame):
         lbl.setStyleSheet(theme.form_label_muted())
         body.addWidget(lbl)
         self._tmdb_search = ComboBox()
-        self._tmdb_search.addItems(TMDB_MODES)
+        self._tmdb_search.addItems(TMDB_SEARCH_MODES)
         self._season_format = FormField("Season folder format", "line", "Season{season:02}")
         body.addWidget(self._tmdb_api_key)
         body.addWidget(self._ignore_tokens)

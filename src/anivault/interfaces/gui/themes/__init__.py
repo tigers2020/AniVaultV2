@@ -8,8 +8,8 @@ Author: Pom Kim
 import json
 from collections.abc import Callable
 from contextlib import suppress
-from pathlib import Path
 
+from anivault.constants.gui.settings import CONFIG_DIR, CONFIG_FILE, DEFAULT_THEME_NAME
 from anivault.interfaces.gui.themes.dark import DarkTheme
 from anivault.interfaces.gui.themes.light import LightTheme
 from anivault.interfaces.gui.themes.responsive import DensityKey, choose_density_key, get_profile
@@ -18,15 +18,12 @@ _THEMES: dict[str, type] = {
     "dark": DarkTheme,
     "light": LightTheme,
 }
-_current_theme_name = "dark"
+_current_theme_name = DEFAULT_THEME_NAME
 _current: DarkTheme | LightTheme | None = None
 _on_color_theme_changed: list[Callable[[], None]] = []
 _on_density_changed: list[Callable[[], None]] = []
 
 _current_density_key: DensityKey = "standard"
-
-CONFIG_DIR = Path.home() / ".anivault"
-CONFIG_FILE = CONFIG_DIR / "config.json"
 
 
 def _ensure_current() -> DarkTheme | LightTheme:

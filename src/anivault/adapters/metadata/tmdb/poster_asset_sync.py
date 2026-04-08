@@ -22,13 +22,29 @@ from anivault.adapters.persistence.sqlite.db_path import ensure_poster_cache_dir
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
 from anivault.application.dto.match_result import MatchFileRow, MatchResult
 from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.constants.adapters.tmdb import (
+    TMDB_POSTER_DOWNLOAD_RETRIES_DEFAULT,
+    TMDB_POSTER_DOWNLOAD_RETRIES_ENV,
+    TMDB_POSTER_DOWNLOAD_RETRIES_MIN,
+    TMDB_POSTER_HTTP_TIMEOUT_SECONDS,
+    TMDB_POSTER_MAX_WORKERS_DEFAULT,
+    TMDB_POSTER_MAX_WORKERS_ENV,
+    TMDB_POSTER_MAX_WORKERS_MAX,
+    TMDB_POSTER_MAX_WORKERS_MIN,
+    TMDB_POSTER_RETRY_BASE_DELAY_SECONDS,
+    TMDB_POSTER_RETRY_JITTER_SECONDS,
+    TMDB_POSTER_USER_AGENT,
+)
+from anivault.constants.application.statuses import (
+    POSTER_ASSET_KIND_POSTER,
+    POSTER_ASSET_STATUS_FAILED,
+    POSTER_ASSET_STATUS_READY,
+)
 from anivault.domain.rules.poster_cache_filename import poster_cache_file_path
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
 from anivault.domain.rules.tmdb_image_url import tmdb_poster_cdn_url
 
 logger = logging.getLogger(__name__)
-
-_USER_AGENT = "AniVault/2 (poster cache)"
 
 
 def _poster_max_workers() -> int:
@@ -41,10 +57,10 @@ def _poster_max_workers() -> int:
         1 이상 8 이하 정수.
     """
     try:
-        w = int(os.environ.get("ANIVAULT_POSTER_MAX_WORKERS", "4"))
+        w = int(os.environ.get(TMDB_POSTER_MAX_WORKERS_ENV, str(TMDB_POSTER_MAX_WORKERS_DEFAULT)))
     except ValueError:
-        w = 4
-    return max(1, min(8, w))
+        w = TMDB_POSTER_MAX_WORKERS_DEFAULT
+    return max(TMDB_POSTER_MAX_WORKERS_MIN, min(TMDB_POSTER_MAX_WORKERS_MAX, w))
 
 
 def _poster_download_retries() -> int:
@@ -57,10 +73,15 @@ def _poster_download_retries() -> int:
         1 이상 정수.
     """
     try:
-        r = int(os.environ.get("ANIVAULT_POSTER_DOWNLOAD_RETRIES", "3"))
+        r = int(
+            os.environ.get(
+                TMDB_POSTER_DOWNLOAD_RETRIES_ENV,
+                str(TMDB_POSTER_DOWNLOAD_RETRIES_DEFAULT),
+            )
+        )
     except ValueError:
-        r = 3
-    return max(1, r)
+        r = TMDB_POSTER_DOWNLOAD_RETRIES_DEFAULT
+    return max(TMDB_POSTER_DOWNLOAD_RETRIES_MIN, r)
 
 
 def iter_unique_poster_jobs(
@@ -105,8 +126,8 @@ def download_image_atomic(url: str, dest: Path) -> bool:
     """
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        req = urllib.request.Request(url, headers={"User-Agent": TMDB_POSTER_USER_AGENT})
+        with urllib.request.urlopen(req, timeout=TMDB_POSTER_HTTP_TIMEOUT_SECONDS) as resp:
             data = resp.read()
         fd, tmp_name = tempfile.mkstemp(suffix=".part", dir=str(dest.parent))
         try:
@@ -140,7 +161,8 @@ def download_image_atomic_with_retry(url: str, dest: Path) -> bool:
         if download_image_atomic(url, dest):
             return True
         if attempt + 1 < retries:
-            delay = 0.2 * (2**attempt) + random.random() * 0.05
+            delay = TMDB_POSTER_RETRY_BASE_DELAY_SECONDS * (2**attempt)
+            delay += random.random() * TMDB_POSTER_RETRY_JITTER_SECONDS
             time.sleep(delay)
     return False
 
@@ -232,30 +254,30 @@ class TmdbPosterAssetSync:
         if self._title_match.get_series_candidate(tmdb_id) is None:
             logger.debug("tmdb_series 없음 poster 생략 tmdb_id=%s", tmdb_id)
             return
-        lp = self._title_match.get_poster_local_path(tmdb_id, "poster", norm)
+        lp = self._title_match.get_poster_local_path(tmdb_id, POSTER_ASSET_KIND_POSTER, norm)
         if lp:
             return
         url = tmdb_poster_cdn_url(norm)
         if not url:
             return
-        dest = poster_cache_file_path(self._dir(), tmdb_id, "poster", norm)
+        dest = poster_cache_file_path(self._dir(), tmdb_id, POSTER_ASSET_KIND_POSTER, norm)
         ok = download_image_atomic_with_retry(url, dest)
         now = utc_now_sqlite_text()
         if ok:
             self._title_match.save_poster_asset(
                 tmdb_id,
-                "poster",
+                POSTER_ASSET_KIND_POSTER,
                 norm,
                 local_path=str(dest.resolve()),
-                status="ready",
+                status=POSTER_ASSET_STATUS_READY,
                 verified_at=now,
             )
         else:
             self._title_match.save_poster_asset(
                 tmdb_id,
-                "poster",
+                POSTER_ASSET_KIND_POSTER,
                 norm,
                 local_path="",
-                status="failed",
+                status=POSTER_ASSET_STATUS_FAILED,
                 verified_at=None,
             )

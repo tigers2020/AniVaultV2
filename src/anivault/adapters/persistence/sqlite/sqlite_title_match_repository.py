@@ -12,7 +12,7 @@ import logging
 import sqlite3
 from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import Any, cast
 
 from anivault.adapters.persistence.sqlite.sql_queries import GROUP_TMDB_MATCH_UPSERT_SQL
 from anivault.adapters.persistence.sqlite.sqlite_time import (
@@ -21,6 +21,22 @@ from anivault.adapters.persistence.sqlite.sqlite_time import (
 )
 from anivault.application.dto.title_match import GroupTmdbMatchRecord, MatchStatusDto
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
+from anivault.constants.adapters.sqlite import (
+    SQLITE_LOOKUP_CHUNK,
+    SQLITE_TITLE_MATCH_FIND_SERIES_DEFAULT_LIMIT,
+    SQLITE_TITLE_MATCH_LOCAL_SEARCH_FETCH_LIMIT,
+)
+from anivault.constants.application.statuses import (
+    MATCH_STATUS_AUTO_MATCHED,
+    MATCH_STATUS_CONFIRMED,
+    MATCH_STATUS_REJECTED,
+    POSTER_ASSET_KIND_BACKDROP,
+    POSTER_ASSET_KIND_POSTER,
+    POSTER_ASSET_STATUS_FAILED,
+    POSTER_ASSET_STATUS_MISSING,
+    POSTER_ASSET_STATUS_READY,
+    POSTER_ASSET_STATUS_STALE,
+)
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
 from anivault.domain.rules.tmdb_search_query import (
     compact_compare_key,
@@ -28,8 +44,6 @@ from anivault.domain.rules.tmdb_search_query import (
 )
 
 logger = logging.getLogger(__name__)
-
-_LOOKUP_CHUNK = 500
 
 _SEARCH_CACHE_UPSERT = """
 INSERT INTO tmdb_search_cache (
@@ -232,20 +246,26 @@ class SqliteTitleMatchRepository:
                         self._conn.execute(
                             """
                             UPDATE poster_assets
-                            SET status = 'stale', updated_at = ?
-                            WHERE tmdb_id = ? AND image_kind = 'poster'
+                            SET status = ?, updated_at = ?
+                            WHERE tmdb_id = ? AND image_kind = ?
                             """,
-                            (ts, tid),
+                            (POSTER_ASSET_STATUS_STALE, ts, tid, POSTER_ASSET_KIND_POSTER),
                         )
                     else:
                         self._conn.execute(
                             """
                             UPDATE poster_assets
-                            SET status = 'stale', updated_at = ?
-                            WHERE tmdb_id = ? AND image_kind = 'poster'
+                            SET status = ?, updated_at = ?
+                            WHERE tmdb_id = ? AND image_kind = ?
                               AND remote_path != ?
                             """,
-                            (ts, tid, new_poster),
+                            (
+                                POSTER_ASSET_STATUS_STALE,
+                                ts,
+                                tid,
+                                POSTER_ASSET_KIND_POSTER,
+                                new_poster,
+                            ),
                         )
                 self._conn.commit()
             except sqlite3.Error as e:
@@ -296,8 +316,8 @@ class SqliteTitleMatchRepository:
             return {}
         out: dict[int, TmdbSeriesCandidateDTO] = {}
         with self._lock:
-            for start in range(0, len(cleaned), _LOOKUP_CHUNK):
-                chunk = cleaned[start : start + _LOOKUP_CHUNK]
+            for start in range(0, len(cleaned), SQLITE_LOOKUP_CHUNK):
+                chunk = cleaned[start : start + SQLITE_LOOKUP_CHUNK]
                 placeholders = ",".join("?" for _ in chunk)
                 cur = self._conn.execute(
                     f"""
@@ -325,7 +345,7 @@ class SqliteTitleMatchRepository:
         self,
         query: str,
         *,
-        limit: int = 10,
+        limit: int = SQLITE_TITLE_MATCH_FIND_SERIES_DEFAULT_LIMIT,
     ) -> list[TmdbSeriesCandidateDTO]:
         """미만료 `tmdb_series`에서 제목 유사 후보를 찾는다.
 
@@ -350,9 +370,9 @@ class SqliteTitleMatchRepository:
                 WHERE instr(lower(name_ko), lower(?)) > 0
                    OR instr(lower(original_name), lower(?)) > 0
                 ORDER BY updated_at DESC, tmdb_id ASC
-                LIMIT 40
+                LIMIT ?
                 """,
-                (norm, norm),
+                (norm, norm, SQLITE_TITLE_MATCH_LOCAL_SEARCH_FETCH_LIMIT),
             )
             rows = cur.fetchall()
         scored = _rank_local_title_hits(rows, needle)
@@ -382,13 +402,8 @@ class SqliteTitleMatchRepository:
         if row is None:
             return None
         st = str(row[2])
-        if st == "auto_matched":
-            mst: MatchStatusDto = "auto_matched"
-        elif st == "confirmed":
-            mst = "confirmed"
-        elif st == "rejected":
-            mst = "rejected"
-        else:
+        mst = _match_status_from_string(st)
+        if mst is None:
             return None
         return GroupTmdbMatchRecord(
             group_id=int(row[0]),
@@ -410,8 +425,8 @@ class SqliteTitleMatchRepository:
             return {}
         out: dict[int, GroupTmdbMatchRecord] = {}
         with self._lock:
-            for start in range(0, len(cleaned), _LOOKUP_CHUNK):
-                chunk = cleaned[start : start + _LOOKUP_CHUNK]
+            for start in range(0, len(cleaned), SQLITE_LOOKUP_CHUNK):
+                chunk = cleaned[start : start + SQLITE_LOOKUP_CHUNK]
                 placeholders = ",".join("?" for _ in chunk)
                 cur = self._conn.execute(
                     f"""
@@ -456,7 +471,7 @@ class SqliteTitleMatchRepository:
                     GROUP_TMDB_MATCH_UPSERT_SQL,
                     (gid, tid, match_status, match_score, now, now),
                 )
-                if match_status == "rejected":
+                if match_status == MATCH_STATUS_REJECTED:
                     self._conn.execute(
                         """
                         UPDATE title_groups
@@ -532,7 +547,7 @@ class SqliteTitleMatchRepository:
         if not norm:
             return None
         kind = (image_kind or "").strip()
-        if kind not in ("poster", "backdrop"):
+        if kind not in (POSTER_ASSET_KIND_POSTER, POSTER_ASSET_KIND_BACKDROP):
             return None
         tid = int(tmdb_id)
         with self._lock:
@@ -547,7 +562,7 @@ class SqliteTitleMatchRepository:
             if row is None:
                 return None
             local_path, st = str(row[0] or ""), str(row[1] or "")
-            if st != "ready" or not local_path.strip():
+            if st != POSTER_ASSET_STATUS_READY or not local_path.strip():
                 return None
             try:
                 p = Path(local_path)
@@ -559,10 +574,10 @@ class SqliteTitleMatchRepository:
             self._conn.execute(
                 """
                 UPDATE poster_assets
-                SET status = 'missing', updated_at = ?
+                SET status = ?, updated_at = ?
                 WHERE tmdb_id = ? AND image_kind = ? AND remote_path = ?
                 """,
-                (ts, tid, kind, norm),
+                (POSTER_ASSET_STATUS_MISSING, ts, tid, kind, norm),
             )
             self._conn.commit()
         return None
@@ -595,10 +610,15 @@ class SqliteTitleMatchRepository:
         if not norm:
             return
         kind = (image_kind or "").strip()
-        if kind not in ("poster", "backdrop"):
+        if kind not in (POSTER_ASSET_KIND_POSTER, POSTER_ASSET_KIND_BACKDROP):
             return
         st = (status or "").strip()
-        if st not in ("ready", "stale", "missing", "failed"):
+        if st not in (
+            POSTER_ASSET_STATUS_READY,
+            POSTER_ASSET_STATUS_STALE,
+            POSTER_ASSET_STATUS_MISSING,
+            POSTER_ASSET_STATUS_FAILED,
+        ):
             return
         tid = int(tmdb_id)
         now = utc_now_sqlite_text()
@@ -624,13 +644,8 @@ class SqliteTitleMatchRepository:
 
 def _group_match_from_row(row: sqlite3.Row | tuple[Any, ...]) -> GroupTmdbMatchRecord | None:
     st = str(row[2])
-    if st == "auto_matched":
-        mst: MatchStatusDto = "auto_matched"
-    elif st == "confirmed":
-        mst = "confirmed"
-    elif st == "rejected":
-        mst = "rejected"
-    else:
+    mst = _match_status_from_string(st)
+    if mst is None:
         return None
     return GroupTmdbMatchRecord(
         group_id=int(row[0]),
@@ -638,6 +653,16 @@ def _group_match_from_row(row: sqlite3.Row | tuple[Any, ...]) -> GroupTmdbMatchR
         match_status=mst,
         match_score=float(row[3]) if row[3] is not None else None,
     )
+
+
+def _match_status_from_string(value: str) -> MatchStatusDto | None:
+    if value == MATCH_STATUS_AUTO_MATCHED:
+        return cast(MatchStatusDto, MATCH_STATUS_AUTO_MATCHED)
+    if value == MATCH_STATUS_CONFIRMED:
+        return cast(MatchStatusDto, MATCH_STATUS_CONFIRMED)
+    if value == MATCH_STATUS_REJECTED:
+        return cast(MatchStatusDto, MATCH_STATUS_REJECTED)
+    return None
 
 
 def _candidate_from_raw_json(raw: str) -> TmdbSeriesCandidateDTO:

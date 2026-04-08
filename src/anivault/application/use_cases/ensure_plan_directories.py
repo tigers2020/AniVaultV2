@@ -13,6 +13,7 @@ from pathlib import Path
 from threading import Event
 
 from anivault.application.dto.progress import ProgressEvent
+from anivault.constants.application.progress import PROGRESS_PERCENT_MAX, PROGRESS_STAGE_APPLY
 from anivault.domain.models import FileOperation
 
 ProgressCallback = Callable[[ProgressEvent], None] | None
@@ -66,11 +67,11 @@ def execute(
             cur = i + 1
             progress_callback(
                 ProgressEvent(
-                    stage="apply",
+                    stage=PROGRESS_STAGE_APPLY,
                     current=cur,
                     total=total,
                     message=f"폴더 생성 중 ({cur}/{total})",
-                    percent=int(100 * cur / total),
+                    percent=int(PROGRESS_PERCENT_MAX * cur / total),
                     item_path=str(Path(op.destination_path).parent),
                 )
             )

@@ -28,11 +28,13 @@ from anivault.application.ports.library_index_port import (
     LibraryIndexRepository,
     ScanSessionStatus,
 )
+from anivault.constants.adapters.sqlite import (
+    SQLITE_LIBRARY_INDEX_EXISTING_LOOKUP_CHUNK,
+    SQLITE_LIBRARY_INDEX_MARK_MISSING_INLINE_LIMIT,
+)
+from anivault.constants.application.statuses import SCAN_SESSION_STATUS_SUCCESS
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.services.sidecar_group_key import compute_sidecar_group_key
-
-_MARK_MISSING_INLINE_LIMIT = 500
-_EXISTING_LOOKUP_CHUNK = 500
 
 
 @dataclass(frozen=True)
@@ -255,7 +257,7 @@ class SqliteLibraryIndexRepository(LibraryIndexRepository):
                     session_id,
                 ),
             )
-            if status == "success":
+            if status == SCAN_SESSION_STATUS_SUCCESS:
                 self._conn.execute(
                     "UPDATE library_roots SET last_scan_at = ?, updated_at = ? WHERE id = ?",
                     (now, now, root_id),
@@ -339,8 +341,8 @@ class SqliteLibraryIndexRepository(LibraryIndexRepository):
         path_norms: list[str],
     ) -> set[str]:
         existing: set[str] = set()
-        for start in range(0, len(path_norms), _EXISTING_LOOKUP_CHUNK):
-            chunk = path_norms[start : start + _EXISTING_LOOKUP_CHUNK]
+        for start in range(0, len(path_norms), SQLITE_LIBRARY_INDEX_EXISTING_LOOKUP_CHUNK):
+            chunk = path_norms[start : start + SQLITE_LIBRARY_INDEX_EXISTING_LOOKUP_CHUNK]
             if not chunk:
                 continue
             placeholders = ",".join("?" * len(chunk))
@@ -506,7 +508,7 @@ class SqliteLibraryIndexRepository(LibraryIndexRepository):
                 n = cur.rowcount if cur.rowcount is not None else 0
                 self._conn.commit()
                 return int(n)
-            if len(seen_path_norms) <= _MARK_MISSING_INLINE_LIMIT:
+            if len(seen_path_norms) <= SQLITE_LIBRARY_INDEX_MARK_MISSING_INLINE_LIMIT:
                 placeholders = ",".join("?" * len(seen_path_norms))
                 params: list[object] = [now, root_id, *seen_path_norms]
                 cur = self._conn.execute(
@@ -665,8 +667,12 @@ class SqliteLibraryIndexRepository(LibraryIndexRepository):
             root_display = self._fetch_root_path(root_id)
             root = _resolved_root_path(root_display)
             try:
-                _old_rel, old_path_norm = _relative_posix_under_resolved_root(root, old_absolute_path)
-                new_rel, new_path_norm = _relative_posix_under_resolved_root(root, new_absolute_path)
+                _old_rel, old_path_norm = _relative_posix_under_resolved_root(
+                    root, old_absolute_path
+                )
+                new_rel, new_path_norm = _relative_posix_under_resolved_root(
+                    root, new_absolute_path
+                )
             except ValueError:
                 return False
 

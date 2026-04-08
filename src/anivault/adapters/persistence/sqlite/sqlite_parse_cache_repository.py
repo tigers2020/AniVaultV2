@@ -17,19 +17,21 @@ from anivault.application.dto.parse_cache import (
     ParseCacheOkWrite,
 )
 from anivault.application.dto.parse_serde import parsed_info_from_compact_json
+from anivault.constants.adapters.sqlite import SQLITE_ERROR_DTO_JSON, SQLITE_LOOKUP_CHUNK
+from anivault.constants.application.statuses import (
+    PARSE_CACHE_STATUS_ERROR,
+    PARSE_CACHE_STATUS_OK,
+)
 
 logger = logging.getLogger(__name__)
 
-_ERROR_DTO_JSON = "{}"
-_LOOKUP_CHUNK = 500
-
-_PARSE_OK_UPSERT_SQL = """
+_PARSE_OK_UPSERT_SQL = f"""
 INSERT INTO parse_cache (
     media_file_id, parser_version, parse_status, parse_input_signature,
     parsed_title, parsed_title_normalized, parsed_year, season_number,
     episode_start, episode_end, episode_count, confidence,
     dto_json, error_code, error_message, created_at, updated_at
-) VALUES (?, ?, 'ok', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)
+) VALUES (?, ?, '{PARSE_CACHE_STATUS_OK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)
 ON CONFLICT(media_file_id) DO UPDATE SET
     parser_version = excluded.parser_version,
     parse_status = excluded.parse_status,
@@ -48,14 +50,14 @@ ON CONFLICT(media_file_id) DO UPDATE SET
     updated_at = excluded.updated_at
 """
 
-_PARSE_ERROR_UPSERT_SQL = """
+_PARSE_ERROR_UPSERT_SQL = f"""
 INSERT INTO parse_cache (
     media_file_id, parser_version, parse_status, parse_input_signature,
     parsed_title, parsed_title_normalized, parsed_year, season_number,
     episode_start, episode_end, episode_count, confidence,
     dto_json, error_code, error_message, created_at, updated_at
 ) VALUES (
-    ?, ?, 'error', ?,
+    ?, ?, '{PARSE_CACHE_STATUS_ERROR}', ?,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     ?, ?, ?, ?, ?
 )
@@ -77,7 +79,7 @@ ON CONFLICT(media_file_id) DO UPDATE SET
     updated_at = excluded.updated_at
 """
 
-_RESOLUTION_CACHE_UPSERT_SQL = """
+_RESOLUTION_CACHE_UPSERT_SQL = f"""
 INSERT INTO parse_cache (
     media_file_id,
     parser_version,
@@ -89,7 +91,7 @@ INSERT INTO parse_cache (
     resolution_signature,
     created_at,
     updated_at
-) VALUES (?, 'resolution-only', 'error', '', '{}', ?, ?, ?, ?, ?)
+) VALUES (?, 'resolution-only', '{PARSE_CACHE_STATUS_ERROR}', '', '{SQLITE_ERROR_DTO_JSON}', ?, ?, ?, ?, ?)
 ON CONFLICT(media_file_id) DO UPDATE SET
     resolution_value = excluded.resolution_value,
     resolution_source = excluded.resolution_source,
@@ -155,8 +157,8 @@ class SqliteParseCacheRepository:
 
         rows: list[tuple[Any, ...]] = []
         with self._lock:
-            for start in range(0, len(media_ids), _LOOKUP_CHUNK):
-                chunk = media_ids[start : start + _LOOKUP_CHUNK]
+            for start in range(0, len(media_ids), SQLITE_LOOKUP_CHUNK):
+                chunk = media_ids[start : start + SQLITE_LOOKUP_CHUNK]
                 placeholders = ",".join("?" * len(chunk))
                 cur = self._conn.execute(
                     f"""
@@ -174,7 +176,7 @@ class SqliteParseCacheRepository:
             status = str(row[1])
             stored_sig = str(row[2])
             dto_json = str(row[3])
-            if status != "ok" or stored_sig != signature_by_id.get(media_file_id):
+            if status != PARSE_CACHE_STATUS_OK or stored_sig != signature_by_id.get(media_file_id):
                 continue
             try:
                 out[media_file_id] = parsed_info_from_compact_json(dto_json)
@@ -294,7 +296,7 @@ class SqliteParseCacheRepository:
                 item.media_file_id,
                 item.parser_version,
                 item.parse_input_signature,
-                _ERROR_DTO_JSON,
+                SQLITE_ERROR_DTO_JSON,
                 item.error_code,
                 item.error_message,
                 now,

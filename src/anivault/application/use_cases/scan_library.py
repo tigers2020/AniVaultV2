@@ -19,13 +19,25 @@ from anivault.application.dto.library_index import BulkMediaUpsertItem, IndexedM
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.application.ports.file_repository import FileRepository
-from anivault.application.ports.library_index_port import LibraryIndexRepository
+from anivault.application.ports.library_index_port import (
+    LibraryIndexRepository,
+    ScanSessionStatus,
+)
 from anivault.application.ports.parse_cache_port import ParseCacheRepository
 from anivault.application.ports.video_stream_resolution_port import VideoStreamResolutionPort
+from anivault.constants.application.statuses import (
+    SCAN_SESSION_STATUS_CANCELLED,
+    SCAN_SESSION_STATUS_FAILED,
+    SCAN_SESSION_STATUS_SUCCESS,
+)
 from anivault.domain.media.extensions import VIDEO_SCAN_EXTENSIONS, classify_media_kind
 from anivault.domain.rules.resolution_from_filename import resolution_from_filename
 
 logger = logging.getLogger(__name__)
+
+SCAN_STATUS_CANCELLED: ScanSessionStatus = cast(ScanSessionStatus, SCAN_SESSION_STATUS_CANCELLED)
+SCAN_STATUS_SUCCESS: ScanSessionStatus = cast(ScanSessionStatus, SCAN_SESSION_STATUS_SUCCESS)
+SCAN_STATUS_FAILED: ScanSessionStatus = cast(ScanSessionStatus, SCAN_SESSION_STATUS_FAILED)
 
 
 def _try_persist_library_index(
@@ -64,7 +76,7 @@ def _try_persist_library_index(
                 assert scan_id is not None
                 library_index.finish_scan(
                     scan_id,
-                    status="cancelled",
+                    status=SCAN_STATUS_CANCELLED,
                     files_seen=len(seen),
                     files_added=files_added,
                     files_updated=files_updated,
@@ -88,7 +100,7 @@ def _try_persist_library_index(
         removed = library_index.mark_missing_deleted(root_id, scan_id, seen)
         library_index.finish_scan(
             scan_id,
-            status="success",
+            status=SCAN_STATUS_SUCCESS,
             files_seen=files_seen,
             files_added=files_added,
             files_updated=files_updated,
@@ -101,7 +113,7 @@ def _try_persist_library_index(
             try:
                 library_index.finish_scan(
                     scan_id,
-                    status="failed",
+                    status=SCAN_STATUS_FAILED,
                     files_seen=len(seen),
                     files_added=files_added,
                     files_updated=files_updated,

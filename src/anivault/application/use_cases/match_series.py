@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from threading import Event
+from typing import cast
 
 from anivault.application.dto.match_result import (
     GroupMatchResultDTO,
@@ -23,10 +24,33 @@ from anivault.application.dto.match_result import (
     MatchResult,
 )
 from anivault.application.dto.progress import ProgressEvent
+from anivault.application.dto.title_match import MatchStatusDto
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.ports.title_group_port import TitleGroupRepository
 from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.constants.application.progress import PROGRESS_PERCENT_MAX, PROGRESS_STAGE_MATCH
+from anivault.constants.application.statuses import (
+    MATCH_STATUS_AUTO_MATCHED,
+    MATCH_STATUS_CONFIRMED,
+)
+from anivault.constants.domain.matching import (
+    MATCH_CONFIDENCE_FALLBACK,
+    MATCH_REASON_CANCELLED,
+    MATCH_REASON_EXACT_NAME,
+    MATCH_REASON_FALLBACK_FIRST,
+    MATCH_REASON_FIRST_RESULT,
+    MATCH_REASON_NO_RESULTS,
+    MATCH_REASON_PARTIAL_NAME,
+    MATCH_SCORE_EXACT_NAME,
+    MATCH_SCORE_LOCALIZED_NAME_BONUS,
+    MATCH_SCORE_NORMALIZER,
+    MATCH_SCORE_PARTIAL_NAME,
+    MATCH_SCORE_POPULARITY_MULTIPLIER,
+    MATCH_SCORE_YEAR_BONUS,
+    TMDB_MAX_CANDIDATES,
+    TMDB_SERIES_CACHE_TTL_DAYS,
+)
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.tmdb_image_url import tmdb_backdrop_cdn_url, tmdb_poster_cdn_url
 from anivault.domain.rules.tmdb_search_query import (
@@ -34,8 +58,6 @@ from anivault.domain.rules.tmdb_search_query import (
     iter_strip_last_word_chain,
     iter_tmdb_search_queries,
 )
-
-_MAX_CANDIDATES = 5
 
 MatchProgressCallback = Callable[[ProgressEvent], None]
 
@@ -107,18 +129,18 @@ def _score_one_candidate(
     names = [compact_compare_key(c.name_ko), compact_compare_key(c.original_name)]
     names = [n for n in names if n]
     if qn and any(qn == n for n in names):
-        score += 10.0
-        reason = "exact_name"
+        score += MATCH_SCORE_EXACT_NAME
+        reason = MATCH_REASON_EXACT_NAME
     elif qn and any(qn in n or n in qn for n in names):
-        score += 5.0
-        reason = "partial_name"
+        score += MATCH_SCORE_PARTIAL_NAME
+        reason = MATCH_REASON_PARTIAL_NAME
     if (c.name_ko or "").strip():
-        score += 2.0
+        score += MATCH_SCORE_LOCALIZED_NAME_BONUS
     cy = _year_prefix(c.first_air_date)
     if expected_year and cy == expected_year:
-        score += 3.0
+        score += MATCH_SCORE_YEAR_BONUS
         reason = f"{reason}+year"
-    score += (c.popularity or 0.0) * 0.01
+    score += (c.popularity or 0.0) * MATCH_SCORE_POPULARITY_MULTIPLIER
     return score, reason
 
 
@@ -138,19 +160,19 @@ def _select_best_candidate(
         (선택 후보 또는 None, confidence 0~1, 선택 이유 코드).
     """
     if not candidates:
-        return None, 0.0, "no_results"
+        return None, 0.0, MATCH_REASON_NO_RESULTS
     qn = compact_compare_key(query)
     best: TmdbSeriesCandidateDTO | None = None
     best_score = -1.0
-    reason = "fallback_first"
-    for c in candidates[:_MAX_CANDIDATES]:
+    reason = MATCH_REASON_FALLBACK_FIRST
+    for c in candidates[:TMDB_MAX_CANDIDATES]:
         score, reason = _score_one_candidate(c, qn, expected_year, reason)
         if score > best_score:
             best_score = score
             best = c
     if best is None:
-        return candidates[0], 0.5, "first_result"
-    conf = min(1.0, max(0.0, best_score / 15.0))
+        return candidates[0], MATCH_CONFIDENCE_FALLBACK, MATCH_REASON_FIRST_RESULT
+    conf = min(1.0, max(0.0, best_score / MATCH_SCORE_NORMALIZER))
     return best, conf, reason
 
 
@@ -188,7 +210,7 @@ def _notify_match_progress_prepare(
         return
     progress_callback(
         ProgressEvent(
-            stage="match",
+            stage=PROGRESS_STAGE_MATCH,
             current=0,
             total=total,
             message="TMDB 매칭 준비…",
@@ -218,10 +240,10 @@ def _notify_match_progress_step(
         return
     if progress_callback is None:
         return
-    pct = int(current * 100 / total) if total else 100
+    pct = int(current * PROGRESS_PERCENT_MAX / total) if total else PROGRESS_PERCENT_MAX
     progress_callback(
         ProgressEvent(
-            stage="match",
+            stage=PROGRESS_STAGE_MATCH,
             current=current,
             total=total,
             message=message,
@@ -345,7 +367,7 @@ def persist_manual_tmdb_selection(
     if not chosen.tmdb_id:
         return
     raw_json = json.dumps(asdict(chosen), ensure_ascii=False, separators=(",", ":"))
-    exp = _utc_plus_days_iso_z(7)
+    exp = _utc_plus_days_iso_z(TMDB_SERIES_CACHE_TTL_DAYS)
     try:
         title_match.upsert_series(chosen, raw_json=raw_json, expires_at=exp)
     except Exception:
@@ -362,7 +384,12 @@ def persist_manual_tmdb_selection(
         )
         return
     try:
-        title_match.set_group_match(gid, int(chosen.tmdb_id), "confirmed", None)
+        title_match.set_group_match(
+            gid,
+            int(chosen.tmdb_id),
+            cast(MatchStatusDto, MATCH_STATUS_CONFIRMED),
+            None,
+        )
     except Exception:
         logger.exception(
             "수동 TMDB group 매칭 영속 실패 group_id=%s tmdb_id=%s",
@@ -400,7 +427,7 @@ def _try_series_from_title_match_db(
     if gid is None:
         return None
     gm = title_match.get_group_match(gid)
-    if gm is None or gm.match_status not in ("auto_matched", "confirmed"):
+    if gm is None or gm.match_status not in (MATCH_STATUS_AUTO_MATCHED, MATCH_STATUS_CONFIRMED):
         return None
     cand = title_match.get_series_candidate(gm.tmdb_id)
     if cand is None:
@@ -568,20 +595,20 @@ def _match_single_group_apply_persist(
         gid = title_groups.get_group_id_for_path_norm(root_id, representative_path_norm)
         if gid is not None:
             raw_json = json.dumps(asdict(best), ensure_ascii=False, separators=(",", ":"))
-            exp = _utc_plus_days_iso_z(7)
+            exp = _utc_plus_days_iso_z(TMDB_SERIES_CACHE_TTL_DAYS)
             try:
                 title_match.upsert_series(best, raw_json=raw_json, expires_at=exp)
                 existing = title_match.get_group_match(gid)
                 preserve_confirmed = (
                     existing is not None
-                    and existing.match_status == "confirmed"
+                    and existing.match_status == MATCH_STATUS_CONFIRMED
                     and int(existing.tmdb_id) == int(best.tmdb_id)
                 )
                 if not preserve_confirmed:
                     title_match.set_group_match(
                         gid,
                         int(best.tmdb_id),
-                        "auto_matched",
+                        cast(MatchStatusDto, MATCH_STATUS_AUTO_MATCHED),
                         conf,
                     )
             except Exception:
@@ -727,7 +754,7 @@ def _search_one_group_for_parallel(
                 korean_group_title="",
                 original_title="",
                 confidence=0.0,
-                reason="cancelled",
+                reason=MATCH_REASON_CANCELLED,
             ),
             None,
         )

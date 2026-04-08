@@ -17,9 +17,12 @@ from anivault.application.dto.title_groups import (
     TitleGroupMemberSync,
     TitleGroupSyncBundle,
 )
+from anivault.constants.adapters.sqlite import SQLITE_LOOKUP_CHUNK
+from anivault.constants.application.statuses import (
+    MATCH_STATUS_REJECTED,
+    PARSE_CACHE_STATUS_OK,
+)
 from anivault.domain.services.title_grouping import TitleGroupingInputRow
-
-_LOOKUP_CHUNK = 500
 
 
 class SqliteTitleGroupRepository:
@@ -61,11 +64,11 @@ class SqliteTitleGroupRepository:
             INNER JOIN parse_cache c ON c.media_file_id = m.id
             WHERE m.root_id = ?
               AND m.is_deleted = 0
-              AND c.parse_status = 'ok'
+              AND c.parse_status = ?
             ORDER BY m.id
         """
         with self._lock:
-            cur = self._conn.execute(sql, (root_id,))
+            cur = self._conn.execute(sql, (root_id, PARSE_CACHE_STATUS_OK))
             rows = cur.fetchall()
             self._conn.commit()
         out: list[TitleGroupingInputRow] = []
@@ -150,7 +153,9 @@ class SqliteTitleGroupRepository:
                             GROUP_TMDB_MATCH_UPSERT_SQL,
                             (gid, preserved[0], preserved[1], preserved[2], now, now),
                         )
-                        tmdb_series_id = None if preserved[1] == "rejected" else preserved[0]
+                        tmdb_series_id = (
+                            None if preserved[1] == MATCH_STATUS_REJECTED else preserved[0]
+                        )
                         self._conn.execute(
                             """
                             UPDATE title_groups
@@ -309,8 +314,8 @@ class SqliteTitleGroupRepository:
             return {}
         out: dict[str, int] = {}
         with self._lock:
-            for start in range(0, len(cleaned), _LOOKUP_CHUNK):
-                chunk = cleaned[start : start + _LOOKUP_CHUNK]
+            for start in range(0, len(cleaned), SQLITE_LOOKUP_CHUNK):
+                chunk = cleaned[start : start + SQLITE_LOOKUP_CHUNK]
                 placeholders = ",".join("?" for _ in chunk)
                 cur = self._conn.execute(
                     f"""

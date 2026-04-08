@@ -25,6 +25,7 @@ from anivault.application.dto.progress import ProgressEvent
 from anivault.application.ports.filename_parser import FilenameParser
 from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.parse_cache_port import ParseCacheRepository
+from anivault.constants.application.progress import PROGRESS_PERCENT_MAX, PROGRESS_STAGE_PARSE
 from anivault.domain.parsing.normalize_cache_title import normalize_title_for_parse_cache
 from anivault.domain.parsing.parse_signature import compute_parse_input_signature
 from anivault.domain.parsing.parser_version import PARSER_VERSION
@@ -101,7 +102,7 @@ def _emit_initial_progress(
         return
     callback(
         ProgressEvent(
-            stage="parse",
+            stage=PROGRESS_STAGE_PARSE,
             current=0,
             total=total,
             message="파싱 캐시 확인 중..." if use_cache else "파일명 파싱 중...",
@@ -121,10 +122,10 @@ def _emit_item_progress(
     """항목 처리 후 진행률 이벤트를 보낸다."""
     if callback is None or total == 0:
         return
-    pct = int((index + 1) * 100 / total)
+    pct = int((index + 1) * PROGRESS_PERCENT_MAX / total)
     callback(
         ProgressEvent(
-            stage="parse",
+            stage=PROGRESS_STAGE_PARSE,
             current=index + 1,
             total=total,
             message=(

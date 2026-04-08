@@ -1,6 +1,6 @@
 """pipeline_table_model.py
 
-파이프라인 테이블용 QAbstractTableModel. 행은 파싱 제목 그룹 단위.
+파이프라인 테이블용 QAbstractTableModel. 행은 파일 그룹 단위.
 
 Author: Pom Kim
 """
@@ -11,86 +11,38 @@ from typing import Any
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, QPersistentModelIndex, Qt
 
+from anivault.constants.gui.tables import PIPELINE_TABLE_COLUMNS
 from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow, PipelineRow
 
 _INVALID_INDEX: QModelIndex = QModelIndex()
 
-COLUMNS = [
-    ("Original File", "original_file"),
-    ("Parsed Title", "parsed_title"),
-    ("Parse Title Group", "parse_group"),
-    ("TMDB Korean Title Group", "tmdb_korean_title_group"),
-    ("Year", "year"),
-    ("Season", "season"),
-    ("Ep", "episode"),
-    ("Res", "resolution"),
-    ("Status", "status"),
-]
-
 
 class PipelineTableModel(QAbstractTableModel):
-    """그룹 행 리스트를 테이블 컬럼에 매핑한다."""
+    """그룹 리스트를 테이블 컬럼에 매핑한다."""
 
     def __init__(self, parent: QObject | None = None) -> None:
-        """빈 그룹 목록으로 모델을 만든다.
-
-        Args:
-            self: 이 모델.
-            parent: Qt 부모.
-
-        Returns:
-            None.
-        """
         super().__init__(parent)
         self._rows: list[PipelineGroupRow] = []
 
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = _INVALID_INDEX) -> int:
-        """루트일 때 그룹 개수를 반환한다.
-
-        Args:
-            self: 이 모델.
-            parent: 부모 인덱스. 유효하면 0.
-
-        Returns:
-            행 수.
-        """
         if parent.isValid():
             return 0
         return len(self._rows)
 
     def columnCount(self, parent: QModelIndex | QPersistentModelIndex = _INVALID_INDEX) -> int:
-        """컬럼 수는 COLUMNS 길이.
-
-        Args:
-            self: 이 모델.
-            parent: 미사용.
-
-        Returns:
-            컬럼 수.
-        """
-        return len(COLUMNS)
+        return len(PIPELINE_TABLE_COLUMNS)
 
     def data(
         self,
         index: QModelIndex | QPersistentModelIndex,
         role: int = Qt.ItemDataRole.DisplayRole,
     ) -> Any:
-        """DisplayRole일 때 셀 문자열을 반환한다.
-
-        Args:
-            self: 이 모델.
-            index: 셀 인덱스.
-            role: Qt ItemDataRole.
-
-        Returns:
-            표시 값 또는 None.
-        """
         if not index.isValid() or index.row() >= len(self._rows):
             return None
         if role != Qt.ItemDataRole.DisplayRole:
             return None
         row = self._rows[index.row()]
-        _, key = COLUMNS[index.column()]
+        _, key = PIPELINE_TABLE_COLUMNS[index.column()]
         value = getattr(row, key, "")
         if key == "season":
             s = (value or "").strip()
@@ -103,48 +55,23 @@ class PipelineTableModel(QAbstractTableModel):
         orientation: Qt.Orientation,
         role: int = Qt.ItemDataRole.DisplayRole,
     ) -> Any:
-        """가로 헤더에 컬럼 타이틀을 반환한다.
-
-        Args:
-            self: 이 모델.
-            section: 컬럼 인덱스.
-            orientation: 가로/세로.
-            role: Qt ItemDataRole.
-
-        Returns:
-            헤더 문자열 또는 None.
-        """
         if orientation != Qt.Orientation.Horizontal or role != Qt.ItemDataRole.DisplayRole:
             return None
-        if 0 <= section < len(COLUMNS):
-            return COLUMNS[section][0]
+        if 0 <= section < len(PIPELINE_TABLE_COLUMNS):
+            return PIPELINE_TABLE_COLUMNS[section][0]
         return None
 
     def set_rows(self, rows: list[PipelineGroupRow]) -> None:
-        """그룹 목록을 통째로 바꾸고 모델을 리셋한다.
-
-        전체 ``modelReset``은 뷰 동기화 비용이 크므로, 동일 구조에서 셀만 바뀌는 경우
-        향후 ``dataChanged``·증분 갱신으로 대체할 여지가 있다.
-
-        Args:
-            self: 이 모델.
-            rows: 새 그룹 행 목록.
-
-        Returns:
-            None.
-        """
         self.beginResetModel()
         self._rows = list(rows)
         self.endResetModel()
 
     def clear_with_reset(self) -> None:
-        """현재 그룹을 비우고 modelReset을 발생시킨다."""
         self.beginResetModel()
         self._rows = []
         self.endResetModel()
 
     def append_row_groups(self, rows: list[PipelineGroupRow]) -> None:
-        """그룹 청크를 기존 목록 뒤에 붙이고 rowsInserted를 발생시킨다."""
         if not rows:
             return
         start = len(self._rows)
@@ -154,27 +81,9 @@ class PipelineTableModel(QAbstractTableModel):
         self.endInsertRows()
 
     def update_rows_if_compatible(self, rows: list[PipelineGroupRow]) -> bool:
-        """구조가 호환되면 modelReset 없이 dataChanged로만 갱신한다.
-
-        이 경로는 P1-B-1의 1차 범위(매칭/수동 TMDB 후, 그룹 수·순서·멤버십 동일)에서만
-        사용한다. 구조가 조금이라도 다르면 안전하게 False를 반환해 호출부가 `set_rows`로
-        폴백하도록 한다.
-
-        호환 조건:
-        - 그룹 개수 동일
-        - 각 그룹의 member 개수 동일
-        - 각 member의 original_file 순서가 동일
-
-        Args:
-            self: 이 모델.
-            rows: 새 그룹 행 목록.
-
-        Returns:
-            호환 갱신을 적용했으면 True, 아니면 False.
-        """
         if len(rows) != len(self._rows):
             return False
-        for _i, (old_g, new_g) in enumerate(zip(self._rows, rows, strict=True)):
+        for old_g, new_g in zip(self._rows, rows, strict=True):
             if len(old_g.members) != len(new_g.members):
                 return False
             old_paths = [m.original_file for m in old_g.members]
@@ -186,45 +95,20 @@ class PipelineTableModel(QAbstractTableModel):
         if not self._rows:
             return True
         top_left = self.index(0, 0)
-        bottom_right = self.index(len(self._rows) - 1, len(COLUMNS) - 1)
+        bottom_right = self.index(len(self._rows) - 1, len(PIPELINE_TABLE_COLUMNS) - 1)
         self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DisplayRole])
         return True
 
     def rows(self) -> list[PipelineGroupRow]:
-        """다른 뷰 동기화용 현재 그룹 행 복사본.
-
-        Args:
-            self: 이 모델.
-
-        Returns:
-            그룹 행 리스트.
-        """
         return list(self._rows)
 
     def flat_rows(self) -> list[PipelineRow]:
-        """표시 순서대로 모든 파일 행을 펼친다.
-
-        Args:
-            self: 이 모델.
-
-        Returns:
-            PipelineRow 리스트.
-        """
         out: list[PipelineRow] = []
         for g in self._rows:
             out.extend(g.members)
         return out
 
     def row_at(self, index: int) -> PipelineGroupRow | None:
-        """인덱스에 해당하는 그룹 행을 반환한다.
-
-        Args:
-            self: 이 모델.
-            index: 0 기반 행 인덱스.
-
-        Returns:
-            그룹 행 또는 범위 밖이면 None.
-        """
         if 0 <= index < len(self._rows):
             return self._rows[index]
         return None

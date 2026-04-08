@@ -7,6 +7,8 @@ Author: Pom Kim
 
 from dataclasses import dataclass
 
+from anivault.constants.application.progress import PROGRESS_PERCENT_MAX
+
 
 @dataclass
 class ProgressEvent:
@@ -33,4 +35,4 @@ def progress_dialog_value_and_maximum(event: ProgressEvent) -> tuple[int | None,
     """
     if event.total > 0:
         return event.current, event.total
-    return None, 100
+    return None, PROGRESS_PERCENT_MAX

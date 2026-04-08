@@ -15,6 +15,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from anivault.constants.gui.theme import (
+    POSTER_GRID_MARGINS,
+    POSTER_GRID_MIN_CARD_WIDTH,
+    POSTER_GRID_SPACING,
+)
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import PanelHeader, PosterCard
 from anivault.interfaces.gui.components.molecules.poster_card import (
@@ -24,10 +29,6 @@ from anivault.interfaces.gui.components.molecules.poster_card import (
     POSTER_IMAGE_ASPECT_HW,
 )
 from anivault.interfaces.gui.themes import get_current_density_key, on_density_changed
-
-MIN_CARD_WIDTH = 140
-GRID_SPACING = 12
-GRID_MARGINS = (0, 0, 0, 0)
 
 
 def _column_count(width: int, *, min_card: int, grid_spacing: int) -> int:
@@ -49,7 +50,7 @@ class _GridContainer(QWidget):
 
     def __init__(
         self,
-        min_card_width: int | None = MIN_CARD_WIDTH,
+        min_card_width: int | None = POSTER_GRID_MIN_CARD_WIDTH,
         parent=None,
         *,
         body_below_image_px: int | None = None,
@@ -69,11 +70,12 @@ class _GridContainer(QWidget):
         super().__init__(parent)
         self._min_card_width = min_card_width
         self._body_below_image_px = body_below_image_px
+        self._grid_spacing = POSTER_GRID_SPACING
         # Outer column: grid (intrinsic height) + stretch below. Without this,
         # QGridLayout distributes extra viewport height *between* rows, making
         # row gaps much larger than horizontal GRID_SPACING when maximized.
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(*GRID_MARGINS)
+        outer.setContentsMargins(*POSTER_GRID_MARGINS)
         outer.setSpacing(0)
         self._grid = QGridLayout()
         self._grid.setSpacing(theme.poster_grid_spacing_px())

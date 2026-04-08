@@ -21,6 +21,10 @@ from anivault.application.dto.match_result import MatchInput, MatchResult
 from anivault.application.dto.parse import ParseInput, ParseResult
 from anivault.application.dto.progress import ProgressEvent, progress_dialog_value_and_maximum
 from anivault.application.dto.scan import ScanInput, ScanResult
+from anivault.constants.gui.components import (
+    SCAN_PARSE_COORDINATOR_MID_SCAN_MODEL_MAX_GROUPS,
+    SCAN_PARSE_COORDINATOR_RESULT_GROUP_CHUNK_SIZE,
+)
 from anivault.interfaces.gui.components.molecules import ProgressDialog
 from anivault.interfaces.gui.models import (
     PipelineGroupRow,
@@ -38,10 +42,6 @@ if TYPE_CHECKING:
     from anivault.interfaces.gui.presenters.organizer_presenter import OrganizerPresenter
 
 logger = logging.getLogger(__name__)
-
-PARSE_RESULT_GROUP_CHUNK_SIZE = 96
-# 스캔 직후·파싱 중간에 테이블을 한 번 더 그리면 대용량에서 modelReset 비용이 두 번 든다.
-PARSE_MID_SCAN_MODEL_MAX_GROUPS = 1000
 
 
 def _execute_title_groups_sync_worker(
@@ -321,7 +321,7 @@ class ScanParseCoordinator(QObject):
         def _on_parse_worker_started() -> None:
             """워커 run 진입 후 진행 UI를 먼저 띄우고, 다음 틱에 모델을 반영한다."""
             n_groups = len(merged_groups)
-            if n_groups <= PARSE_MID_SCAN_MODEL_MAX_GROUPS:
+            if n_groups <= SCAN_PARSE_COORDINATOR_MID_SCAN_MODEL_MAX_GROUPS:
                 QTimer.singleShot(
                     0,
                     lambda m=merged_groups: self._apply_scan_rows_to_model(m),
@@ -330,7 +330,7 @@ class ScanParseCoordinator(QObject):
                 logger.debug(
                     "skip mid-scan model apply: groups=%s > %s",
                     n_groups,
-                    PARSE_MID_SCAN_MODEL_MAX_GROUPS,
+                    SCAN_PARSE_COORDINATOR_MID_SCAN_MODEL_MAX_GROUPS,
                 )
 
         if dialog is not None:
@@ -636,7 +636,7 @@ class ScanParseCoordinator(QObject):
         Returns:
             None.
         """
-        chunk_sz = PARSE_RESULT_GROUP_CHUNK_SIZE
+        chunk_sz = SCAN_PARSE_COORDINATOR_RESULT_GROUP_CHUNK_SIZE
         n = len(grouped)
         idx_ref = [0]
         model.clear_with_reset()

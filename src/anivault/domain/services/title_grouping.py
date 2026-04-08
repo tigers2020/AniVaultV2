@@ -108,6 +108,7 @@ def _pick_representative(
     Returns:
         대표 `TitleGroupingInputRow`.
     """
+
     def _media_kind_priority(media_kind: str) -> int:
         if media_kind == "video":
             return 0

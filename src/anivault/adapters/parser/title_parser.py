@@ -237,7 +237,11 @@ class AnitopyTitleParser(FilenameParser):
         season = stem_season
         episode = stem_episode or anitopy_episode
         res_raw = _anitopy_field_str(data.get("video_resolution")) if data else ""
-        resolution = normalize_resolution_from_raw(res_raw) if res_raw else resolution_from_filename(filename)
+        resolution = (
+            normalize_resolution_from_raw(res_raw)
+            if res_raw
+            else resolution_from_filename(filename)
+        )
         return ParsedInfo(
             title=title,
             parse_group=title,

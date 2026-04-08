@@ -17,11 +17,17 @@ from typing import Any
 from tmdbapis import TMDbAPIs  # pyright: ignore[reportMissingModuleSource]
 from tmdbapis.exceptions import NotFound  # pyright: ignore[reportMissingModuleSource]
 
+from anivault.constants.adapters.tmdb import (
+    DEFAULT_TMDB_LANGUAGE,
+    TMDB_MIN_INTERVAL_DEFAULT,
+    TMDB_MIN_INTERVAL_ENV,
+)
+
 
 class TmdbApiClient:
     """TV 검색 래퍼. 한국어 로케일 이름 우선."""
 
-    def __init__(self, api_key: str, *, language: str = "ko-KR") -> None:
+    def __init__(self, api_key: str, *, language: str = DEFAULT_TMDB_LANGUAGE) -> None:
         """API 키와 언어를 저장한다. 클라이언트는 지연 초기화.
 
         Args:
@@ -39,7 +45,7 @@ class TmdbApiClient:
         self._last_request_mono = 0.0
         self._min_interval_s = max(
             0.0,
-            float(os.environ.get("ANIVAULT_TMDB_MIN_INTERVAL", "0.05")),
+            float(os.environ.get(TMDB_MIN_INTERVAL_ENV, TMDB_MIN_INTERVAL_DEFAULT)),
         )
 
     def _api(self) -> TMDbAPIs:

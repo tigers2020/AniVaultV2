@@ -12,8 +12,7 @@ from collections.abc import Sequence
 from anivault.adapters.metadata.tmdb.client import TmdbApiClient
 from anivault.adapters.metadata.tmdb.mapper import tv_show_to_candidate
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
-
-_MAX_CANDIDATES = 5
+from anivault.constants.domain.matching import TMDB_MAX_CANDIDATES
 
 
 class TmdbMetadataProvider:
@@ -45,6 +44,6 @@ class TmdbMetadataProvider:
             후보 DTO 시퀀스.
         """
         raw_list = self._client.search_tv_raw(
-            query, first_air_date_year=year, max_results=_MAX_CANDIDATES
+            query, first_air_date_year=year, max_results=TMDB_MAX_CANDIDATES
         )
         return [tv_show_to_candidate(obj) for obj in raw_list]

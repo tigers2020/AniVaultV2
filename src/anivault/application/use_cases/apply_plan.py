@@ -12,12 +12,20 @@ from pathlib import Path
 from threading import Event
 from typing import cast
 
+from anivault.application.dto.organize_plan import OrganizePlanItemStatus, OrganizePlanStatus
 from anivault.application.dto.plan import ApplyInput, ApplyResult
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.ports.file_repository import FileRepository
 from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.operation_log_port import OperationLogRepository
 from anivault.application.ports.organize_plan_port import OrganizePlanRepository
+from anivault.constants.application.progress import PROGRESS_PERCENT_MAX, PROGRESS_STAGE_APPLY
+from anivault.constants.application.statuses import (
+    ORGANIZE_PLAN_ITEM_STATUS_APPLIED,
+    ORGANIZE_PLAN_ITEM_STATUS_FAILED,
+    ORGANIZE_PLAN_STATUS_APPLIED,
+    ORGANIZE_PLAN_STATUS_FAILED,
+)
 from anivault.domain.models import FileOperation
 
 ApplyProgressCallback = Callable[[ProgressEvent], None]
@@ -55,7 +63,9 @@ def _mark_plan_failed_if_needed(
     plan_id: int | None,
 ) -> None:
     if organize_plan is not None and plan_id is not None:
-        organize_plan.update_plan_status(plan_id, "failed")
+        organize_plan.update_plan_status(
+            plan_id, cast(OrganizePlanStatus, ORGANIZE_PLAN_STATUS_FAILED)
+        )
 
 
 def _mark_item_failed_if_needed(
@@ -64,7 +74,10 @@ def _mark_item_failed_if_needed(
     index: int,
 ) -> None:
     if organize_plan is not None and index < len(item_ids):
-        organize_plan.update_item_status(item_ids[index], "failed")
+        organize_plan.update_item_status(
+            item_ids[index],
+            cast(OrganizePlanItemStatus, ORGANIZE_PLAN_ITEM_STATUS_FAILED),
+        )
 
 
 def _mark_item_applied_if_needed(
@@ -73,7 +86,10 @@ def _mark_item_applied_if_needed(
     index: int,
 ) -> None:
     if organize_plan is not None and index < len(item_ids):
-        organize_plan.update_item_status(item_ids[index], "applied")
+        organize_plan.update_item_status(
+            item_ids[index],
+            cast(OrganizePlanItemStatus, ORGANIZE_PLAN_ITEM_STATUS_APPLIED),
+        )
 
 
 def _emit_apply_progress_if_needed(
@@ -87,11 +103,11 @@ def _emit_apply_progress_if_needed(
     cur = current_index + 1
     progress_callback(
         ProgressEvent(
-            stage="apply",
+            stage=PROGRESS_STAGE_APPLY,
             current=cur,
             total=total,
             message=f"파일 이동 중 ({cur}/{total})",
-            percent=int(100 * cur / total),
+            percent=int(PROGRESS_PERCENT_MAX * cur / total),
             item_path=item_path,
         )
     )
@@ -152,7 +168,9 @@ def _apply_operations_or_error(
                 _mark_plan_failed_if_needed(organize_plan, plan_id)
             return ApplyResult(log_path=log_path, moved_count=moved, error=move_error)
         if moved_paths is None:
-            return ApplyResult(log_path=log_path, moved_count=moved, error="파일 이동 결과가 비어 있습니다.")
+            return ApplyResult(
+                log_path=log_path, moved_count=moved, error="파일 이동 결과가 비어 있습니다."
+            )
         moved += 1
         _mark_item_applied_if_needed(organize_plan, item_ids, i)
         _emit_apply_progress_if_needed(progress_callback, i, total, moved_paths[1])
@@ -214,7 +232,9 @@ def _execute_apply(
         return apply_result
 
     if organize_plan is not None and plan_id is not None:
-        organize_plan.update_plan_status(plan_id, "applied")
+        organize_plan.update_plan_status(
+            plan_id, cast(OrganizePlanStatus, ORGANIZE_PLAN_STATUS_APPLIED)
+        )
 
     source_root = (input_dto.source_root or "").strip()
     if source_root:

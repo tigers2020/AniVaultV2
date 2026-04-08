@@ -10,6 +10,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from anivault.constants.gui.theme import (
+    DENSITY_COMPACT_MAX_HEIGHT,
+    DENSITY_COMPACT_MAX_WIDTH,
+    DENSITY_EXPANDED_MAX_HEIGHT,
+    DENSITY_EXPANDED_MAX_WIDTH,
+    DENSITY_STANDARD_MAX_HEIGHT,
+    DENSITY_STANDARD_MAX_WIDTH,
+)
+
 DensityKey = Literal["compact", "standard", "expanded", "spacious"]
 
 
@@ -80,13 +89,13 @@ def choose_density_key(*, width: int, height: int) -> DensityKey:
 
     # Height is a proxy for "vertical real estate" which affects perception
     # of density more than pure width in this app.
-    if w < 1260 or h < 740:
+    if w < DENSITY_COMPACT_MAX_WIDTH or h < DENSITY_COMPACT_MAX_HEIGHT:
         return "compact"
 
-    if w < 1500 or h < 860:
+    if w < DENSITY_STANDARD_MAX_WIDTH or h < DENSITY_STANDARD_MAX_HEIGHT:
         return "standard"
 
-    if w < 1780 or h < 980:
+    if w < DENSITY_EXPANDED_MAX_WIDTH or h < DENSITY_EXPANDED_MAX_HEIGHT:
         return "expanded"
 
     return "spacious"

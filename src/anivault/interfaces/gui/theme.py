@@ -7,6 +7,7 @@ Author: Pom Kim
 
 from typing import Any
 
+from anivault.constants.gui.theme import POSTER_GRID_SPACING_BASE_PX, POSTER_MIN_CARD_WIDTH_BASE_PX
 from anivault.interfaces.gui.themes import get_current_density_key, get_current_theme
 from anivault.interfaces.gui.themes.base import (
     FONT_BODY,
@@ -631,8 +632,6 @@ def progress_dialog() -> str:
 
 # ---- Responsive layout metrics ----
 # Base metrics are aligned with the previous hard-coded px constants.
-_POSTER_MIN_CARD_WIDTH_BASE_PX = 150
-_POSTER_GRID_SPACING_BASE_PX = 13
 
 
 def _p() -> DensityProfile:
@@ -676,7 +675,7 @@ def poster_min_card_width_px() -> int:
     """
     p = _p()
     return scaled_int(
-        _POSTER_MIN_CARD_WIDTH_BASE_PX,
+        POSTER_MIN_CARD_WIDTH_BASE_PX,
         p.card_min_width_scale,
         minimum=110,
         maximum=280,
@@ -694,7 +693,7 @@ def poster_grid_spacing_px() -> int:
     """
     p = _p()
     return scaled_int(
-        _POSTER_GRID_SPACING_BASE_PX,
+        POSTER_GRID_SPACING_BASE_PX,
         p.grid_spacing_scale,
         minimum=7,
         maximum=22,

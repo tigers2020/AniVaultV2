@@ -13,6 +13,18 @@ import shutil
 import subprocess
 
 from anivault.application.ports.video_stream_resolution_port import VideoStreamResolutionPort
+from anivault.constants.adapters.media import (
+    FFPROBE_EXECUTABLE,
+    FFPROBE_LOG_LEVEL_ERROR,
+    FFPROBE_LOG_LEVEL_FLAG,
+    FFPROBE_OUTPUT_FORMAT_FLAG,
+    FFPROBE_OUTPUT_FORMAT_JSON,
+    FFPROBE_PRIMARY_VIDEO_STREAM,
+    FFPROBE_SELECT_STREAMS_FLAG,
+    FFPROBE_SHOW_ENTRIES_FLAG,
+    FFPROBE_STREAM_DIMENSIONS_ENTRIES,
+    FFPROBE_TIMEOUT_SECONDS,
+)
 from anivault.domain.rules.resolution_from_filename import (
     resolution_label_from_stream_dimensions,
 )
@@ -23,7 +35,7 @@ logger = logging.getLogger(__name__)
 class FfprobeStreamResolution(VideoStreamResolutionPort):
     """ffprobe 기반 비디오 스트림 해상도 조회 구현체."""
 
-    def __init__(self, timeout_seconds: float = 2.0) -> None:
+    def __init__(self, timeout_seconds: float = FFPROBE_TIMEOUT_SECONDS) -> None:
         """어댑터를 초기화한다.
 
         Args:
@@ -44,21 +56,21 @@ class FfprobeStreamResolution(VideoStreamResolutionPort):
         Returns:
             720p/1080p 같은 라벨. 실패·미검출이면 빈 문자열.
         """
-        exe = shutil.which("ffprobe")
+        exe = shutil.which(FFPROBE_EXECUTABLE)
         if not exe:
             return ""
         try:
             cp = subprocess.run(
                 [
                     exe,
-                    "-v",
-                    "error",
-                    "-select_streams",
-                    "v:0",
-                    "-show_entries",
-                    "stream=width,height",
-                    "-of",
-                    "json",
+                    FFPROBE_LOG_LEVEL_FLAG,
+                    FFPROBE_LOG_LEVEL_ERROR,
+                    FFPROBE_SELECT_STREAMS_FLAG,
+                    FFPROBE_PRIMARY_VIDEO_STREAM,
+                    FFPROBE_SHOW_ENTRIES_FLAG,
+                    FFPROBE_STREAM_DIMENSIONS_ENTRIES,
+                    FFPROBE_OUTPUT_FORMAT_FLAG,
+                    FFPROBE_OUTPUT_FORMAT_JSON,
                     path,
                 ],
                 capture_output=True,

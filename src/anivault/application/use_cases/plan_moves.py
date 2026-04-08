@@ -11,9 +11,14 @@ import json
 import sqlite3
 from collections.abc import Callable
 from threading import Event
+from typing import cast
 
 from anivault.application.dto.match_result import MatchFileRow
-from anivault.application.dto.organize_plan import OrganizePlanAppendRow
+from anivault.application.dto.organize_plan import (
+    OrganizeOperationKind,
+    OrganizePlanAppendRow,
+    OrganizePlanStatus,
+)
 from anivault.application.dto.plan import (
     PlanInput,
     PlanResult,
@@ -21,6 +26,12 @@ from anivault.application.dto.plan import (
 )
 from anivault.application.dto.progress import ProgressEvent
 from anivault.application.ports.organize_plan_port import OrganizePlanRepository
+from anivault.constants.application.progress import PROGRESS_PERCENT_MAX, PROGRESS_STAGE_PLAN
+from anivault.constants.application.statuses import (
+    ORGANIZE_OPERATION_KIND_MOVE,
+    ORGANIZE_PLAN_STATUS_PREVIEWED,
+)
+from anivault.constants.domain.media import MEDIA_KIND_SUBTITLE, MEDIA_KIND_VIDEO
 from anivault.domain.models import FileOperation, OperationType
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.services.companion_subtitles import companion_subtitle_operations
@@ -96,11 +107,11 @@ def _append_primary_and_optional_companion_moves(
             destination_path=dest,
         )
     )
-    move_kinds.append("video")
+    move_kinds.append(MEDIA_KIND_VIDEO)
     if include_companion_subtitles:
         for op in companion_subtitle_operations(row.original_file, dest):
             moves.append(op)
-            move_kinds.append("subtitle")
+            move_kinds.append(MEDIA_KIND_SUBTITLE)
 
 
 def _emit_plan_progress(
@@ -116,11 +127,11 @@ def _emit_plan_progress(
     cur = index + 1
     progress_callback(
         ProgressEvent(
-            stage="plan",
+            stage=PROGRESS_STAGE_PLAN,
             current=cur,
             total=total,
             message=f"경로 계획 중 ({cur}/{total})",
-            percent=int(100 * cur / total),
+            percent=int(PROGRESS_PERCENT_MAX * cur / total),
             item_path=row.original_file,
         )
     )
@@ -157,14 +168,14 @@ def _persist_plan_if_needed(
         )
         plan_id = organize_plan.create_plan(
             input_dto.index_root_id,
-            "previewed",
+            cast(OrganizePlanStatus, ORGANIZE_PLAN_STATUS_PREVIEWED),
             summary,
         )
         rows = tuple(
             OrganizePlanAppendRow(
                 src_path_norm=normalize_path_key(m.source_path),
                 dst_path_norm=normalize_path_key(m.destination_path),
-                operation_kind="move",
+                operation_kind=cast(OrganizeOperationKind, ORGANIZE_OPERATION_KIND_MOVE),
                 detail_json=json.dumps({"kind": kind}, ensure_ascii=False),
             )
             for m, kind in zip(moves, move_kinds, strict=True)

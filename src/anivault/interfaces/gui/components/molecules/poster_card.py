@@ -13,20 +13,29 @@ from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QFontMetrics, QPixmap
 from PySide6.QtWidgets import QFrame, QSizePolicy, QVBoxLayout
 
+from anivault.constants.gui.theme import (
+    BACKDROP_IMAGE_ASPECT_HW,
+    CARD_LAYOUT_SPACING_COMPACT_PX,
+    CARD_LAYOUT_SPACING_POSTER_PX,
+    COMPACT_BODY_HEIGHT_PX,
+    COMPACT_TITLE_ONLY_BODY_HEIGHT_PX,
+    NON_COMPACT_BODY_HEIGHT_PX,
+    POSTER_IMAGE_ASPECT_HW,
+)
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Label, RoundedPixmapLabel
 from anivault.interfaces.gui.components.molecules.path_box import PathBox
 
-# Image area height/width: poster portrait 2:3; backdrop wide 5:2 (width:height)
-POSTER_IMAGE_ASPECT_HW = 3 / 2
-BACKDROP_IMAGE_ASPECT_HW = 2 / 5
-# Space for title + meta (+ path on non-compact) below the image
-COMPACT_BODY_HEIGHT_PX = 48
-COMPACT_TITLE_ONLY_BODY_HEIGHT_PX = 28
-NON_COMPACT_BODY_HEIGHT_PX = 100
-# Vertical gap between image row and title/meta row (must match layout.setSpacing)
-CARD_LAYOUT_SPACING_COMPACT_PX = 6
-CARD_LAYOUT_SPACING_POSTER_PX = 8
+__all__ = [
+    "PosterCard",
+    "POSTER_IMAGE_ASPECT_HW",
+    "BACKDROP_IMAGE_ASPECT_HW",
+    "COMPACT_BODY_HEIGHT_PX",
+    "COMPACT_TITLE_ONLY_BODY_HEIGHT_PX",
+    "NON_COMPACT_BODY_HEIGHT_PX",
+    "CARD_LAYOUT_SPACING_COMPACT_PX",
+    "CARD_LAYOUT_SPACING_POSTER_PX",
+]
 
 
 class PosterCard(QFrame):

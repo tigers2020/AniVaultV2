@@ -11,6 +11,12 @@ from anivault.application.dto.match_result import MatchFileRow, MatchInput, Matc
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.ports.title_group_port import TitleGroupRepository
 from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.constants.application.statuses import (
+    MATCH_STATUS_AUTO_MATCHED,
+    MATCH_STATUS_CONFIRMED,
+    POSTER_ASSET_KIND_POSTER,
+)
+from anivault.constants.gui.copy import HYDRATE_STATUS_TMDB_CACHED
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.poster_display import resolve_final_poster_display_source
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
@@ -57,7 +63,7 @@ def _apply_cached_candidate(
     if candidate.tmdb_id and poster_remote:
         local_poster = poster_local_path_for(
             int(candidate.tmdb_id),
-            "poster",
+            POSTER_ASSET_KIND_POSTER,
             poster_remote,
         )
     poster_display = resolve_final_poster_display_source(local_poster, poster_cdn)
@@ -73,7 +79,7 @@ def _apply_cached_candidate(
         year=year or row.year,
         season=row.season,
         resolution=row.resolution,
-        status="TMDB cached" if (candidate.name_ko or "").strip() else row.status,
+        status=HYDRATE_STATUS_TMDB_CACHED if (candidate.name_ko or "").strip() else row.status,
         poster_url=poster_display or row.poster_url,
         backdrop_url=backdrop_cdn or row.backdrop_url,
         target_path=row.target_path,
@@ -160,13 +166,16 @@ def _candidate_by_current_group(
     tmdb_ids = [
         match.tmdb_id
         for match in matches_by_group_id.values()
-        if match.match_status in ("auto_matched", "confirmed")
+        if match.match_status in (MATCH_STATUS_AUTO_MATCHED, MATCH_STATUS_CONFIRMED)
     ]
     candidates_by_tmdb_id = title_match.get_series_candidates(tmdb_ids)
     result: dict[str, TmdbSeriesCandidateDTO] = {}
     for current_group_key, group_id in group_id_by_current_group.items():
         match = matches_by_group_id.get(group_id)
-        if match is None or match.match_status not in ("auto_matched", "confirmed"):
+        if match is None or match.match_status not in (
+            MATCH_STATUS_AUTO_MATCHED,
+            MATCH_STATUS_CONFIRMED,
+        ):
             continue
         candidate = candidates_by_tmdb_id.get(match.tmdb_id)
         if candidate is None:

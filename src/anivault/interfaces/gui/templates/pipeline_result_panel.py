@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from anivault.constants.gui.navigation import ICON_SIZES, LEGACY_VIEW_KEY_MAP, VIEW_TO_INDEX
 from anivault.interfaces.gui.components.molecules import (
     PanelHeader,
     PosterCard,
@@ -49,18 +50,6 @@ from anivault.interfaces.gui.models import (
 )
 from anivault.interfaces.gui.services.image_loader import ImageLoader
 from anivault.interfaces.gui.settings_storage import load_all, save_all
-
-VIEW_TO_INDEX = {
-    VIEW_DETAILS: 0,
-    VIEW_CONTENT: 1,
-    VIEW_ICON_XL: 2,
-    VIEW_ICON_L: 3,
-    VIEW_ICON_M: 4,
-    VIEW_ICON_S: 5,
-}
-
-# Persisted ui_state may still reference removed view keys.
-_LEGACY_VIEW_KEY_MAP = {"tiles": VIEW_CONTENT, "list": VIEW_DETAILS}
 
 
 class _ImageRowTarget(Protocol):
@@ -99,7 +88,6 @@ class PipelineResultUiState(TypedDict):
     selected_index: int
 
 
-ICON_SIZES = {VIEW_ICON_XL: 220, VIEW_ICON_L: 180, VIEW_ICON_M: 140, VIEW_ICON_S: 100}
 DEFAULT_UI_STATE: PipelineResultUiState = {
     "view_key": VIEW_DETAILS,
     "details_pane": False,
@@ -655,7 +643,7 @@ class PipelineResultPanel(QFrame):
             "selected_index": DEFAULT_UI_STATE["selected_index"],
         }
         if isinstance(view_key, str):
-            view_key = _LEGACY_VIEW_KEY_MAP.get(view_key, view_key)
+            view_key = LEGACY_VIEW_KEY_MAP.get(view_key, view_key)
             if view_key in VIEW_TO_INDEX:
                 normalized["view_key"] = view_key
         if isinstance(details_pane, bool):
