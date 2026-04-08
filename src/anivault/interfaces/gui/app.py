@@ -49,6 +49,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._shell)
         from anivault.bootstrap.container import (
             create_organizer_page,
+            create_subtitle_organizer_page,
             create_settings_page,
         )
         from anivault.interfaces.gui.models import PipelineTableModel
@@ -63,10 +64,9 @@ class MainWindow(QMainWindow):
             )
         )
         self._shell.add_page(
-            create_organizer_page(
+            create_subtitle_organizer_page(
                 pipeline_model=self._pipeline_model_subtitles,
                 progress_dialog=self._progress_dialog,
-                mode="subtitle",
             )
         )
         self._shell.add_page(create_settings_page())

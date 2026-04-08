@@ -137,6 +137,22 @@ class PipelineTableModel(QAbstractTableModel):
         self._rows = list(rows)
         self.endResetModel()
 
+    def clear_with_reset(self) -> None:
+        """현재 그룹을 비우고 modelReset을 발생시킨다."""
+        self.beginResetModel()
+        self._rows = []
+        self.endResetModel()
+
+    def append_row_groups(self, rows: list[PipelineGroupRow]) -> None:
+        """그룹 청크를 기존 목록 뒤에 붙이고 rowsInserted를 발생시킨다."""
+        if not rows:
+            return
+        start = len(self._rows)
+        end = start + len(rows) - 1
+        self.beginInsertRows(_INVALID_INDEX, start, end)
+        self._rows.extend(rows)
+        self.endInsertRows()
+
     def update_rows_if_compatible(self, rows: list[PipelineGroupRow]) -> bool:
         """구조가 호환되면 modelReset 없이 dataChanged로만 갱신한다.
 
