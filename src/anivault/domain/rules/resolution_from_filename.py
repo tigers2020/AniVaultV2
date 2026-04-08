@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+_LABEL_8K_UHD = "8K UHD"
+
 _WxH = re.compile(r"\b(\d{3,4})\s*[xX]\s*(\d{3,4})\b")
 _HEIGHT_SUFFIX = re.compile(r"^\s*[xX]\s*(\d+)\s*$")
 _WIDTH_TOKEN = re.compile(r"(?<![A-Za-z0-9])(1280|1920|2560|3840|7680)(?![A-Za-z0-9])")
@@ -20,19 +22,19 @@ _SHORT_LABELS = {
     "1080p": "FHD",
     "1440p": "QHD",
     "2160p": "UHD",
-    "4320p": "8K UHD",
+    "4320p": _LABEL_8K_UHD,
     "2k": "QHD",
     "4k": "UHD",
-    "8k": "8K UHD",
+    "8k": _LABEL_8K_UHD,
 }
 _WIDTH_LABELS = {
     "1280": "HD",
     "1920": "FHD",
     "2560": "QHD",
     "3840": "UHD",
-    "7680": "8K UHD",
+    "7680": _LABEL_8K_UHD,
 }
-_LABEL_RANKS = {"HD": 0, "FHD": 1, "QHD": 2, "UHD": 3, "8K UHD": 4}
+_LABEL_RANKS = {"HD": 0, "FHD": 1, "QHD": 2, "UHD": 3, _LABEL_8K_UHD: 4}
 
 
 def normalize_resolution_from_raw(raw: str) -> str:
@@ -82,7 +84,7 @@ def _height_to_label(h: int) -> str:
         return "QHD"
     if h <= 2160:
         return "UHD"
-    return "8K UHD"
+    return _LABEL_8K_UHD
 
 
 def _video_height(w: int, h: int) -> int:
