@@ -54,7 +54,6 @@ from anivault.interfaces.gui.components.organisms import (
     PathRulesForm,
     PipelineTable,
     PosterGrid,
-    PreviewPane,
     ScanBuildCard,
     SettingsActionsCard,
     Sidebar,
@@ -320,10 +319,6 @@ def _organisms_preview() -> QWidget:
     details.set_row(groups[0])
     details.setFixedHeight(240)
 
-    preview = PreviewPane()
-    preview.set_row(groups[0])
-    preview.setFixedHeight(260)
-
     pipeline = PipelineTable(show_header=True)
     pipeline.set_rows(groups)
     pipeline.setFixedHeight(300)
@@ -356,7 +351,6 @@ def _organisms_preview() -> QWidget:
     layout.addWidget(pipeline)
     layout.addWidget(content)
     layout.addWidget(details)
-    layout.addWidget(preview)
     layout.addWidget(poster_grid)
     return box
 

@@ -18,7 +18,6 @@ from anivault.interfaces.gui.components.organisms.parse_tmdb_form import ParseTm
 from anivault.interfaces.gui.components.organisms.path_rules_form import PathRulesForm
 from anivault.interfaces.gui.components.organisms.pipeline_table import PipelineTable
 from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
-from anivault.interfaces.gui.components.organisms.preview_pane import PreviewPane
 from anivault.interfaces.gui.components.organisms.scan_build_card import ScanBuildCard
 from anivault.interfaces.gui.components.organisms.settings_actions_card import SettingsActionsCard
 from anivault.interfaces.gui.components.organisms.sidebar import Sidebar
@@ -35,7 +34,6 @@ __all__ = [
     "LogList",
     "PipelineTable",
     "PosterGrid",
-    "PreviewPane",
     "ScanBuildCard",
     "SettingsActionsCard",
     "Sidebar",
