@@ -81,6 +81,138 @@ def _apply_cached_candidate(
     )
 
 
+def _collect_group_paths(files: list[MatchFileRow]) -> tuple[
+    dict[str, list[str]],
+    dict[str, list[str]],
+    list[str],
+]:
+    paths_by_current_group: dict[str, list[str]] = {}
+    lexical_norms_by_current_group: dict[str, list[str]] = {}
+    all_lexical_norms: list[str] = []
+    for row in files:
+        current_group_key = _group_key(row)
+        paths_by_current_group.setdefault(current_group_key, []).append(row.original_file)
+        path_norm = _lexical_path_key(row.original_file)
+        lexical_norms_by_current_group.setdefault(current_group_key, []).append(path_norm)
+        all_lexical_norms.append(path_norm)
+    return paths_by_current_group, lexical_norms_by_current_group, all_lexical_norms
+
+
+def _resolve_group_ids_from_norms(
+    lexical_norms_by_current_group: dict[str, list[str]],
+    group_id_by_path_norm: dict[str, int],
+) -> tuple[dict[str, int], list[str]]:
+    group_id_by_current_group: dict[str, int] = {}
+    missing_current_groups: list[str] = []
+    for current_group_key, path_norms in lexical_norms_by_current_group.items():
+        for path_norm in path_norms:
+            group_id = group_id_by_path_norm.get(path_norm)
+            if group_id is not None:
+                group_id_by_current_group[current_group_key] = group_id
+                break
+        else:
+            missing_current_groups.append(current_group_key)
+    return group_id_by_current_group, missing_current_groups
+
+
+def _apply_fallback_group_ids(
+    *,
+    root_id: int,
+    title_groups: TitleGroupRepository,
+    paths_by_current_group: dict[str, list[str]],
+    missing_current_groups: list[str],
+    group_id_by_current_group: dict[str, int],
+) -> None:
+    if not missing_current_groups:
+        return
+
+    fallback_norms_by_current_group: dict[str, list[str]] = {}
+    all_fallback_norms: list[str] = []
+    for current_group_key in missing_current_groups:
+        for original_file in paths_by_current_group[current_group_key]:
+            try:
+                path_norm = normalize_path_key(original_file)
+            except OSError:
+                continue
+            fallback_norms_by_current_group.setdefault(current_group_key, []).append(path_norm)
+            all_fallback_norms.append(path_norm)
+
+    fallback_group_id_by_path_norm = title_groups.get_group_ids_for_path_norms(
+        root_id,
+        all_fallback_norms,
+    )
+    for current_group_key, path_norms in fallback_norms_by_current_group.items():
+        for path_norm in path_norms:
+            group_id = fallback_group_id_by_path_norm.get(path_norm)
+            if group_id is not None:
+                group_id_by_current_group[current_group_key] = group_id
+                break
+
+
+def _candidate_by_current_group(
+    *,
+    title_match: TitleMatchRepository,
+    group_id_by_current_group: dict[str, int],
+) -> dict[str, TmdbSeriesCandidateDTO]:
+    matches_by_group_id = title_match.get_group_matches(
+        list(group_id_by_current_group.values()),
+    )
+    tmdb_ids = [
+        match.tmdb_id
+        for match in matches_by_group_id.values()
+        if match.match_status in ("auto_matched", "confirmed")
+    ]
+    candidates_by_tmdb_id = title_match.get_series_candidates(tmdb_ids)
+    result: dict[str, TmdbSeriesCandidateDTO] = {}
+    for current_group_key, group_id in group_id_by_current_group.items():
+        match = matches_by_group_id.get(group_id)
+        if match is None or match.match_status not in ("auto_matched", "confirmed"):
+            continue
+        candidate = candidates_by_tmdb_id.get(match.tmdb_id)
+        if candidate is None:
+            continue
+        result[current_group_key] = candidate
+    return result
+
+
+def _build_poster_local_path_getter(
+    title_match: TitleMatchRepository,
+) -> Callable[[int, str, str], str | None]:
+    poster_local_path_cache: dict[tuple[int, str, str], str | None] = {}
+
+    def poster_local_path_for(
+        tmdb_id: int,
+        image_kind: str,
+        remote_path: str,
+    ) -> str | None:
+        key = (tmdb_id, image_kind, remote_path)
+        if key not in poster_local_path_cache:
+            poster_local_path_cache[key] = title_match.get_poster_local_path(
+                tmdb_id,
+                image_kind,
+                remote_path,
+            )
+        return poster_local_path_cache[key]
+
+    return poster_local_path_for
+
+
+def _hydrate_rows(
+    files: list[MatchFileRow],
+    candidate_by_current_group: dict[str, TmdbSeriesCandidateDTO],
+    poster_local_path_for: Callable[[int, str, str], str | None],
+) -> list[MatchFileRow]:
+    hydrated: list[MatchFileRow] = []
+    for row in files:
+        current_group_key = _group_key(row)
+        candidate = candidate_by_current_group.get(current_group_key)
+        if candidate is None:
+            hydrated.append(row)
+            continue
+        hydrated.append(_apply_cached_candidate(row, candidate, poster_local_path_for))
+    return hydrated
+
+
 def make_execute(
     *,
     title_match: TitleMatchRepository,
@@ -98,102 +230,38 @@ def make_execute(
         if root_id is None or not files:
             return MatchResult(files=tuple(files), groups=())
 
-        paths_by_current_group: dict[str, list[str]] = {}
-        lexical_norms_by_current_group: dict[str, list[str]] = {}
-        all_lexical_norms: list[str] = []
-        for row in files:
-            current_group_key = _group_key(row)
-            paths_by_current_group.setdefault(current_group_key, []).append(row.original_file)
-            path_norm = _lexical_path_key(row.original_file)
-            lexical_norms_by_current_group.setdefault(current_group_key, []).append(path_norm)
-            all_lexical_norms.append(path_norm)
+        (
+            paths_by_current_group,
+            lexical_norms_by_current_group,
+            all_lexical_norms,
+        ) = _collect_group_paths(files)
 
         group_id_by_path_norm = title_groups.get_group_ids_for_path_norms(
             root_id,
             all_lexical_norms,
         )
-        group_id_by_current_group: dict[str, int] = {}
-        missing_current_groups: list[str] = []
-        for current_group_key, path_norms in lexical_norms_by_current_group.items():
-            for path_norm in path_norms:
-                group_id = group_id_by_path_norm.get(path_norm)
-                if group_id is not None:
-                    group_id_by_current_group[current_group_key] = group_id
-                    break
-            else:
-                missing_current_groups.append(current_group_key)
-
-        if missing_current_groups:
-            fallback_norms_by_current_group: dict[str, list[str]] = {}
-            all_fallback_norms: list[str] = []
-            for current_group_key in missing_current_groups:
-                for original_file in paths_by_current_group[current_group_key]:
-                    try:
-                        path_norm = normalize_path_key(original_file)
-                    except OSError:
-                        continue
-                    fallback_norms_by_current_group.setdefault(current_group_key, []).append(
-                        path_norm,
-                    )
-                    all_fallback_norms.append(path_norm)
-            fallback_group_id_by_path_norm = title_groups.get_group_ids_for_path_norms(
-                root_id,
-                all_fallback_norms,
-            )
-            for current_group_key, path_norms in fallback_norms_by_current_group.items():
-                for path_norm in path_norms:
-                    group_id = fallback_group_id_by_path_norm.get(path_norm)
-                    if group_id is not None:
-                        group_id_by_current_group[current_group_key] = group_id
-                        break
-
-        matches_by_group_id = title_match.get_group_matches(
-            list(group_id_by_current_group.values()),
+        group_id_by_current_group, missing_current_groups = _resolve_group_ids_from_norms(
+            lexical_norms_by_current_group,
+            group_id_by_path_norm,
         )
-        tmdb_ids = [
-            match.tmdb_id
-            for match in matches_by_group_id.values()
-            if match.match_status in ("auto_matched", "confirmed")
-        ]
-        candidates_by_tmdb_id = title_match.get_series_candidates(tmdb_ids)
-        candidate_by_current_group: dict[str, TmdbSeriesCandidateDTO] = {}
-        for current_group_key, group_id in group_id_by_current_group.items():
-            match = matches_by_group_id.get(group_id)
-            if match is None or match.match_status not in ("auto_matched", "confirmed"):
-                continue
-            candidate = candidates_by_tmdb_id.get(match.tmdb_id)
-            if candidate is None:
-                continue
-            candidate_by_current_group[current_group_key] = candidate
+        _apply_fallback_group_ids(
+            root_id=root_id,
+            title_groups=title_groups,
+            paths_by_current_group=paths_by_current_group,
+            missing_current_groups=missing_current_groups,
+            group_id_by_current_group=group_id_by_current_group,
+        )
 
-        poster_local_path_cache: dict[tuple[int, str, str], str | None] = {}
-
-        def poster_local_path_for(
-            tmdb_id: int,
-            image_kind: str,
-            remote_path: str,
-        ) -> str | None:
-            key = (tmdb_id, image_kind, remote_path)
-            if key not in poster_local_path_cache:
-                poster_local_path_cache[key] = title_match.get_poster_local_path(
-                    tmdb_id,
-                    image_kind,
-                    remote_path,
-                )
-            return poster_local_path_cache[key]
-
-        hydrated = [
-            (
-                _apply_cached_candidate(
-                    row,
-                    candidate_by_current_group[_group_key(row)],
-                    poster_local_path_for,
-                )
-                if _group_key(row) in candidate_by_current_group
-                else row
-            )
-            for row in files
-        ]
+        candidate_by_current_group = _candidate_by_current_group(
+            title_match=title_match,
+            group_id_by_current_group=group_id_by_current_group,
+        )
+        poster_local_path_for = _build_poster_local_path_getter(title_match)
+        hydrated = _hydrate_rows(
+            files,
+            candidate_by_current_group,
+            poster_local_path_for,
+        )
         return MatchResult(files=tuple(hydrated), groups=())
 
     return execute
