@@ -556,6 +556,26 @@ def _match_single_group_search_phase(
     return dto, best
 
 
+def search_best_candidate_for_group(
+    group_key: str,
+    provider: MetadataProvider,
+    *,
+    root_id: int | None = None,
+    representative_path_norm: str | None = None,
+    title_match: TitleMatchRepository | None = None,
+    title_groups: TitleGroupRepository | None = None,
+) -> tuple[GroupMatchResultDTO, TmdbSeriesCandidateDTO | None]:
+    """공통 그룹 검색 단계: 후보 탐색 + 최적 후보 선택."""
+    return _match_single_group_search_phase(
+        group_key,
+        provider,
+        root_id=root_id,
+        representative_path_norm=representative_path_norm,
+        title_match=title_match,
+        title_groups=title_groups,
+    )
+
+
 def _match_single_group_apply_persist(
     files: list[MatchFileRow],
     _group_key: str,
@@ -619,6 +639,32 @@ def _match_single_group_apply_persist(
                 )
 
 
+def apply_candidate_and_persist_for_group(
+    files: list[MatchFileRow],
+    group_key: str,
+    indices: list[int],
+    candidate: TmdbSeriesCandidateDTO,
+    confidence: float,
+    *,
+    root_id: int | None = None,
+    representative_path_norm: str | None = None,
+    title_match: TitleMatchRepository | None = None,
+    title_groups: TitleGroupRepository | None = None,
+) -> None:
+    """공통 그룹 적용 단계: 파일행 반영 + 저장소 영속화."""
+    _match_single_group_apply_persist(
+        files,
+        group_key,
+        indices,
+        candidate,
+        confidence,
+        root_id=root_id,
+        representative_path_norm=representative_path_norm,
+        title_match=title_match,
+        title_groups=title_groups,
+    )
+
+
 def _match_single_group(
     files: list[MatchFileRow],
     group_key: str,
@@ -645,7 +691,7 @@ def _match_single_group(
     Returns:
         해당 그룹의 매칭 결과 DTO.
     """
-    dto, cand = _match_single_group_search_phase(
+    dto, cand = search_best_candidate_for_group(
         group_key,
         provider,
         root_id=root_id,
@@ -654,7 +700,7 @@ def _match_single_group(
         title_groups=title_groups,
     )
     if cand is not None:
-        _match_single_group_apply_persist(
+        apply_candidate_and_persist_for_group(
             files,
             group_key,
             indices,

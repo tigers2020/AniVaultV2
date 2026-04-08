@@ -75,6 +75,10 @@ class OrganizerPage(QWidget):
         # Make Pipeline Result panel consume remaining vertical space.
         content_layout.setStretchFactor(self._result_panel, 1)
         self._model.modelReset.connect(self._update_stats)
+        # Chunked parse uses append_row_groups (rowsInserted); TMDB incremental uses dataChanged.
+        self._model.rowsInserted.connect(self._update_stats)
+        self._model.rowsRemoved.connect(self._update_stats)
+        self._model.dataChanged.connect(self._update_stats)
         self._update_stats()
         layout.addLayout(content_layout, 1)
 

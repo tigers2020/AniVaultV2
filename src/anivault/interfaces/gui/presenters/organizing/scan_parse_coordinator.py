@@ -93,6 +93,17 @@ def _execute_cached_tmdb_hydrate_worker(
     return hydrate_fn(dto)
 
 
+def _execute_cached_tmdb_missing_fill_worker(
+    dto: MatchInput,
+    progress_callback: object,
+    cancel_token: Event,
+    *,
+    missing_fill_fn: Callable[[MatchInput, object, Event], MatchResult],
+) -> MatchResult:
+    """Run cached TMDB missing-fill with the worker-compatible callable signature."""
+    return missing_fill_fn(dto, progress_callback, cancel_token)
+
+
 class ScanParseCoordinator(QObject):
     """스캔→파싱 흐름과 진행 다이얼로그 세션."""
 
@@ -111,6 +122,7 @@ class ScanParseCoordinator(QObject):
         # 파싱 완료 시 병합용: 대용량에서 중간 set_rows를 생략하면 모델이 비어 있을 수 있음.
         self._parse_snapshot: tuple[int, list[PipelineRow]] | None = None
         self._pending_cached_hydrate: dict[int, tuple[PipelineTableModel, MatchInput]] = {}
+        self._pending_cached_missing_fill: dict[int, tuple[PipelineTableModel, MatchInput]] = {}
 
     def _warn_scan_path(self, title: str, message: str) -> None:
         """부모가 QWidget이면 경고 대화상자를 띄운다.
@@ -181,7 +193,11 @@ class ScanParseCoordinator(QObject):
         signals = WorkerSignals()
         worker = UseCaseWorker(
             execute_fn=self._p._scan_execute,  # noqa: SLF001
-            input_dto=ScanInput(path=path, recursive=True),
+            input_dto=ScanInput(
+                path=path,
+                recursive=True,
+                exclude_subtitles_with_paired_video=self._p._exclude_subtitles_with_paired_video,  # noqa: SLF001
+            ),
             signals=signals,
         )
         signals.result.connect(self._on_scan_result)
@@ -453,8 +469,17 @@ class ScanParseCoordinator(QObject):
     ) -> None:
         """Hydrate cached TMDB data off the UI thread, then apply rows in chunks."""
         hydrate_fn = self._p._cached_tmdb_hydrate_execute  # noqa: SLF001
+        missing_fill_fn = self._p._cached_tmdb_missing_fill_execute  # noqa: SLF001
         if root_for_sync is not None and hydrate_fn is not None:
             self._pending_cached_hydrate[session_gen] = (
+                model,
+                MatchInput(
+                    files=tuple(pipeline_row_to_match_file(row) for row in merged),
+                    index_root_id=root_for_sync,
+                ),
+            )
+        if root_for_sync is not None and missing_fill_fn is not None:
+            self._pending_cached_missing_fill[session_gen] = (
                 model,
                 MatchInput(
                     files=tuple(pipeline_row_to_match_file(row) for row in merged),
@@ -469,12 +494,16 @@ class ScanParseCoordinator(QObject):
             sync_fn=sync_fn,
         )
 
-    def _run_pending_cached_tmdb_hydrate(self, session_gen: int) -> None:
-        """Start cached TMDB hydrate after parsed rows are already visible."""
+    def _run_pending_cached_tmdb_hydrate(self, session_gen: int) -> bool:
+        """Start cached TMDB hydrate after parsed rows are already visible.
+
+        Returns:
+            True if a background worker was started, False otherwise.
+        """
         hydrate_fn = self._p._cached_tmdb_hydrate_execute  # noqa: SLF001
         pending = self._pending_cached_hydrate.pop(session_gen, None)
         if pending is None or hydrate_fn is None or session_gen != self._parse_apply_generation:
-            return
+            return False
         model, hydrate_input = pending
 
         signals = WorkerSignals()
@@ -495,6 +524,7 @@ class ScanParseCoordinator(QObject):
         )
         thread = run_worker(worker)
         self._p.register_worker_thread(thread)  # noqa: SLF001
+        return True
 
     def _on_cached_tmdb_hydrate_result(
         self,
@@ -503,6 +533,71 @@ class ScanParseCoordinator(QObject):
         session_gen: int,
     ) -> None:
         """Apply cached TMDB hydrate results after the background worker completes."""
+        if session_gen != self._parse_apply_generation:
+            return
+        grouped = group_pipeline_rows(
+            [self._p._match_file_to_pipeline_row(file) for file in result.files]  # noqa: SLF001
+        )
+        self._pending_cached_missing_fill[session_gen] = (
+            model,
+            MatchInput(
+                files=tuple(result.files), index_root_id=self._p._current_library_root_id
+            ),  # noqa: SLF001
+        )
+        self._apply_parse_result_groups_chunked(
+            model,
+            grouped,
+            session_gen=session_gen,
+            root_for_sync=None,
+            sync_fn=None,
+        )
+
+    def _run_pending_cached_tmdb_missing_fill(self, session_gen: int) -> bool:
+        """Start cached TMDB missing-fill worker for rows with missing metadata/posters.
+
+        Returns:
+            True if a background worker was started, False otherwise.
+        """
+        missing_fill_fn = self._p._cached_tmdb_missing_fill_execute  # noqa: SLF001
+        pending = self._pending_cached_missing_fill.pop(session_gen, None)
+        if (
+            pending is None
+            or missing_fill_fn is None
+            or session_gen != self._parse_apply_generation
+        ):
+            return False
+        model, missing_fill_input = pending
+
+        signals = WorkerSignals()
+        worker = UseCaseWorker(
+            execute_fn=partial(
+                _execute_cached_tmdb_missing_fill_worker,
+                missing_fill_fn=missing_fill_fn,
+            ),
+            input_dto=missing_fill_input,
+            signals=signals,
+        )
+        signals.result.connect(
+            lambda result, g=session_gen: self._on_cached_tmdb_missing_fill_result(
+                result,
+                model,
+                g,
+            )
+        )
+        signals.error.connect(
+            lambda exc, lg=logger: lg.exception("cached TMDB missing fill failed", exc_info=exc)
+        )
+        thread = run_worker(worker)
+        self._p.register_worker_thread(thread)  # noqa: SLF001
+        return True
+
+    def _on_cached_tmdb_missing_fill_result(
+        self,
+        result: MatchResult,
+        model: PipelineTableModel,
+        session_gen: int,
+    ) -> None:
+        """Apply missing-filled rows after the background worker completes."""
         if session_gen != self._parse_apply_generation:
             return
         grouped = group_pipeline_rows(
@@ -537,7 +632,13 @@ class ScanParseCoordinator(QObject):
         if panel is not None:
             panel.sync_views_from_model()
         self._p._notify_dry_run(False)  # noqa: SLF001
-        self._run_pending_cached_tmdb_hydrate(session_gen)
+        has_pending_hydrate = session_gen in self._pending_cached_hydrate
+        started_hydrate = self._run_pending_cached_tmdb_hydrate(session_gen)
+        started_missing = False
+        if not has_pending_hydrate:
+            started_missing = self._run_pending_cached_tmdb_missing_fill(session_gen)
+        if not started_hydrate and not started_missing:
+            self._p._notify_dry_run(self._p._dry_run_should_enable())  # noqa: SLF001
         if root_for_sync is None or sync_fn is None:
             return
         self._run_title_groups_sync_worker(root_for_sync, sync_fn)

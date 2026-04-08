@@ -7,10 +7,14 @@ Author: Pom Kim
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from anivault.adapters.metadata.tmdb.client import TmdbApiClient
-from anivault.adapters.metadata.tmdb.mapper import tv_show_to_candidate
+from anivault.adapters.metadata.tmdb.mapper import (
+    tv_show_to_candidate,
+    tv_show_to_search_tv_library_record,
+)
+from anivault.application.dto.search_tv_library import SearchTvLibraryRecord
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.constants.domain.matching import TMDB_MAX_CANDIDATES
 
@@ -18,17 +22,24 @@ from anivault.constants.domain.matching import TMDB_MAX_CANDIDATES
 class TmdbMetadataProvider:
     """TMDB TV 검색. 반환은 TmdbSeriesCandidateDTO만."""
 
-    def __init__(self, client: TmdbApiClient) -> None:
+    def __init__(
+        self,
+        client: TmdbApiClient,
+        *,
+        persist_search_tv_library: Callable[[Sequence[SearchTvLibraryRecord]], None] | None = None,
+    ) -> None:
         """TMDB API 클라이언트를 주입한다.
 
         Args:
             self: 이 인스턴스.
             client: 저수준 검색 클라이언트.
+            persist_search_tv_library: 네트워크 검색 직후 원시 TV 행을 라이브러리에 기록할 때.
 
         Returns:
             None.
         """
         self._client = client
+        self._persist_search_tv_library = persist_search_tv_library
 
     def search_series(
         self, query: str, *, year: int | None = None
@@ -46,4 +57,9 @@ class TmdbMetadataProvider:
         raw_list = self._client.search_tv_raw(
             query, first_air_date_year=year, max_results=TMDB_MAX_CANDIDATES
         )
+        if self._persist_search_tv_library is not None and raw_list:
+            lang = self._client.language
+            self._persist_search_tv_library(
+                [tv_show_to_search_tv_library_record(obj, lang) for obj in raw_list],
+            )
         return [tv_show_to_candidate(obj) for obj in raw_list]

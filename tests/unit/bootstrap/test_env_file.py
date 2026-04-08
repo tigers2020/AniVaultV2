@@ -351,6 +351,7 @@ def test_create_subtitle_organizer_page_delegates_to_shared_builder(
         progress_dialog=progress_dialog,
         scan_extensions=container.SUBTITLE_SCAN_EXTENSIONS,
         include_companion_subtitles=False,
+        exclude_subtitles_with_paired_video=True,
     )
 
 

@@ -99,6 +99,8 @@ Thumbs.db
 desktop.ini
 
 # Project specific
+docs/
+scripts/
 documents/
 persona/
 protocols/

@@ -12,6 +12,7 @@ from anivault.application.dto.match_result import (
     MatchResult,
 )
 from anivault.application.dto.progress import ProgressEvent
+from anivault.application.dto.search_tv_library import SearchTvLibraryRecord
 from anivault.application.dto.tmdb import TmdbSearchInput, TmdbSeriesCandidateDTO
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "MatchInput",
     "MatchResult",
     "ProgressEvent",
+    "SearchTvLibraryRecord",
     "TmdbSearchInput",
     "TmdbSeriesCandidateDTO",
 ]

@@ -48,6 +48,11 @@ class TmdbApiClient:
             float(os.environ.get(TMDB_MIN_INTERVAL_ENV, TMDB_MIN_INTERVAL_DEFAULT)),
         )
 
+    @property
+    def language(self) -> str:
+        """API 언어 코드(`TmdbApiClient` 생성 인자와 동일)."""
+        return self._language
+
     def _api(self) -> TMDbAPIs:
         """TMDbAPIs 인스턴스를 최초 호출 시 생성한다.
 

@@ -105,6 +105,19 @@ def _migration_007_sql() -> str:
     return ref.read_text(encoding="utf-8")
 
 
+def _migration_008_sql() -> str:
+    """008_tmdb_search_tv_library.sql 본문을 패키지 리소스에서 읽는다.
+
+    Args:
+        없음.
+
+    Returns:
+        SQL 스크립트 문자열.
+    """
+    ref = resources.files(_MIGRATIONS_PACKAGE).joinpath("008_tmdb_search_tv_library.sql")
+    return ref.read_text(encoding="utf-8")
+
+
 def _migrations() -> list[tuple[int, str, Callable[[], str]]]:
     """적용 순서대로 (버전, 이름, SQL 로더) 목록을 반환한다.
 
@@ -122,6 +135,7 @@ def _migrations() -> list[tuple[int, str, Callable[[], str]]]:
         (5, "005_poster_assets", _migration_005_sql),
         (6, "006_organize_plans", _migration_006_sql),
         (7, "007_resolution_cache", _migration_007_sql),
+        (8, "008_tmdb_search_tv_library", _migration_008_sql),
     ]
 
 

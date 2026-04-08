@@ -57,7 +57,6 @@ from anivault.constants.gui.components import (
     PLAN_APPLY_PLAN_PROGRESS_MESSAGE,
     PLAN_APPLY_PLAN_PROGRESS_TITLE,
 )
-from anivault.interfaces.gui.presenters.organizing.manual_tmdb_relay import ManualTmdbSearchRelay
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.poster_display import resolve_final_poster_display_source
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
@@ -71,6 +70,7 @@ from anivault.interfaces.gui.models import (
     group_pipeline_rows,
     pipeline_rows_ready_for_plan,
 )
+from anivault.interfaces.gui.presenters.organizing.manual_tmdb_relay import ManualTmdbSearchRelay
 from anivault.interfaces.gui.presenters.plan_helpers import (
     merge_plan_into_pipeline_rows,
     pipeline_row_to_match_file,
@@ -91,6 +91,7 @@ ApplyExecuteFn = Callable[
     ApplyResult,
 ]
 CachedTmdbHydrateFn = Callable[[MatchInput], MatchResult]
+CachedTmdbMissingFillFn = Callable[[MatchInput, object, Event], MatchResult]
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,8 +129,10 @@ class OrganizerPresenter(QObject):
         apply_execute: ApplyExecuteFn | None = None,
         progress_dialog: ProgressDialog | None = None,
         include_companion_subtitles: bool = True,
+        exclude_subtitles_with_paired_video: bool = False,
         sync_title_groups_execute: Callable[[int], None] | None = None,
         cached_tmdb_hydrate_execute: CachedTmdbHydrateFn | None = None,
+        cached_tmdb_missing_fill_execute: CachedTmdbMissingFillFn | None = None,
         ports: OrganizerPresenterPorts | None = None,
         parent: QObject | None = None,
     ) -> None:
@@ -146,8 +149,10 @@ class OrganizerPresenter(QObject):
             apply_execute: 계획 적용 유스케이스. None이면 실제 이동 불가.
             progress_dialog: 진행률 UI. None이면 다이얼로그 없음.
             include_companion_subtitles: 플랜에 동반 자막 이동을 포함할지 여부.
+            exclude_subtitles_with_paired_video: True면 스캔 시 같은 폴더·stem 비디오가 있는 자막을 제외한다.
             sync_title_groups_execute: 파싱·캐시 완료 후 `root_id`로 title_groups 동기화. None이면 생략.
             cached_tmdb_hydrate_execute: 캐시된 TMDB 메타 하이드레이션. None이면 생략.
+            cached_tmdb_missing_fill_execute: 캐시 표시 후 누락 TMDB/포스터 보강. None이면 생략.
             ports: title_match·title_groups·poster_sync 묶음. None이면 모두 미사용.
             parent: Qt 부모 객체.
 
@@ -157,6 +162,7 @@ class OrganizerPresenter(QObject):
         super().__init__(parent)
         self._model = pipeline_model
         self._include_companion_subtitles = include_companion_subtitles
+        self._exclude_subtitles_with_paired_video = exclude_subtitles_with_paired_video
         self._scan_execute = scan_execute
         self._parse_execute = parse_execute
         self._match_execute = match_execute
@@ -166,6 +172,7 @@ class OrganizerPresenter(QObject):
         self._progress_dialog = progress_dialog
         self._sync_title_groups_execute = sync_title_groups_execute
         self._cached_tmdb_hydrate_execute = cached_tmdb_hydrate_execute
+        self._cached_tmdb_missing_fill_execute = cached_tmdb_missing_fill_execute
         _ports = ports or OrganizerPresenterPorts()
         self._title_match = _ports.title_match
         self._title_groups = _ports.title_groups

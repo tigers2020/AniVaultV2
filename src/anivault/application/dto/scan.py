@@ -15,6 +15,7 @@ class ScanInput:
     path: str
     recursive: bool = True
     sort_paths: bool = True
+    exclude_subtitles_with_paired_video: bool = False
 
 
 @dataclass

@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import MagicMock
 
+import pytest
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication, QWidget
 
 from anivault.interfaces.gui import app as app_module
 from anivault.interfaces.gui import main as main_module
 from anivault.interfaces.gui.app import MainWindow
-from anivault.interfaces.gui.pages.settings_page import SettingsPage
 from anivault.interfaces.gui.pages import organizer_page as organizer_page_module
 from anivault.interfaces.gui.pages.organizer_page import OrganizerPage
+from anivault.interfaces.gui.pages.settings_page import SettingsPage
 from anivault.interfaces.gui.presenters import settings_presenter as settings_presenter_module
 from anivault.interfaces.gui.presenters.settings_presenter import SettingsPresenter
 from anivault.interfaces.gui.templates.main_shell import MainShell
@@ -40,7 +43,9 @@ def test_main_window_helper_methods_delegate_to_shell_and_theme(monkeypatch) -> 
         lambda width, height: density_calls.append((width, height)),
     )
     super_calls: list[object] = []
-    monkeypatch.setattr(app_module.QMainWindow, "resizeEvent", lambda self, event: super_calls.append(event))
+    monkeypatch.setattr(
+        app_module.QMainWindow, "resizeEvent", lambda self, event: super_calls.append(event)
+    )
 
     window._on_tab_clicked("organizer")  # type: ignore[attr-defined]
     window.resizeEvent("event")  # type: ignore[arg-type]
@@ -102,19 +107,19 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
             self.forms = forms
 
         def on_scan_clicked(self, *_args):
-            pass
+            pass  # test stub: signals not exercised in this case
 
         def on_theme_changed(self, *_args):
-            pass
+            pass  # test stub: signals not exercised in this case
 
         def on_save_clicked(self):
-            pass
+            pass  # test stub: signals not exercised in this case
 
         def on_reset_clicked(self):
-            pass
+            pass  # test stub: signals not exercised in this case
 
         def on_load_clicked(self):
-            pass
+            pass  # test stub: signals not exercised in this case
 
     from anivault.interfaces.gui.pages import settings_page as settings_page_module
 
@@ -131,8 +136,8 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
     assert page._presenter.forms is not None  # type: ignore[attr-defined]
 
     presenter = FakePresenter()
-    page_with_presenter = SettingsPage(presenter=presenter)
-    assert page_with_presenter._presenter is presenter  # type: ignore[attr-defined]
+    page_with_presenter = SettingsPage(presenter=cast(SettingsPresenter, presenter))
+    assert page_with_presenter._presenter is cast(SettingsPresenter, presenter)
 
 
 def test_main_window_constructor_wires_pages_and_timer(monkeypatch) -> None:
@@ -149,10 +154,10 @@ def test_main_window_constructor_wires_pages_and_timer(monkeypatch) -> None:
             self.pages.append(page)
 
         def set_topbar_page(self, *_args) -> None:
-            pass
+            pass  # test stub: MainWindow only records add_page
 
         def set_current_page(self, *_args) -> None:
-            pass
+            pass  # test stub: MainWindow only records add_page
 
     class FakeProgressDialog(QObject):
         def __init__(self, parent=None):
@@ -168,11 +173,11 @@ def test_main_window_constructor_wires_pages_and_timer(monkeypatch) -> None:
     import sys
     import types
 
-    fake_models = types.ModuleType("anivault.interfaces.gui.models")
+    fake_models: Any = types.ModuleType("anivault.interfaces.gui.models")
     fake_models.PipelineTableModel = FakePipelineTableModel
     monkeypatch.setitem(sys.modules, "anivault.interfaces.gui.models", fake_models)
 
-    fake_container = types.ModuleType("anivault.bootstrap.container")
+    fake_container: Any = types.ModuleType("anivault.bootstrap.container")
     fake_container.create_organizer_page = lambda **_kwargs: QWidget()
     fake_container.create_subtitle_organizer_page = lambda **_kwargs: QWidget()
     fake_container.create_settings_page = lambda: QWidget()
@@ -198,12 +203,15 @@ def test_clear_widget_stylesheets_and_theme_coordinator_methods(monkeypatch) -> 
     child_b.setStyleSheet.assert_called_once_with("")
 
     coordinator = main_module._ThemeReapplyCoordinator.__new__(main_module._ThemeReapplyCoordinator)
-    coordinator._app = SimpleNamespace(
+    coordinator._app = SimpleNamespace(  # type: ignore[assignment]
         topLevelWidgets=lambda: [MagicMock(), MagicMock()],
         setStyleSheet=MagicMock(),
     )
-    coordinator._window = SimpleNamespace(
-        findChildren=lambda cls: [MagicMock(styleSheet=lambda: ""), MagicMock(styleSheet=lambda: "local")],
+    coordinator._window = SimpleNamespace(  # type: ignore[assignment]
+        findChildren=lambda cls: [
+            MagicMock(styleSheet=lambda: ""),
+            MagicMock(styleSheet=lambda: "local"),
+        ],
         styleSheet=lambda: "",
     )
     coordinator._batch_size = 1
@@ -211,7 +219,7 @@ def test_clear_widget_stylesheets_and_theme_coordinator_methods(monkeypatch) -> 
     coordinator._pending_color = False
     coordinator._clear_targets = []
     coordinator._clear_index = 0
-    coordinator._timer = SimpleNamespace(isActive=lambda: False, start=MagicMock())
+    coordinator._timer = SimpleNamespace(isActive=lambda: False, start=MagicMock())  # type: ignore[assignment]
     monkeypatch.setattr(main_module, "global_stylesheet", lambda: "QSS")
 
     coordinator.request_color_change()  # type: ignore[attr-defined]
@@ -227,23 +235,23 @@ def test_clear_widget_stylesheets_and_theme_coordinator_methods(monkeypatch) -> 
 
 def test_main_run_initializes_app_and_registers_theme_callbacks(monkeypatch) -> None:
     events: list[str] = []
-    theme_callbacks: list[object] = []
-    density_callbacks: list[object] = []
+    theme_callbacks: list[Callable[[], None]] = []
+    density_callbacks: list[Callable[[], None]] = []
 
     class FakeApp:
         def __init__(self, argv):
             self.argv = argv
             self.stylesheet = None
 
-        def setStyleSheet(self, value):
+        def setStyleSheet(self, value):  # NOSONAR S100 — mirrors QApplication API
             self.stylesheet = value
             events.append(f"style:{value}")
 
-        def exec(self):
+        def exec(self):  # NOSONAR S100 — mirrors QApplication API
             events.append("exec")
             return 0
 
-        def topLevelWidgets(self):
+        def topLevelWidgets(self):  # NOSONAR S100 — mirrors QApplication API
             return []
 
     class FakeWindow:
@@ -254,10 +262,10 @@ def test_main_run_initializes_app_and_registers_theme_callbacks(monkeypatch) -> 
             self.shown = True
             events.append("show")
 
-        def findChildren(self, _cls):
+        def findChildren(self, _cls):  # NOSONAR S100 — mirrors QWidget API
             return []
 
-        def styleSheet(self):
+        def styleSheet(self):  # NOSONAR S100 — mirrors QWidget API
             return ""
 
     class FakeCoordinator:
@@ -279,17 +287,26 @@ def test_main_run_initializes_app_and_registers_theme_callbacks(monkeypatch) -> 
     monkeypatch.setattr(main_module, "_ThemeReapplyCoordinator", FakeCoordinator)
     monkeypatch.setattr(main_module, "global_stylesheet", lambda: "QSS")
     monkeypatch.setattr(
-        main_module, "_clear_widget_stylesheets", lambda widget: events.append(f"clear:{type(widget).__name__}")
+        main_module,
+        "_clear_widget_stylesheets",
+        lambda widget: events.append(f"clear:{type(widget).__name__}"),
     )
-    monkeypatch.setattr(main_module, "on_theme_changed", lambda callback: theme_callbacks.append(callback))
-    monkeypatch.setattr(main_module, "on_density_changed", lambda callback: density_callbacks.append(callback))
+    monkeypatch.setattr(
+        main_module, "on_theme_changed", lambda callback: theme_callbacks.append(callback)
+    )
+    monkeypatch.setattr(
+        main_module, "on_density_changed", lambda callback: density_callbacks.append(callback)
+    )
     monkeypatch.setattr(main_module.sys, "argv", ["anivault"])
-    monkeypatch.setattr(main_module.sys, "exit", lambda code: (_ for _ in ()).throw(SystemExit(code)))
 
-    try:
+    def _fake_sys_exit(code: int = 0) -> None:
+        raise SystemExit(code)
+
+    monkeypatch.setattr(main_module.sys, "exit", _fake_sys_exit)
+
+    with pytest.raises(SystemExit) as exc_info:
         main_module.run()
-    except SystemExit as exc:
-        assert exc.code == 0
+    assert exc_info.value.code == 0
 
     assert events[:4] == ["env", "theme", "coordinator", "style:QSS"]
     assert events[-2:] == ["show", "exec"]
@@ -330,9 +347,15 @@ def test_settings_presenter_load_reset_save_and_theme(monkeypatch) -> None:
     keys: list[str] = []
     themes: list[str] = []
     monkeypatch.setattr(settings_presenter_module, "save_all", lambda data: saved.append(data))
-    monkeypatch.setattr(settings_presenter_module, "write_tmdb_api_key", lambda value: keys.append(value))
-    monkeypatch.setattr(settings_presenter_module, "set_current_theme", lambda name: themes.append(name))
-    monkeypatch.setattr(settings_presenter_module, "save_theme", lambda name: themes.append(f"saved:{name}"))
+    monkeypatch.setattr(
+        settings_presenter_module, "write_tmdb_api_key", lambda value: keys.append(value)
+    )
+    monkeypatch.setattr(
+        settings_presenter_module, "set_current_theme", lambda name: themes.append(name)
+    )
+    monkeypatch.setattr(
+        settings_presenter_module, "save_theme", lambda name: themes.append(f"saved:{name}")
+    )
     presenter._path_rules_form.get_values.return_value = {"target_root": "F:/Library"}  # type: ignore[attr-defined]
     presenter._parse_tmdb_form.get_values.return_value = {"ignore_tokens": "x264", "tmdb_api_key": "secret"}  # type: ignore[attr-defined]
     presenter._scan_build_card.get_values.return_value = {"source_path": "F:/Anime"}  # type: ignore[attr-defined]
@@ -355,16 +378,19 @@ def test_settings_presenter_load_reset_save_and_theme(monkeypatch) -> None:
 
 def test_organizer_page_helpers_update_stats_and_autoscan(monkeypatch) -> None:
     page = OrganizerPage.__new__(OrganizerPage)
-    page._model = SimpleNamespace(
-        flat_rows=lambda: [
-            SimpleNamespace(parsed_title="Show", tmdb_korean_title_group="Show"),
-            SimpleNamespace(parsed_title="", tmdb_korean_title_group=""),
-        ],
-        rowCount=lambda: 3,
-    )  # type: ignore[attr-defined]
+    page._model = cast(
+        Any,
+        SimpleNamespace(
+            flat_rows=lambda: [
+                SimpleNamespace(parsed_title="Show", tmdb_korean_title_group="Show"),
+                SimpleNamespace(parsed_title="", tmdb_korean_title_group=""),
+            ],
+            rowCount=lambda: 3,
+        ),
+    )
     page._stats_grid = MagicMock()  # type: ignore[attr-defined]
     page._scan_bar = MagicMock()  # type: ignore[attr-defined]
-    page._presenter = SimpleNamespace(on_scan_clicked=MagicMock())  # type: ignore[attr-defined]
+    page._presenter = cast(Any, SimpleNamespace(on_scan_clicked=MagicMock()))
     page._auto_scan_done = False  # type: ignore[attr-defined]
     save_calls: list[dict[str, object]] = []
     monkeypatch.setattr(organizer_page_module, "save_all", lambda data: save_calls.append(data))
@@ -374,8 +400,10 @@ def test_organizer_page_helpers_update_stats_and_autoscan(monkeypatch) -> None:
         lambda: {"scan_build": {"source_path": "F:/Anime", "auto_scan_on_first_show": "yes"}},
     )
     super_calls: list[object] = []
-    monkeypatch.setattr(organizer_page_module.QWidget, "showEvent", lambda self, event: super_calls.append(event))
-    single_shots: list[tuple[int, object]] = []
+    monkeypatch.setattr(
+        organizer_page_module.QWidget, "showEvent", lambda self, event: super_calls.append(event)
+    )
+    single_shots: list[tuple[int, Callable[[], None]]] = []
     monkeypatch.setattr(
         organizer_page_module.QTimer,
         "singleShot",
@@ -399,6 +427,9 @@ def test_organizer_page_constructor_wires_components(monkeypatch) -> None:
 
     class FakeModel(QObject):
         modelReset = Signal()
+        rowsInserted = Signal()
+        rowsRemoved = Signal()
+        dataChanged = Signal()
 
         def __init__(self):
             super().__init__()
@@ -417,16 +448,16 @@ def test_organizer_page_constructor_wires_components(monkeypatch) -> None:
             self.panel = None
 
         def on_scan_clicked(self, *_args):
-            pass
+            pass  # test stub: constructor wiring only
 
         def on_match_clicked(self):
-            pass
+            pass  # test stub: constructor wiring only
 
         def on_dry_run_clicked(self):
-            pass
+            pass  # test stub: constructor wiring only
 
         def on_manual_tmdb_match_clicked(self):
-            pass
+            pass  # test stub: constructor wiring only
 
         def set_dry_run_enabled_handler(self, handler):
             self.dry_run_handler = handler

@@ -23,6 +23,9 @@ from anivault.adapters.persistence.sqlite.sqlite_title_group_repository import (
 from anivault.adapters.persistence.sqlite.sqlite_title_match_repository import (
     SqliteTitleMatchRepository,
 )
+from anivault.adapters.persistence.sqlite.sqlite_tmdb_search_tv_library_repository import (
+    SqliteTmdbSearchTvLibraryRepository,
+)
 
 __all__ = [
     "SqliteCacheRepository",
@@ -31,6 +34,7 @@ __all__ = [
     "SqliteParseCacheRepository",
     "SqliteTitleGroupRepository",
     "SqliteTitleMatchRepository",
+    "SqliteTmdbSearchTvLibraryRepository",
     "create_connection",
     "default_anivault_db_path",
 ]

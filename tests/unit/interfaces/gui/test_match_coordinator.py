@@ -1,23 +1,27 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 from anivault.application.dto.match_result import MatchFileRow, MatchResult
+from anivault.application.dto.progress import ProgressEvent
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow, PipelineRow
 from anivault.interfaces.gui.presenters.organizing import match_coordinator as module
+from anivault.interfaces.gui.templates.pipeline_result_panel import PipelineResultPanel
 
 
 class _Signal:
     def __init__(self) -> None:
-        self.callbacks: list[object] = []
+        self.callbacks: list[Callable[..., Any]] = []
 
-    def connect(self, callback, *args, **kwargs) -> None:
+    def connect(self, callback: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
         self.callbacks.append(callback)
 
-    def emit(self, *args, **kwargs) -> None:
-        for callback in list(self.callbacks):
+    def emit(self, *args: Any, **kwargs: Any) -> None:
+        for callback in tuple(self.callbacks):
             callback(*args, **kwargs)
 
 
@@ -119,7 +123,10 @@ def test_on_progress_updates_dialog_when_token_is_valid() -> None:
     presenter = SimpleNamespace(_progress_dialog=dialog)
     coord = _coordinator(presenter)
 
-    coord._on_progress(SimpleNamespace(message="msg", current=1, total=2), 3)
+    coord._on_progress(
+        ProgressEvent(stage="match", current=1, total=2, message="msg", percent=50),
+        3,
+    )
 
     dialog.update_progress.assert_called_once()
 
@@ -194,9 +201,10 @@ def test_match_file_to_pipeline_row_prefers_local_poster_path(monkeypatch) -> No
 
 
 def test_match_file_to_pipeline_row_falls_back_when_poster_lookup_errors(monkeypatch) -> None:
-    title_match = SimpleNamespace(
-        get_poster_local_path=lambda *args: (_ for _ in ()).throw(ValueError("bad"))
-    )
+    def _raise(*_args: object) -> None:
+        raise ValueError("bad")
+
+    title_match = SimpleNamespace(get_poster_local_path=_raise)
     presenter = SimpleNamespace(_title_match=title_match)
     coord = _coordinator(presenter)
     monkeypatch.setattr(module, "resolve_final_poster_display_source", lambda local, remote: local or remote)
@@ -248,13 +256,14 @@ def test_selected_pipeline_group_index_or_warn_paths(monkeypatch) -> None:
     coord = _coordinator(presenter)
     rows = [PipelineGroupRow((_row("a.mkv"),))]
 
-    assert coord._selected_pipeline_group_index_or_warn(_Panel(0), rows) == 0
-    assert coord._selected_pipeline_group_index_or_warn(_Panel(-1), rows) is None
+    assert coord._selected_pipeline_group_index_or_warn(cast(PipelineResultPanel, _Panel(0)), rows) == 0
+    assert coord._selected_pipeline_group_index_or_warn(cast(PipelineResultPanel, _Panel(-1)), rows) is None
     assert infos and infos[0][1] == "선택 없음"
 
 
 def test_apply_manual_tmdb_candidate_to_model_updates_rows_and_panel(monkeypatch) -> None:
-    panel = _Panel()
+    stub_panel = _Panel()
+    panel = cast(PipelineResultPanel, stub_panel)
     original_group = PipelineGroupRow((_row("a.mkv"),))
     files = [_file_row("a.mkv")]
     merged_groups = [PipelineGroupRow((_row("a.mkv", title="Frieren"),))]
@@ -282,7 +291,7 @@ def test_apply_manual_tmdb_candidate_to_model_updates_rows_and_panel(monkeypatch
 
     coord._apply_manual_tmdb_candidate_to_model(original_group, _candidate(9), panel)
 
-    assert panel.pending_index == 0
+    assert stub_panel.pending_index == 0
     poster_sync.sync_from_files.assert_called_once()
     model.set_rows.assert_called_once_with(merged_groups)
     presenter._notify_dry_run.assert_called_once_with(True)
@@ -302,9 +311,10 @@ def test_on_manual_tmdb_match_clicked_control_flow(monkeypatch) -> None:
         _parent_widget=lambda: None,
     )
     coord = _coordinator(presenter)
-    monkeypatch.setattr(coord, "_warn_missing_tmdb_api_key", MagicMock())
+    warn_mock = MagicMock()
+    monkeypatch.setattr(coord, "_warn_missing_tmdb_api_key", warn_mock)
     coord.on_manual_tmdb_match_clicked()
-    coord._warn_missing_tmdb_api_key.assert_called_once()
+    warn_mock.assert_called_once()
 
     presenter._tmdb_search_execute = object()
     presenter._pipeline_panel = None

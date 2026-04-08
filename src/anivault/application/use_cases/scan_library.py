@@ -32,6 +32,7 @@ from anivault.constants.application.statuses import (
 )
 from anivault.domain.media.extensions import VIDEO_SCAN_EXTENSIONS, classify_media_kind
 from anivault.domain.rules.resolution_from_filename import resolution_from_filename
+from anivault.domain.services.subtitle_scan_filter import filter_subtitle_paths_without_paired_video
 
 logger = logging.getLogger(__name__)
 
@@ -423,6 +424,8 @@ def _execute_scan(
                 item_path=str(paths[-1]) if paths else None,
             ),
         )
+    if input_dto.exclude_subtitles_with_paired_video:
+        paths = filter_subtitle_paths_without_paired_video(paths)
     str_paths = [str(p) for p in paths]
     index_root_id, resolved = _persist_index_and_resolve(
         library_index,

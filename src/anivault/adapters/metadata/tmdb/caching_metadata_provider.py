@@ -1,6 +1,8 @@
 """caching_metadata_provider.py
 
 TitleMatchRepository 검색 캐시를 앞에 두는 MetadataProvider 래퍼.
+캐시 miss 후 내부 공급자(예: `TmdbMetadataProvider`)가 TMDB를 호출하면
+bootstrap에서 주입된 경우 `tmdb_search_tv_library`에 검색 결과 행이 영구 저장된다.
 
 Author: Pom Kim
 """

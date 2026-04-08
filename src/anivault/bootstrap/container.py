@@ -24,6 +24,7 @@ from anivault.adapters.persistence.sqlite import (
     SqliteParseCacheRepository,
     SqliteTitleGroupRepository,
     SqliteTitleMatchRepository,
+    SqliteTmdbSearchTvLibraryRepository,
     create_connection,
 )
 from anivault.adapters.persistence.sqlite.db_path import default_poster_cache_dir
@@ -34,11 +35,17 @@ from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.ports.operation_log_port import OperationLogRepository
 from anivault.application.use_cases.apply_plan import make_apply_execute
+from anivault.application.use_cases.fill_missing_cached_tmdb_matches import (
+    make_execute as make_cached_tmdb_missing_fill_execute,
+)
 from anivault.application.use_cases.hydrate_cached_tmdb_matches import (
     make_execute as make_cached_tmdb_hydrate_execute,
 )
 from anivault.application.use_cases.match_series import make_execute as make_match_execute
 from anivault.application.use_cases.parse_titles import make_execute as make_parse_execute
+from anivault.application.use_cases.persist_search_tv_library import (
+    make_execute as make_persist_search_tv_library_execute,
+)
 from anivault.application.use_cases.plan_moves import make_execute as make_plan_execute
 from anivault.application.use_cases.scan_library import make_execute as make_scan_execute
 from anivault.application.use_cases.sync_title_groups import (
@@ -72,6 +79,7 @@ class _SqliteRepositories:
     parse_cache: SqliteParseCacheRepository
     title_groups: SqliteTitleGroupRepository
     title_match: SqliteTitleMatchRepository
+    search_tv_library: SqliteTmdbSearchTvLibraryRepository
 
 
 def make_tmdb_search_execute(provider: MetadataProvider) -> TmdbSearchExecute:
@@ -120,6 +128,7 @@ def create_subtitle_organizer_page(
         progress_dialog=progress_dialog,
         scan_extensions=SUBTITLE_SCAN_EXTENSIONS,
         include_companion_subtitles=False,
+        exclude_subtitles_with_paired_video=True,
     )
 
 
@@ -134,6 +143,7 @@ def _create_organizer_page(
     progress_dialog: ProgressDialog | None,
     scan_extensions: tuple[str, ...] | None,
     include_companion_subtitles: bool,
+    exclude_subtitles_with_paired_video: bool = False,
 ) -> OrganizerPage:
     model = pipeline_model if pipeline_model is not None else PipelineTableModel()
     file_repo = FsFileRepository()
@@ -153,6 +163,7 @@ def _create_organizer_page(
         title_match=repos.title_match,
         title_groups=repos.title_groups,
     )
+    cached_tmdb_missing_fill_execute = None
     match_execute = None
     tmdb_search_execute = None
     poster_sync: TmdbPosterAssetSync | None = None
@@ -162,6 +173,12 @@ def _create_organizer_page(
         poster_sync = TmdbPosterAssetSync(repos.title_match, default_poster_cache_dir())
         match_execute = make_match_execute(
             metadata,
+            title_match=repos.title_match,
+            title_groups=repos.title_groups,
+            poster_sync=poster_sync.sync_from_match_result,
+        )
+        cached_tmdb_missing_fill_execute = make_cached_tmdb_missing_fill_execute(
+            provider=metadata,
             title_match=repos.title_match,
             title_groups=repos.title_groups,
             poster_sync=poster_sync.sync_from_match_result,
@@ -178,8 +195,10 @@ def _create_organizer_page(
         apply_execute=make_apply_execute(file_repo, _make_operation_log_repository),
         progress_dialog=progress_dialog,
         include_companion_subtitles=include_companion_subtitles,
+        exclude_subtitles_with_paired_video=exclude_subtitles_with_paired_video,
         sync_title_groups_execute=make_sync_title_groups_execute(repos.title_groups),
         cached_tmdb_hydrate_execute=cached_tmdb_hydrate_execute,
+        cached_tmdb_missing_fill_execute=cached_tmdb_missing_fill_execute,
         ports=OrganizerPresenterPorts(
             title_match=repos.title_match,
             title_groups=repos.title_groups,
@@ -197,6 +216,7 @@ def _create_sqlite_repositories() -> _SqliteRepositories:
         parse_cache=SqliteParseCacheRepository(conn, lock),
         title_groups=SqliteTitleGroupRepository(conn, lock),
         title_match=SqliteTitleMatchRepository(conn, lock),
+        search_tv_library=SqliteTmdbSearchTvLibraryRepository(conn, lock),
     )
 
 
@@ -218,7 +238,11 @@ def _create_metadata_provider(
     repos: _SqliteRepositories,
 ) -> CachingMetadataProvider:
     tmdb_client = TmdbApiClient(api_key, language="ko-KR")
-    inner = TmdbMetadataProvider(tmdb_client)
+    persist_tv_library = make_persist_search_tv_library_execute(repos.search_tv_library)
+    inner = TmdbMetadataProvider(
+        tmdb_client,
+        persist_search_tv_library=persist_tv_library,
+    )
     return CachingMetadataProvider(
         inner,
         repos.title_match,
