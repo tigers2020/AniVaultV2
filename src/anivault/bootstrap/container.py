@@ -48,7 +48,11 @@ from anivault.domain.media.extensions import SUBTITLE_SCAN_EXTENSIONS
 from anivault.domain.rules.tmdb_search_query import iter_strip_last_word_chain
 from anivault.interfaces.gui.models import PipelineTableModel
 from anivault.interfaces.gui.pages import OrganizerPage, SettingsPage
-from anivault.interfaces.gui.presenters import OrganizerPresenter, SettingsPresenter
+from anivault.interfaces.gui.presenters import (
+    OrganizerPresenter,
+    OrganizerPresenterPorts,
+    SettingsPresenter,
+)
 from anivault.interfaces.gui.settings_storage import load_all
 
 if TYPE_CHECKING:
@@ -174,9 +178,11 @@ def _create_organizer_page(
         include_companion_subtitles=include_companion_subtitles,
         sync_title_groups_execute=make_sync_title_groups_execute(repos.title_groups),
         cached_tmdb_hydrate_execute=cached_tmdb_hydrate_execute,
-        title_match=repos.title_match,
-        title_groups=repos.title_groups,
-        poster_sync=poster_sync,
+        ports=OrganizerPresenterPorts(
+            title_match=repos.title_match,
+            title_groups=repos.title_groups,
+            poster_sync=poster_sync,
+        ),
     )
     return OrganizerPage(model=model, presenter=presenter)
 
