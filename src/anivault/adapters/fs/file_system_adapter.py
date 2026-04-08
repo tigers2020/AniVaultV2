@@ -14,11 +14,11 @@ from anivault.application.ports.file_repository import FileRepository
 _PROGRESS_INTERVAL = 50  # report every N files during scan
 
 
-def _extension_allowed(path: Path, ext_set: set[str]) -> bool:
-    """확장자 집합이 비었거나 path의 확장자가 허용되면 True.
+def _extension_allowed_name(name: str, ext_set: set[str]) -> bool:
+    """확장자 집합이 비었거나 파일명의 확장자가 허용되면 True.
 
     Args:
-        path: 검사할 파일 경로.
+        name: 검사할 파일명.
         ext_set: 허용 확장자(소문자, 점 없음). 비어 있으면 전부 허용.
 
     Returns:
@@ -26,7 +26,8 @@ def _extension_allowed(path: Path, ext_set: set[str]) -> bool:
     """
     if not ext_set:
         return True
-    return path.suffix.lstrip(".").lower() in ext_set
+    suffix = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    return suffix in ext_set
 
 
 def _report_progress_if_due(
@@ -72,18 +73,30 @@ def _walk_collect_files(
         None.
     """
     try:
-        for p in base.iterdir():
-            if p.is_dir() and recursive:
-                _walk_collect_files(
-                    p,
-                    recursive=recursive,
-                    ext_set=ext_set,
-                    result=result,
-                    progress_callback=progress_callback,
-                )
-            elif p.is_file() and _extension_allowed(p, ext_set):
-                result.append(p)
-                _report_progress_if_due(progress_callback, len(result), str(p))
+        with os.scandir(base) as entries:
+            for entry in entries:
+                try:
+                    is_dir = entry.is_dir()
+                except OSError:
+                    continue
+                if is_dir and recursive:
+                    _walk_collect_files(
+                        Path(entry.path),
+                        recursive=recursive,
+                        ext_set=ext_set,
+                        result=result,
+                        progress_callback=progress_callback,
+                    )
+                    continue
+                try:
+                    is_file = entry.is_file()
+                except OSError:
+                    continue
+                if not is_file or not _extension_allowed_name(entry.name, ext_set):
+                    continue
+                path = Path(entry.path)
+                result.append(path)
+                _report_progress_if_due(progress_callback, len(result), str(path))
     except OSError:
         pass
 

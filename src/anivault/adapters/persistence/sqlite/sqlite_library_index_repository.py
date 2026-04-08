@@ -7,21 +7,74 @@ Author: Pom Kim
 
 from __future__ import annotations
 
+import os
 import sqlite3
+import sys
+from dataclasses import dataclass
+from os import PathLike
 from pathlib import Path
 from threading import Lock
 
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
-from anivault.application.dto.library_index import IndexedMediaForParse, MediaFileRecord
+from anivault.application.dto.library_index import (
+    BulkMediaUpsertItem,
+    BulkMediaUpsertResult,
+    IndexedMediaForParse,
+    MediaFileRecord,
+)
 from anivault.application.ports.library_index_port import ScanSessionStatus
 from anivault.domain.path_norm import (
     dir_norm_for_relative,
     normalize_path_key,
-    relative_posix_under_root,
 )
 from anivault.domain.services.sidecar_group_key import compute_sidecar_group_key
 
 _MARK_MISSING_INLINE_LIMIT = 500
+_EXISTING_LOOKUP_CHUNK = 500
+
+
+@dataclass(frozen=True)
+class _MediaFileUpsertRow:
+    relative_path: str
+    path_norm: str
+    dir_norm: str
+    file_name: str
+    file_stem: str
+    extension: str
+    media_kind: str
+    size_bytes: int
+    mtime_ns: int
+    ctime_ns: int | None
+    inode_hint: str | None
+    sidecar_group_key: str | None
+
+
+def _path_key_from_known_path(path: Path) -> str:
+    """Normalize a path that is already anchored to the resolved library root."""
+    s = path.as_posix()
+    if len(s) > 1 and s.endswith("/"):
+        s = s.rstrip("/")
+        if s.endswith(":"):
+            s = s + "/"
+    if os.name == "nt" or sys.platform.startswith("win"):
+        return os.path.normcase(s)
+    return s
+
+
+def _relative_posix_under_resolved_root(
+    root_resolved: Path,
+    absolute_path: str | PathLike[str],
+) -> tuple[str, str]:
+    """Return relative POSIX path and normalized key without resolving each file."""
+    path = Path(absolute_path).expanduser()
+    try:
+        rel_text = Path(os.path.relpath(str(path), str(root_resolved))).as_posix()
+    except (OSError, ValueError):
+        rel_text = path.resolve().relative_to(root_resolved).as_posix()
+    if rel_text == "." or rel_text.startswith("../") or rel_text == "..":
+        rel = path.resolve().relative_to(root_resolved)
+        rel_text = rel.as_posix()
+    return rel_text, _path_key_from_known_path(root_resolved / Path(rel_text))
 
 
 class SqliteLibraryIndexRepository:
@@ -189,121 +242,198 @@ class SqliteLibraryIndexRepository:
         Returns:
             `(is_new, is_updated)`.
         """
-        path = Path(absolute_path)
-        file_name = path.name
-        file_stem = path.stem
-        extension = path.suffix.lower() if path.suffix else ""
+        result = self.upsert_media_files(
+            root_id,
+            session_id,
+            [BulkMediaUpsertItem(absolute_path=absolute_path, media_kind=media_kind)],
+        )
+        return (result.files_added == 1, result.files_updated == 1)
+
+    def _fetch_root_path(self, root_id: int) -> str:
+        cur = self._conn.execute(
+            "SELECT root_path FROM library_roots WHERE id = ?",
+            (root_id,),
+        )
+        rr = cur.fetchone()
+        if rr is None:
+            raise ValueError(f"unknown root_id: {root_id}")
+        return str(rr[0])
+
+    def _media_file_upsert_row(
+        self,
+        item: BulkMediaUpsertItem,
+        *,
+        root_resolved: Path,
+    ) -> _MediaFileUpsertRow:
+        path = Path(item.absolute_path)
         st = path.stat()
-        size_bytes = int(st.st_size)
-        mtime_ns = int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1_000_000_000)))
-        ctime_ns: int | None = int(st.st_ctime_ns) if hasattr(st, "st_ctime_ns") else None
-        inode_hint = str(st.st_ino) if hasattr(st, "st_ino") else None
-        now = utc_now_sqlite_text()
-        with self._lock:
-            cur = self._conn.execute(
-                "SELECT root_path FROM library_roots WHERE id = ?",
-                (root_id,),
-            )
-            rr = cur.fetchone()
-            if rr is None:
-                self._conn.commit()
-                raise ValueError(f"unknown root_id: {root_id}")
-            root_display = str(rr[0])
-            rel = relative_posix_under_root(root_display, absolute_path)
-            pnorm = normalize_path_key(absolute_path)
-            dnorm = dir_norm_for_relative(rel)
-            sidecar_key = compute_sidecar_group_key(
-                media_kind=media_kind,
+        rel, pnorm = _relative_posix_under_resolved_root(root_resolved, item.absolute_path)
+        dnorm = dir_norm_for_relative(rel)
+        file_stem = path.stem
+        return _MediaFileUpsertRow(
+            relative_path=rel,
+            path_norm=pnorm,
+            dir_norm=dnorm,
+            file_name=path.name,
+            file_stem=file_stem,
+            extension=path.suffix.lower() if path.suffix else "",
+            media_kind=item.media_kind,
+            size_bytes=int(st.st_size),
+            mtime_ns=int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1_000_000_000))),
+            ctime_ns=int(st.st_ctime_ns) if hasattr(st, "st_ctime_ns") else None,
+            inode_hint=str(st.st_ino) if hasattr(st, "st_ino") else None,
+            sidecar_group_key=compute_sidecar_group_key(
+                media_kind=item.media_kind,
                 dir_norm=dnorm,
                 file_stem=file_stem,
-            )
+            ),
+        )
+
+    def _fetch_existing_media_path_norms(
+        self,
+        root_id: int,
+        path_norms: list[str],
+    ) -> set[str]:
+        existing: set[str] = set()
+        for start in range(0, len(path_norms), _EXISTING_LOOKUP_CHUNK):
+            chunk = path_norms[start : start + _EXISTING_LOOKUP_CHUNK]
+            if not chunk:
+                continue
+            placeholders = ",".join("?" * len(chunk))
             cur = self._conn.execute(
-                "SELECT id FROM media_files WHERE root_id = ? AND path_norm = ?",
-                (root_id, pnorm),
-            )
-            existed = cur.fetchone() is not None
-            if existed:
-                self._conn.execute(
-                    """
-                    UPDATE media_files SET
-                        relative_path = ?,
-                        dir_norm = ?,
-                        file_name = ?,
-                        file_stem = ?,
-                        extension = ?,
-                        media_kind = ?,
-                        size_bytes = ?,
-                        mtime_ns = ?,
-                        ctime_ns = ?,
-                        inode_hint = ?,
-                        sidecar_group_key = ?,
-                        is_deleted = 0,
-                        first_seen_scan_id = COALESCE(first_seen_scan_id, ?),
-                        last_seen_scan_id = ?,
-                        updated_at = ?
-                    WHERE root_id = ? AND path_norm = ?
-                    """,
-                    (
-                        rel,
-                        dnorm,
-                        file_name,
-                        file_stem,
-                        extension,
-                        media_kind,
-                        size_bytes,
-                        mtime_ns,
-                        ctime_ns,
-                        inode_hint,
-                        sidecar_key,
-                        session_id,
-                        session_id,
-                        now,
-                        root_id,
-                        pnorm,
-                    ),
-                )
-                self._conn.commit()
-                return (False, True)
-            self._conn.execute(
-                """
-                INSERT INTO media_files (
-                    root_id, relative_path, path_norm, dir_norm,
-                    file_name, file_stem, extension, media_kind,
-                    size_bytes, mtime_ns, ctime_ns, inode_hint,
-                    content_fingerprint, sidecar_group_key,
-                    is_deleted, first_seen_scan_id, last_seen_scan_id,
-                    created_at, updated_at
-                ) VALUES (
-                    ?, ?, ?, ?,
-                    ?, ?, ?, ?,
-                    ?, ?, ?, ?,
-                    NULL, ?,
-                    0, ?, ?,
-                    ?, ?
-                )
+                f"""
+                SELECT path_norm FROM media_files
+                WHERE root_id = ? AND path_norm IN ({placeholders})
                 """,
+                (root_id, *chunk),
+            )
+            existing.update(str(row[0]) for row in cur.fetchall())
+        return existing
+
+    def upsert_media_files(
+        self,
+        root_id: int,
+        session_id: int,
+        files: list[BulkMediaUpsertItem],
+    ) -> BulkMediaUpsertResult:
+        """Bulk media_files upsert for scan indexing."""
+        if not files:
+            return BulkMediaUpsertResult(
+                files_added=0,
+                files_updated=0,
+                seen_path_norms=set(),
+            )
+        with self._lock:
+            root_display = self._fetch_root_path(root_id)
+            root_resolved = Path(root_display).expanduser().resolve()
+            rows_by_norm: dict[str, _MediaFileUpsertRow] = {}
+            for item in files:
+                row = self._media_file_upsert_row(item, root_resolved=root_resolved)
+                rows_by_norm[row.path_norm] = row
+            rows = list(rows_by_norm.values())
+            seen_path_norms = set(rows_by_norm)
+            existing = self._fetch_existing_media_path_norms(root_id, list(rows_by_norm))
+            now = utc_now_sqlite_text()
+            update_params = [
+                (
+                    row.relative_path,
+                    row.dir_norm,
+                    row.file_name,
+                    row.file_stem,
+                    row.extension,
+                    row.media_kind,
+                    row.size_bytes,
+                    row.mtime_ns,
+                    row.ctime_ns,
+                    row.inode_hint,
+                    row.sidecar_group_key,
+                    session_id,
+                    session_id,
+                    now,
+                    root_id,
+                    row.path_norm,
+                )
+                for row in rows
+                if row.path_norm in existing
+            ]
+            insert_params = [
                 (
                     root_id,
-                    rel,
-                    pnorm,
-                    dnorm,
-                    file_name,
-                    file_stem,
-                    extension,
-                    media_kind,
-                    size_bytes,
-                    mtime_ns,
-                    ctime_ns,
-                    inode_hint,
-                    sidecar_key,
+                    row.relative_path,
+                    row.path_norm,
+                    row.dir_norm,
+                    row.file_name,
+                    row.file_stem,
+                    row.extension,
+                    row.media_kind,
+                    row.size_bytes,
+                    row.mtime_ns,
+                    row.ctime_ns,
+                    row.inode_hint,
+                    row.sidecar_group_key,
                     session_id,
                     session_id,
                     now,
                     now,
-                ),
-            )
-            self._conn.commit()
-            return (True, False)
+                )
+                for row in rows
+                if row.path_norm not in existing
+            ]
+            self._conn.execute("BEGIN")
+            try:
+                if update_params:
+                    self._conn.executemany(
+                        """
+                        UPDATE media_files SET
+                            relative_path = ?,
+                            dir_norm = ?,
+                            file_name = ?,
+                            file_stem = ?,
+                            extension = ?,
+                            media_kind = ?,
+                            size_bytes = ?,
+                            mtime_ns = ?,
+                            ctime_ns = ?,
+                            inode_hint = ?,
+                            sidecar_group_key = ?,
+                            is_deleted = 0,
+                            first_seen_scan_id = COALESCE(first_seen_scan_id, ?),
+                            last_seen_scan_id = ?,
+                            updated_at = ?
+                        WHERE root_id = ? AND path_norm = ?
+                        """,
+                        update_params,
+                    )
+                if insert_params:
+                    self._conn.executemany(
+                        """
+                        INSERT INTO media_files (
+                            root_id, relative_path, path_norm, dir_norm,
+                            file_name, file_stem, extension, media_kind,
+                            size_bytes, mtime_ns, ctime_ns, inode_hint,
+                            content_fingerprint, sidecar_group_key,
+                            is_deleted, first_seen_scan_id, last_seen_scan_id,
+                            created_at, updated_at
+                        ) VALUES (
+                            ?, ?, ?, ?,
+                            ?, ?, ?, ?,
+                            ?, ?, ?, ?,
+                            NULL, ?,
+                            0, ?, ?,
+                            ?, ?
+                        )
+                        """,
+                        insert_params,
+                    )
+                self._conn.commit()
+            except Exception:
+                self._conn.rollback()
+                raise
+        return BulkMediaUpsertResult(
+            files_added=len(insert_params),
+            files_updated=len(update_params),
+            seen_path_norms=seen_path_norms,
+        )
 
     def mark_missing_deleted(self, root_id: int, session_id: int, seen_path_norms: set[str]) -> int:
         """스캔에 없는 기존 행을 soft-delete한다.
