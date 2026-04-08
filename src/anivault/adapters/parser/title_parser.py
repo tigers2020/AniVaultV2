@@ -226,21 +226,18 @@ class AnitopyTitleParser(FilenameParser):
             data = anitopy.parse(stem)
         except Exception:
             return self._fallback.parse(filename)
-        title_raw = _anitopy_field_str(data.get("anime_title"))
+        title_raw = _anitopy_field_str(data.get("anime_title")) if data else ""
         if not title_raw:
             return self._fallback.parse(filename)
         title = title_raw
-        year = _anitopy_field_str(data.get("anime_year")) or _extract_year(stem)
+        year = _anitopy_field_str(data.get("anime_year")) if data else ""
+        year = year or _extract_year(stem)
         stem_season, stem_episode = _extract_season_episode(stem)
-        anitopy_episode = _episode_from_anitopy(data.get("episode_number"))
+        anitopy_episode = _episode_from_anitopy(data.get("episode_number")) if data else ""
         season = stem_season
         episode = stem_episode or anitopy_episode
-        res_raw = _anitopy_field_str(data.get("video_resolution"))
-        resolution = (
-            normalize_resolution_from_raw(res_raw)
-            if res_raw
-            else resolution_from_filename(filename)
-        )
+        res_raw = _anitopy_field_str(data.get("video_resolution")) if data else ""
+        resolution = normalize_resolution_from_raw(res_raw) if res_raw else resolution_from_filename(filename)
         return ParsedInfo(
             title=title,
             parse_group=title,
