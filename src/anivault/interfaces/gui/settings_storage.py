@@ -198,10 +198,7 @@ def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
         loaded_data_group=scan_loaded,
         keys=str_keys,
     )
-    if isinstance(scan_loaded, dict):
-        for bk in SCAN_BUILD_BOOL_KEYS:
-            if bk in scan_loaded and isinstance(scan_loaded[bk], bool):
-                cast(dict[str, Any], result["scan_build"])[bk] = scan_loaded[bk]
+    _merge_scan_build_bool_keys(result, scan_loaded)
 
     _migrate_scan_build_target_path_to_target_root(result, data)
 
@@ -213,30 +210,33 @@ def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
     if not isinstance(pipeline_results, dict):
         return
 
-    result_pipeline = cast(
-        dict[str, Any],
-        cast(dict[str, Any], result["ui_state"])["pipeline_results"],
+    result_pipeline = cast(dict[str, Any], cast(dict[str, Any], result["ui_state"])["pipeline_results"])
+    _merge_pipeline_results(result_pipeline, pipeline_results)
+
+
+def _merge_scan_build_bool_keys(result: dict[str, Any], scan_loaded: Any) -> None:
+    """scan_build의 bool 키를 안전하게 병합한다."""
+    if not isinstance(scan_loaded, dict):
+        return
+    scan_target = cast(dict[str, Any], result["scan_build"])
+    for key in SCAN_BUILD_BOOL_KEYS:
+        value = scan_loaded.get(key)
+        if isinstance(value, bool):
+            scan_target[key] = value
+
+
+def _merge_pipeline_results(result_pipeline: dict[str, Any], pipeline_results: dict[str, Any]) -> None:
+    """pipeline_results 하위 값들을 타입 검증 후 병합한다."""
+    typed_assignments: tuple[tuple[str, type[Any]], ...] = (
+        ("selected_index", int),
+        ("details_pane", bool),
+        ("preview_pane", bool),
+        ("view_key", str),
     )
-
-    if "selected_index" in pipeline_results:
-        value = pipeline_results["selected_index"]
-        if isinstance(value, int):
-            result_pipeline["selected_index"] = value
-
-    if "details_pane" in pipeline_results:
-        value = pipeline_results["details_pane"]
-        if isinstance(value, bool):
-            result_pipeline["details_pane"] = value
-
-    if "preview_pane" in pipeline_results:
-        value = pipeline_results["preview_pane"]
-        if isinstance(value, bool):
-            result_pipeline["preview_pane"] = value
-
-    if "view_key" in pipeline_results:
-        value = pipeline_results["view_key"]
-        if isinstance(value, str):
-            result_pipeline["view_key"] = value
+    for key, expected_type in typed_assignments:
+        value = pipeline_results.get(key)
+        if isinstance(value, expected_type):
+            result_pipeline[key] = value
 
 
 def load_all() -> dict[str, Any]:
