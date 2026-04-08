@@ -7,6 +7,7 @@ Author: Pom Kim
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -15,6 +16,14 @@ from anivault.domain.models.path_template_input import PathTemplateInput
 _INVALID_IN_SEGMENT = frozenset('<>:"/\\|?*')
 
 _PLACEHOLDER = re.compile(r"\{([^}]+)\}")
+
+
+def _absolute_lexical_path(path: Path) -> str:
+    """Return an absolute path without resolving symlinks or touching the filesystem."""
+    path_str = str(path)
+    if path.is_absolute():
+        return os.path.normpath(path_str)
+    return os.path.abspath(path_str)
 
 
 def sanitize_path_segment(segment: str) -> str:
@@ -103,6 +112,7 @@ def _context_values(
         "year": year,
         "korean_title_group": group,
         "season": season_raw,
+        "original_file": base,
         "original_filename": base,
     }
 
@@ -126,7 +136,7 @@ def _substitute_placeholder(
         key, spec = key_spec, None
     key = key.strip()
     raw = ctx.get(key, "")
-    if key == "original_filename":
+    if key in {"original_file", "original_filename"}:
         return sanitize_basename(raw)
     if key == "season":
         return _format_with_spec(raw, spec, numeric=True)
@@ -178,4 +188,4 @@ def render_destination_path(
     if not p.is_absolute():
         base = Path(ctx["target"])
         p = base / p
-    return str(p.resolve())
+    return _absolute_lexical_path(p)
