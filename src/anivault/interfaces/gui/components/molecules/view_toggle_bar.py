@@ -5,7 +5,6 @@ from PySide6.QtWidgets import QHBoxLayout, QWidget
 
 from anivault.constants.gui.copy import (
     VIEW_LABELS,
-    VIEW_TOGGLE_DETAILS_PANE_LABEL,
     VIEW_TOGGLE_LABEL,
 )
 from anivault.constants.gui.navigation import (
@@ -19,7 +18,7 @@ from anivault.constants.gui.navigation import (
 )
 from anivault.constants.gui.theme import VIEW_TOGGLE_SPACING_PX
 from anivault.interfaces.gui import theme
-from anivault.interfaces.gui.components.atoms import ComboBox, Label, ViewToggleButton
+from anivault.interfaces.gui.components.atoms import ComboBox, Label
 
 _ICON_VIEWS: set[str] = {VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S}
 
@@ -43,7 +42,6 @@ class ViewToggleBar(QWidget):
     """Layout and detail-pane toggles."""
 
     view_changed = Signal(str)
-    details_pane_changed = Signal(bool)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -53,7 +51,6 @@ class ViewToggleBar(QWidget):
         layout.setSpacing(VIEW_TOGGLE_SPACING_PX)
 
         self._current_view = VIEW_DETAILS
-        self._details_pane_checked = False
 
         self._layout_combo = ComboBox()
         self._layout_combo.setObjectName("view_toggle_layout_combo")
@@ -65,25 +62,17 @@ class ViewToggleBar(QWidget):
         for key in (VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S):
             self._icon_size_combo.addItem(_view_label(key), key)
 
-        self._details_btn = ViewToggleButton(
-            VIEW_TOGGLE_DETAILS_PANE_LABEL,
-            checked=self._details_pane_checked,
-            object_name="view_toggle_details_pane_btn",
-        )
-
         self._label = Label(VIEW_TOGGLE_LABEL, "muted")
         self._label.setStyleSheet(theme.label_muted())
 
         layout.addWidget(self._label)
         layout.addWidget(self._layout_combo)
         layout.addWidget(self._icon_size_combo)
-        layout.addWidget(self._details_btn)
 
         self._sync_ui_from_view(self._current_view)
 
         self._layout_combo.currentIndexChanged.connect(self._on_layout_changed)
         self._icon_size_combo.currentIndexChanged.connect(self._on_icon_size_changed)
-        self._details_btn.toggled.connect(self._on_details_pane_toggled)
 
     def _sync_icon_size_combo_visibility(self) -> None:
         show = self._layout_combo.currentData() == VIEW_ICON_GROUP
@@ -126,15 +115,6 @@ class ViewToggleBar(QWidget):
             return
         self._set_view(icon_key)
 
-    def _on_details_pane_toggled(self, checked: bool) -> None:
-        self._details_pane_checked = checked
-        self.details_pane_changed.emit(self._details_pane_checked)
-
-    def set_details_pane_checked(self, checked: bool) -> None:
-        with QSignalBlocker(self._details_btn):
-            self._details_btn.setChecked(checked)
-        self._details_pane_checked = checked
-
     def set_view(self, key: str) -> None:
         self._sync_ui_from_view(key)
 
@@ -143,6 +123,3 @@ class ViewToggleBar(QWidget):
 
     def current_view(self) -> str:
         return self._current_view
-
-    def details_pane_checked(self) -> bool:
-        return self._details_pane_checked

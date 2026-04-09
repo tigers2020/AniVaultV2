@@ -40,6 +40,7 @@ def test_on_view_changed_make_card_clickable_and_clear_grids() -> None:
     panel._apply_list_content_for_view_key = MagicMock()  # type: ignore[attr-defined]
     panel._ensure_poster_grid_for_view_key = MagicMock(return_value=[SimpleNamespace(image_url="a")])  # type: ignore[attr-defined]
     panel._content_view = SimpleNamespace(poster_cards=lambda: [SimpleNamespace(image_url="b")])  # type: ignore[attr-defined]
+    panel._set_details_pane_visible = MagicMock()  # type: ignore[attr-defined]
     panel._refresh_all_poster_pixmaps = MagicMock()  # type: ignore[attr-defined]
     panel._persist_ui_state = MagicMock()  # type: ignore[attr-defined]
 
@@ -47,6 +48,7 @@ def test_on_view_changed_make_card_clickable_and_clear_grids() -> None:
 
     panel._stack.setCurrentIndex.assert_called_once()  # type: ignore[attr-defined]
     panel._view_bar.set_current_view.assert_called_once_with(VIEW_ICON_M)  # type: ignore[attr-defined]
+    panel._set_details_pane_visible.assert_called_once_with(True)  # type: ignore[attr-defined]
     panel._refresh_all_poster_pixmaps.assert_called_once()  # type: ignore[attr-defined]
 
     clicked: list[int] = []
@@ -89,10 +91,9 @@ def test_make_compact_grid_cards_and_details_pane_paths() -> None:
     panel._pane_width = 340  # type: ignore[attr-defined]
     panel._persist_ui_state = MagicMock()  # type: ignore[attr-defined]
 
-    panel._on_details_pane(True)  # type: ignore[attr-defined]
-    panel._on_details_pane(False)  # type: ignore[attr-defined]
+    panel._set_details_pane_visible(True)  # type: ignore[attr-defined]
+    panel._set_details_pane_visible(False)  # type: ignore[attr-defined]
 
-    assert panel._pane_mode is None  # type: ignore[attr-defined]
     assert panel._pane_stack.setCurrentIndex.call_count == 2  # type: ignore[attr-defined]
 
 
@@ -153,7 +154,7 @@ def test_unified_index_selectable_index_and_state_helpers(monkeypatch) -> None:
     saved: list[dict[str, object]] = []
     monkeypatch.setattr(panel_module, "save_all", lambda payload: saved.append(payload))
     panel._restoring_state = True  # type: ignore[attr-defined]
-    panel._view_bar = SimpleNamespace(current_view=lambda: VIEW_ICON_M, details_pane_checked=lambda: False)  # type: ignore[attr-defined]
+    panel._view_bar = SimpleNamespace(current_view=lambda: VIEW_ICON_M)  # type: ignore[attr-defined]
     panel._persist_ui_state()  # type: ignore[attr-defined]
     assert saved == []
 
@@ -162,14 +163,11 @@ def test_restore_ui_state_and_poster_image_loaded_handle_edge_cases(monkeypatch)
     panel = PipelineResultPanel.__new__(PipelineResultPanel)
     monkeypatch.setattr(panel_module, "load_all", lambda: {"ui_state": []})
     view_calls: list[str] = []
-    detail_calls: list[bool] = []
     panel._on_view_changed = lambda key: view_calls.append(key)  # type: ignore[attr-defined]
-    panel._on_details_pane = lambda checked: detail_calls.append(checked)  # type: ignore[attr-defined]
 
     panel._restore_ui_state()  # type: ignore[attr-defined]
 
     assert view_calls
-    assert detail_calls == [False]
     assert panel._pending_selected_index == -1  # type: ignore[attr-defined]
 
     pix_card = SimpleNamespace(set_pixmap=MagicMock())
@@ -181,22 +179,14 @@ def test_restore_ui_state_and_poster_image_loaded_handle_edge_cases(monkeypatch)
     null_card.set_pixmap.assert_any_call(None)
 
 
-def test_icon_grid_click_toggles_details_or_selects() -> None:
+def test_icon_grid_click_keeps_details_visible_and_selects() -> None:
     panel = PipelineResultPanel.__new__(PipelineResultPanel)
-    panel._view_bar = SimpleNamespace(  # type: ignore[attr-defined]
-        details_pane_checked=lambda: True,
-        set_details_pane_checked=MagicMock(),
-    )
-    panel._pane_mode = "details"  # type: ignore[attr-defined]
-    panel._selected_index = 2  # type: ignore[attr-defined]
-    panel._on_details_pane = MagicMock()  # type: ignore[attr-defined]
-    panel._ensure_details_pane_visible = MagicMock()  # type: ignore[attr-defined]
+    panel._set_details_pane_visible = MagicMock()  # type: ignore[attr-defined]
     panel._on_selection = MagicMock()  # type: ignore[attr-defined]
 
     panel._on_icon_grid_card_clicked(2)  # type: ignore[attr-defined]
     panel._on_icon_grid_card_clicked(1)  # type: ignore[attr-defined]
 
-    panel._view_bar.set_details_pane_checked.assert_called_once_with(False)  # type: ignore[attr-defined]
-    panel._on_details_pane.assert_called_once_with(False)  # type: ignore[attr-defined]
-    panel._ensure_details_pane_visible.assert_called_once()  # type: ignore[attr-defined]
-    panel._on_selection.assert_called_once_with(1)  # type: ignore[attr-defined]
+    assert panel._set_details_pane_visible.call_count == 2  # type: ignore[attr-defined]
+    assert panel._on_selection.call_args_list[0].args == (2,)  # type: ignore[attr-defined]
+    assert panel._on_selection.call_args_list[1].args == (1,)  # type: ignore[attr-defined]

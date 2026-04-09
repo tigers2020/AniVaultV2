@@ -204,7 +204,6 @@ def _merge_pipeline_results(
     """pipeline_results 하위 값들을 타입 검증 후 병합한다."""
     typed_assignments: tuple[tuple[str, type[Any]], ...] = (
         ("selected_index", int),
-        ("details_pane", bool),
         ("view_key", str),
     )
     for key, expected_type in typed_assignments:

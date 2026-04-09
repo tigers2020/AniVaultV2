@@ -26,7 +26,6 @@ SCAN_BUILD_KEYS: Final[tuple[str, ...]] = ("source_path", "tmdb_mode", "unknown_
 SCAN_BUILD_BOOL_KEYS: Final[frozenset[str]] = frozenset({"auto_scan_on_first_show"})
 PIPELINE_RESULTS_KEYS: Final[tuple[str, ...]] = (
     "view_key",
-    "details_pane",
     "selected_index",
 )
 
@@ -50,6 +49,5 @@ DEFAULT_SCAN_BUILD: Final[dict[str, object]] = {
 }
 DEFAULT_PIPELINE_RESULTS: Final[dict[str, object]] = {
     "view_key": "details",
-    "details_pane": False,
     "selected_index": -1,
 }

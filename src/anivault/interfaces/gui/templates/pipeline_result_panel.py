@@ -90,13 +90,11 @@ class PipelineResultUiState(TypedDict):
     """Persisted UI state payload for PipelineResultPanel."""
 
     view_key: str
-    details_pane: bool
     selected_index: int
 
 
 DEFAULT_UI_STATE: PipelineResultUiState = {
     "view_key": VIEW_DETAILS,
-    "details_pane": False,
     "selected_index": -1,
 }
 
@@ -126,7 +124,6 @@ class PipelineResultPanel(QFrame):
         self._model = model if model is not None else PipelineTableModel()
         self._rows: list[PipelineGroupRow] = []
         self._selected_index = -1
-        self._pane_mode: str | None = None  # "details" | None
         self._restoring_state = False
         self._pending_selected_index = -1
         self._cards_by_url: dict[str, list[_ImageRowTarget]] = {}
@@ -241,7 +238,6 @@ class PipelineResultPanel(QFrame):
         self.setMinimumHeight(0)
 
         self._view_bar.view_changed.connect(self._on_view_changed)
-        self._view_bar.details_pane_changed.connect(self._on_details_pane)
 
         # Sync content/poster grids when model changes
         self._model.modelReset.connect(self._sync_views_from_model)
@@ -281,6 +277,7 @@ class PipelineResultPanel(QFrame):
         rows = list(self._model.rows())
         self._apply_list_content_for_view_key(key, rows)
         grid_cards = self._ensure_poster_grid_for_view_key(key, rows)
+        self._set_details_pane_visible(key in {VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S})
         combined = list(self._content_view.poster_cards())
         combined.extend(grid_cards)
         self._refresh_all_poster_pixmaps(combined)
@@ -380,21 +377,29 @@ class PipelineResultPanel(QFrame):
         """
         self._apply_unified_selection(index)
 
-    def _ensure_details_pane_visible(self) -> None:
-        """세부 정보 창이 꺼져 있으면 토글 ON과 동일하게 우측 패널을 연다.
+    def _set_details_pane_visible(self, visible: bool) -> None:
+        """우측 세부 정보 패널의 표시 상태를 직접 설정한다.
 
         Args:
             self: 이 패널 인스턴스.
+            visible: 상세 패널 표시 여부.
 
         Returns:
             None.
         """
-        if not self._view_bar.details_pane_checked():
-            self._view_bar.set_details_pane_checked(True)
-            self._on_details_pane(True)
+        if visible:
+            self._pane_stack.setCurrentIndex(1)
+            w = self._main_splitter.width()
+            self._main_splitter.setSizes(
+                [max(self._main_min_width, w - self._pane_width), self._pane_width]
+            )
+        else:
+            self._pane_stack.setCurrentIndex(0)
+            w = self._main_splitter.width()
+            self._main_splitter.setSizes([w, 0])
 
     def _on_icon_grid_card_clicked(self, index: int) -> None:
-        """아이콘 카드 클릭: 동일 행+세부 패널 표시 중이면 닫고, 아니면 열고 선택한다.
+        """아이콘 카드 클릭 시 상세 패널을 유지한 채 해당 행을 선택한다.
 
         Args:
             self: 이 패널 인스턴스.
@@ -403,41 +408,8 @@ class PipelineResultPanel(QFrame):
         Returns:
             None.
         """
-        if (
-            self._view_bar.details_pane_checked()
-            and self._pane_mode == "details"
-            and self._selected_index == index
-        ):
-            self._view_bar.set_details_pane_checked(False)
-            self._on_details_pane(False)
-            return
-        self._ensure_details_pane_visible()
+        self._set_details_pane_visible(True)
         self._on_selection(index)
-
-    def _on_details_pane(self, checked: bool) -> None:
-        """상세 패널 토글에 따라 우측 스택·스플리터 크기를 조정한다.
-
-        Args:
-            self: 이 패널 인스턴스.
-            checked: 상세 패널 표시 여부.
-
-        Returns:
-            None.
-        """
-        if checked:
-            self._pane_mode = "details"
-            self._pane_stack.setCurrentIndex(1)
-            w = self._main_splitter.width()
-            self._main_splitter.setSizes(
-                [max(self._main_min_width, w - self._pane_width), self._pane_width]
-            )
-        else:
-            if self._pane_mode == "details":
-                self._pane_mode = None
-                self._pane_stack.setCurrentIndex(0)
-                w = self._main_splitter.width()
-                self._main_splitter.setSizes([w, 0])
-        self._persist_ui_state()
 
     def _make_card_clickable(self, card: PosterCard, index: int) -> None:
         """포스터 카드 클릭 시 해당 행을 선택하도록 커서·마우스 핸들러를 연결한다.
@@ -627,7 +599,6 @@ class PipelineResultPanel(QFrame):
         self._restoring_state = True
         self._pending_selected_index = normalized["selected_index"]
         self._on_view_changed(normalized["view_key"])
-        self._on_details_pane(bool(normalized["details_pane"]))
         self._restoring_state = False
 
     def _normalize_ui_state(self, data: dict[str, object]) -> PipelineResultUiState:
@@ -641,19 +612,15 @@ class PipelineResultPanel(QFrame):
             정규화된 UI 상태.
         """
         view_key = data.get("view_key")
-        details_pane = data.get("details_pane")
         selected_index = data.get("selected_index")
         normalized: PipelineResultUiState = {
             "view_key": DEFAULT_UI_STATE["view_key"],
-            "details_pane": DEFAULT_UI_STATE["details_pane"],
             "selected_index": DEFAULT_UI_STATE["selected_index"],
         }
         if isinstance(view_key, str):
             view_key = LEGACY_VIEW_KEY_MAP.get(view_key, view_key)
             if view_key in VIEW_TO_INDEX:
                 normalized["view_key"] = view_key
-        if isinstance(details_pane, bool):
-            normalized["details_pane"] = details_pane
         if isinstance(selected_index, int):
             normalized["selected_index"] = selected_index
         return normalized
@@ -674,7 +641,6 @@ class PipelineResultPanel(QFrame):
                 "ui_state": {
                     "pipeline_results": {
                         "view_key": self._view_bar.current_view(),
-                        "details_pane": self._view_bar.details_pane_checked(),
                         "selected_index": self._selected_index,
                     }
                 }

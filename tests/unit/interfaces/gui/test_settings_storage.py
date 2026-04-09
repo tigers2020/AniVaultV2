@@ -17,7 +17,6 @@ def test_load_all_includes_pipeline_result_defaults(tmp_path: Path, monkeypatch)
     pipeline = loaded["ui_state"]["pipeline_results"]
 
     assert pipeline["view_key"] == "details"
-    assert pipeline["details_pane"] is False
     assert pipeline["selected_index"] == -1
 
 
@@ -33,7 +32,6 @@ def test_save_all_merges_pipeline_result_state(tmp_path: Path, monkeypatch) -> N
             "ui_state": {
                 "pipeline_results": {
                     "view_key": "icon_m",
-                    "details_pane": True,
                     "selected_index": 3,
                 }
             }
@@ -42,13 +40,11 @@ def test_save_all_merges_pipeline_result_state(tmp_path: Path, monkeypatch) -> N
     raw = json.loads(config_file.read_text(encoding="utf-8"))
     pipeline = raw["ui_state"]["pipeline_results"]
     assert pipeline["view_key"] == "icon_m"
-    assert pipeline["details_pane"] is True
     assert pipeline["selected_index"] == 3
 
     loaded = settings_storage.load_all()
     loaded_pipeline = loaded["ui_state"]["pipeline_results"]
     assert loaded_pipeline["view_key"] == "icon_m"
-    assert loaded_pipeline["details_pane"] is True
     assert loaded_pipeline["selected_index"] == 3
 
 
@@ -63,7 +59,6 @@ def test_load_all_falls_back_for_invalid_pipeline_result_types(tmp_path: Path, m
                 "ui_state": {
                     "pipeline_results": {
                         "view_key": 123,
-                        "details_pane": "yes",
                         "selected_index": "bad",
                     }
                 }
@@ -77,7 +72,6 @@ def test_load_all_falls_back_for_invalid_pipeline_result_types(tmp_path: Path, m
     loaded = settings_storage.load_all()
     pipeline = loaded["ui_state"]["pipeline_results"]
     assert pipeline["view_key"] == "details"
-    assert pipeline["details_pane"] is False
     assert pipeline["selected_index"] == -1
 
 

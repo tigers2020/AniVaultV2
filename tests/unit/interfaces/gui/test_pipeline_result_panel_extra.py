@@ -126,7 +126,6 @@ def test_persist_and_restore_ui_state_round_trip(monkeypatch) -> None:
     panel._selected_index = 3  # type: ignore[attr-defined]
     panel._view_bar = SimpleNamespace(  # type: ignore[attr-defined]
         current_view=lambda: VIEW_ICON_M,
-        details_pane_checked=lambda: True,
     )
     saved: list[dict[str, object]] = []
     monkeypatch.setattr(panel_module, "save_all", lambda payload: saved.append(payload))
@@ -138,7 +137,6 @@ def test_persist_and_restore_ui_state_round_trip(monkeypatch) -> None:
             "ui_state": {
                 "pipeline_results": {
                     "view_key": VIEW_ICON_M,
-                    "details_pane": True,
                     "selected_index": 3,
                 }
             }
@@ -152,21 +150,17 @@ def test_persist_and_restore_ui_state_round_trip(monkeypatch) -> None:
             "ui_state": {
                 "pipeline_results": {
                     "view_key": "tiles",
-                    "details_pane": True,
                     "selected_index": 7,
                 }
             }
         },
     )
     on_view: list[str] = []
-    on_details: list[bool] = []
     panel._on_view_changed = lambda key: on_view.append(key)  # type: ignore[attr-defined]
-    panel._on_details_pane = lambda checked: on_details.append(checked)  # type: ignore[attr-defined]
 
     panel._restore_ui_state()  # type: ignore[attr-defined]
 
     assert on_view == [VIEW_CONTENT]
-    assert on_details == [True]
     assert panel._pending_selected_index == 7  # type: ignore[attr-defined]
     assert panel._restoring_state is False  # type: ignore[attr-defined]
 
