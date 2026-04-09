@@ -17,12 +17,9 @@ from anivault.constants.gui.components import (
     PATH_RULES_FORM_LABEL_TEMPLATE,
     PATH_RULES_FORM_LABEL_UNKNOWN_GROUP,
     PATH_RULES_FORM_LABEL_UNKNOWN_RESOLUTION,
-    PATH_RULES_FORM_TARGET_ROOT_DEFAULT,
-    PATH_RULES_FORM_TEMPLATE_DEFAULT,
-    PATH_RULES_FORM_UNKNOWN_GROUP_DEFAULT,
-    PATH_RULES_FORM_UNKNOWN_RESOLUTION_DEFAULT,
 )
 from anivault.constants.gui.forms import PATH_TEMPLATE_EXAMPLES
+from anivault.constants.gui.settings import DEFAULT_PATH_RULES
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import FormField, PanelHeader
 
@@ -54,27 +51,29 @@ class PathRulesForm(QFrame):
             PanelHeader(PATH_RULES_FORM_HEADER_TITLE, PATH_RULES_FORM_HEADER_DESCRIPTION)
         )
         body = QVBoxLayout()
-        body.setContentsMargins(18, 18, 18, 18)
+        body_padding = theme.settings_card_body_padding_px()
+        body.setContentsMargins(body_padding, body_padding, body_padding, body_padding)
+        body.setSpacing(theme.settings_section_gap_px())
         self._target_root = FormField(
             PATH_RULES_FORM_LABEL_TARGET_ROOT,
             "path",
-            PATH_RULES_FORM_TARGET_ROOT_DEFAULT,
+            str(DEFAULT_PATH_RULES["target_root"]),
         )
         self._path_template = FormField(
             PATH_RULES_FORM_LABEL_TEMPLATE,
             "line",
-            PATH_RULES_FORM_TEMPLATE_DEFAULT,
+            str(DEFAULT_PATH_RULES["path_template"]),
             label_updater=_path_template_label,
         )
         self._unknown_resolution = FormField(
             PATH_RULES_FORM_LABEL_UNKNOWN_RESOLUTION,
             "line",
-            PATH_RULES_FORM_UNKNOWN_RESOLUTION_DEFAULT,
+            str(DEFAULT_PATH_RULES["unknown_resolution"]),
         )
         self._unknown_group = FormField(
             PATH_RULES_FORM_LABEL_UNKNOWN_GROUP,
             "line",
-            PATH_RULES_FORM_UNKNOWN_GROUP_DEFAULT,
+            str(DEFAULT_PATH_RULES["unknown_group_folder"]),
         )
         for field in (
             self._target_root,

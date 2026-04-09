@@ -7,7 +7,7 @@ Author: Pom Kim
 
 from __future__ import annotations
 
-from typing import Protocol, TypedDict
+from typing import Protocol, TypedDict, cast
 
 from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QPixmap
@@ -28,6 +28,10 @@ from anivault.constants.gui.components import (
     PIPELINE_RESULT_PANEL_UNMATCHED_LABEL,
 )
 from anivault.constants.gui.navigation import ICON_SIZES, LEGACY_VIEW_KEY_MAP, VIEW_TO_INDEX
+from anivault.constants.gui.settings import (
+    default_pipeline_results,
+    pipeline_results_from_loaded,
+)
 from anivault.interfaces.gui.components.molecules import (
     PanelHeader,
     PosterCard,
@@ -38,7 +42,6 @@ from anivault.interfaces.gui.components.molecules.poster_card import (
 )
 from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
     VIEW_CONTENT,
-    VIEW_DETAILS,
     VIEW_ICON_L,
     VIEW_ICON_M,
     VIEW_ICON_S,
@@ -93,10 +96,7 @@ class PipelineResultUiState(TypedDict):
     selected_index: int
 
 
-DEFAULT_UI_STATE: PipelineResultUiState = {
-    "view_key": VIEW_DETAILS,
-    "selected_index": -1,
-}
+DEFAULT_UI_STATE: PipelineResultUiState = cast(PipelineResultUiState, default_pipeline_results())
 
 
 class PipelineResultPanel(QFrame):
@@ -592,10 +592,8 @@ class PipelineResultPanel(QFrame):
         ui_state = load_all().get("ui_state", {})
         pipeline_state = {}
         if isinstance(ui_state, dict):
-            raw = ui_state.get("pipeline_results", {})
-            if isinstance(raw, dict):
-                pipeline_state = raw
-        normalized = self._normalize_ui_state(pipeline_state)
+            pipeline_state = {"ui_state": ui_state}
+        normalized = self._normalize_ui_state(pipeline_results_from_loaded(pipeline_state))
         self._restoring_state = True
         self._pending_selected_index = normalized["selected_index"]
         self._on_view_changed(normalized["view_key"])

@@ -13,6 +13,7 @@ from anivault.constants.gui.components import (
     SETTINGS_ACTION_BAR_BUTTON_RESET,
     SETTINGS_ACTION_BAR_BUTTON_SAVE,
 )
+from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Button
 
 
@@ -27,6 +28,7 @@ class SettingsActionBar(QWidget):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(theme.settings_row_gap_px())
         layout.addStretch()
         save_btn = Button(SETTINGS_ACTION_BAR_BUTTON_SAVE, "primary")
         save_btn.clicked.connect(self.save_clicked.emit)

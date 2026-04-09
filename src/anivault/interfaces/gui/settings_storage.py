@@ -12,16 +12,12 @@ from typing import Any, cast
 from anivault.constants.gui.settings import (
     CONFIG_DIR,
     CONFIG_FILE,
-    DEFAULT_PARSE_TMDB,
-    DEFAULT_PATH_RULES,
-    DEFAULT_PIPELINE_RESULTS,
-    DEFAULT_SCAN_BUILD,
-    DEFAULT_THEME_NAME,
     PARSE_TMDB_KEYS,
     PARSE_TMDB_SECRET_KEYS,
     PATH_RULES_KEYS,
     SCAN_BUILD_BOOL_KEYS,
     SCAN_BUILD_KEYS,
+    default_settings_payload,
 )
 
 
@@ -34,14 +30,7 @@ def get_defaults() -> dict[str, Any]:
     Returns:
         기본 설정 딕셔너리.
     """
-    return {
-        "path_rules": dict(DEFAULT_PATH_RULES),
-        "parse_tmdb": dict(DEFAULT_PARSE_TMDB),
-        "scan_build": dict(DEFAULT_SCAN_BUILD),
-        "ui_state": {
-            "pipeline_results": dict(DEFAULT_PIPELINE_RESULTS),
-        },
-    }
+    return default_settings_payload(include_theme=False)
 
 
 def _ensure_dir() -> None:
@@ -66,15 +55,7 @@ def _default_result() -> dict[str, Any]:
     Returns:
         기본 전체 설정.
     """
-    return {
-        "theme": DEFAULT_THEME_NAME,
-        "path_rules": dict(DEFAULT_PATH_RULES),
-        "parse_tmdb": dict(DEFAULT_PARSE_TMDB),
-        "scan_build": dict(DEFAULT_SCAN_BUILD),
-        "ui_state": {
-            "pipeline_results": dict(DEFAULT_PIPELINE_RESULTS),
-        },
-    }
+    return default_settings_payload(include_theme=True)
 
 
 def _safe_load_config_data() -> Any:

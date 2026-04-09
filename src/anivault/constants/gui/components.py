@@ -30,18 +30,6 @@ SCAN_BUILD_CARD_HEADER_DESCRIPTION: Final[str] = (
 )
 SCAN_BUILD_CARD_HEADER_PILL_TEXT: Final[str] = "Pipeline Controls"
 SCAN_BUILD_CARD_SOURCE_PLACEHOLDER: Final[str] = "Source: G:/Animations; D:/Incoming_Downloads"
-SCAN_BUILD_CARD_TMDB_MODES: Final[list[str]] = [
-    "TMDB TV Search",
-    "TMDB Multi Search",
-]
-SCAN_BUILD_CARD_UNKNOWN_MODES: Final[list[str]] = [
-    "Unknown to Needs_Review",
-    "Leave unknown in source",
-]
-SCAN_BUILD_CARD_BUTTON_SCAN: Final[str] = "1. Scan Folder"
-SCAN_BUILD_CARD_BUTTON_PARSE: Final[str] = "2. Parse Names"
-SCAN_BUILD_CARD_BUTTON_QUERY_TMDB: Final[str] = "3. Query TMDB"
-SCAN_BUILD_CARD_BUTTON_BUILD_PLAN: Final[str] = "4. Build Move Plan"
 
 SETTINGS_ACTION_BAR_BUTTON_SAVE: Final[str] = "Save"
 SETTINGS_ACTION_BAR_BUTTON_RESET: Final[str] = "Reset"
@@ -52,25 +40,14 @@ PARSE_TMDB_FORM_HEADER_DESCRIPTION: Final[str] = "파일명 파싱과 TMDB 한�
 PARSE_TMDB_FORM_LABEL_API_KEY: Final[str] = "TMDB API key"
 PARSE_TMDB_FORM_API_KEY_HELP: Final[str] = "Stored in .env as TMDB_API_KEY"
 PARSE_TMDB_FORM_LABEL_IGNORE_TOKENS: Final[str] = "Ignore tokens"
-PARSE_TMDB_FORM_IGNORE_TOKENS_DEFAULT: Final[str] = "1080p, 720p, x264, WEBRip, BluRay, AAC, HEVC"
-PARSE_TMDB_FORM_LABEL_VIDEO_EXTENSIONS: Final[str] = "Video extensions"
-PARSE_TMDB_FORM_VIDEO_EXTENSIONS_DEFAULT: Final[str] = ".mkv, .mp4, .avi"
-PARSE_TMDB_FORM_LABEL_TMDB_SEARCH_MODE: Final[str] = "TMDB search mode"
 PARSE_TMDB_FORM_LABEL_SEASON_FORMAT: Final[str] = "Season folder format"
-PARSE_TMDB_FORM_SEASON_FORMAT_DEFAULT: Final[str] = "Season{season:02}"
 
 PATH_RULES_FORM_HEADER_TITLE: Final[str] = "Path Rules"
 PATH_RULES_FORM_HEADER_DESCRIPTION: Final[str] = "최종 출력 구조와 기본값 설정"
 PATH_RULES_FORM_LABEL_TARGET_ROOT: Final[str] = "Target root folder"
-PATH_RULES_FORM_TARGET_ROOT_DEFAULT: Final[str] = "G:/AniSorted"
 PATH_RULES_FORM_LABEL_TEMPLATE: Final[str] = "Path template"
-PATH_RULES_FORM_TEMPLATE_DEFAULT: Final[str] = (
-    r"{target}\{resolution}\{year}\{korean_title_group}\Season{season:02}\{original_filename}"
-)
 PATH_RULES_FORM_LABEL_UNKNOWN_RESOLUTION: Final[str] = "Unknown resolution"
-PATH_RULES_FORM_UNKNOWN_RESOLUTION_DEFAULT: Final[str] = "Unknown"
 PATH_RULES_FORM_LABEL_UNKNOWN_GROUP: Final[str] = "Unknown group folder"
-PATH_RULES_FORM_UNKNOWN_GROUP_DEFAULT: Final[str] = "Needs_Review"
 
 TMDB_MANUAL_DIALOG_TITLE: Final[str] = "TMDB 수동 매칭"
 TMDB_MANUAL_DIALOG_LABEL_QUERY: Final[str] = "검색어"

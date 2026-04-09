@@ -1,13 +1,8 @@
-"""GUI form copy and examples constants."""
+"""GUI form example constants."""
 
 from __future__ import annotations
 
 from typing import Final
-
-TMDB_SEARCH_MODES: Final[list[str]] = [
-    "Prefer TV and Korean localized title",
-    "Prefer original title then localized fallback",
-]
 
 PATH_TEMPLATE_EXAMPLES: Final[dict[str, str]] = {
     "target": "G:/AniSorted",

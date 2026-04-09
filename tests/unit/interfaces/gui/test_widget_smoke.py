@@ -12,7 +12,6 @@ from anivault.constants.gui.components import (
     FOLDER_SCAN_BAR_BUTTON_DRY_RUN,
     FOLDER_SCAN_BAR_BUTTON_MATCH,
     FOLDER_SCAN_BAR_BUTTON_SCAN,
-    SCAN_BUILD_CARD_BUTTON_SCAN,
 )
 from anivault.domain.models.file_operation import FileOperation, OperationType
 from anivault.interfaces.gui.components.molecules.panel_header import PanelHeader
@@ -190,8 +189,6 @@ def test_details_pane_parse_form_and_path_rules_public_round_trip() -> None:
         {
             "tmdb_api_key": "updated",
             "ignore_tokens": "hevc",
-            "video_extensions": ".mkv",
-            "tmdb_search_mode": "Auto",
             "season_folder_format": "S{season}",
         }
     )
@@ -257,18 +254,9 @@ def test_scan_and_settings_widgets_public_signals(monkeypatch) -> None:
     assert path_updates
 
     scan_card = ScanBuildCard()
-    scan_events: list[str] = []
-    scan_card.scan_clicked.connect(scan_events.append)
-    scan_card.set_values(
-        {
-            "source_path": "F:/NewAnime",
-            "tmdb_mode": scan_card.get_values()["tmdb_mode"],
-            "unknown_mode": scan_card.get_values()["unknown_mode"],
-        }
-    )
-    _button_by_text(scan_card, SCAN_BUILD_CARD_BUTTON_SCAN).click()
+    scan_card.set_values({"source_path": "F:/NewAnime"})
     assert scan_card.get_values()["source_path"] == "F:/NewAnime"
-    assert scan_events == ["F:/NewAnime"]
+    assert len(_buttons(scan_card)) == 1
 
     stats = StatsGrid()
     stats.set_stats(scanned=1200, parsed=34, tmdb_matches=12, groups=7)

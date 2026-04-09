@@ -9,6 +9,10 @@ from PySide6.QtCore import QTimer
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 
+from anivault.constants.gui.settings import (
+    auto_scan_on_first_show_from_loaded,
+    scan_source_path_from_loaded,
+)
 from anivault.interfaces.gui.components.organisms import FolderScanBar, StatsGrid
 from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel
 from anivault.interfaces.gui.presenters import OrganizerPresenter
@@ -57,7 +61,7 @@ class OrganizerPage(QWidget):
         content_layout.setSpacing(0)
         content_layout.setContentsMargins(0, 0, 0, 0)
         self._scan_bar = FolderScanBar()
-        source_path = load_all().get("scan_build", {}).get("source_path", "") or ""
+        source_path = scan_source_path_from_loaded(load_all())
         self._scan_bar.set_path(source_path)
         self._scan_bar.scan_clicked.connect(self._presenter.on_scan_clicked)
         self._scan_bar.match_clicked.connect(self._presenter.on_match_clicked)
@@ -127,12 +131,9 @@ class OrganizerPage(QWidget):
         """
         super().showEvent(event)
         settings = load_all()
-        sb = settings.get("scan_build", {}) or {}
-        source_path = sb.get("source_path", "") or ""
+        source_path = scan_source_path_from_loaded(settings)
         self._scan_bar.set_path(source_path)
-        auto_scan = sb.get("auto_scan_on_first_show", True)
-        if not isinstance(auto_scan, bool):
-            auto_scan = str(auto_scan).strip().lower() in ("1", "true", "yes")
+        auto_scan = auto_scan_on_first_show_from_loaded(settings)
         if source_path and not self._auto_scan_done and auto_scan:
             self._auto_scan_done = True
             QTimer.singleShot(100, lambda: self._presenter.on_scan_clicked(source_path))

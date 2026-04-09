@@ -74,7 +74,7 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
     assert shell.sidebar() is shell._sidebar  # type: ignore[attr-defined]
 
     class FakeScanBuildCard(QWidget):
-        scan_clicked = Signal(str)
+        settings_changed = Signal()
 
     class FakeAppearanceCard(QWidget):
         theme_changed = Signal(str)
@@ -106,9 +106,6 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
         def set_forms(self, *forms):
             self.forms = forms
 
-        def on_scan_clicked(self, *_args):
-            pass  # test stub: signals not exercised in this case
-
         def on_theme_changed(self, *_args):
             pass  # test stub: signals not exercised in this case
 
@@ -129,11 +126,27 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
     monkeypatch.setattr(settings_page_module, "ParseTmdbForm", FakeParseTmdbForm)
     monkeypatch.setattr(settings_page_module, "SettingsActionsCard", FakeSettingsActionsCard)
     monkeypatch.setattr(settings_page_module, "SettingsPresenter", FakePresenter)
+    monkeypatch.setattr(settings_page_module.theme, "scroll_area_transparent", lambda: "scroll")
+    monkeypatch.setattr(settings_page_module.theme, "settings_page_section_gap_px", lambda: 21)
+    monkeypatch.setattr(settings_page_module.theme, "settings_page_grid_gap_px", lambda: 17)
 
     page = SettingsPage()
     assert isinstance(page, QWidget)
     assert isinstance(page._presenter, FakePresenter)  # type: ignore[attr-defined]
     assert page._presenter.forms is not None  # type: ignore[attr-defined]
+    page_layout = page.layout()
+    assert page_layout is not None
+    scroll = page_layout.itemAt(0).widget()
+    assert scroll is not None
+    content = scroll.widget()
+    assert content is not None
+    content_layout = content.layout()
+    assert content_layout is not None
+    assert content_layout.spacing() == 21
+    settings_grid = content_layout.itemAt(0).layout()
+    assert settings_grid is not None
+    assert settings_grid.horizontalSpacing() == 17
+    assert settings_grid.verticalSpacing() == 17
 
     presenter = FakePresenter()
     page_with_presenter = SettingsPage(presenter=cast(SettingsPresenter, presenter))
@@ -357,18 +370,20 @@ def test_settings_presenter_load_reset_save_and_theme(monkeypatch) -> None:
         settings_presenter_module, "save_theme", lambda name: themes.append(f"saved:{name}")
     )
     presenter._path_rules_form.get_values.return_value = {"target_root": "F:/Library"}  # type: ignore[attr-defined]
-    presenter._parse_tmdb_form.get_values.return_value = {"ignore_tokens": "x264", "tmdb_api_key": "secret"}  # type: ignore[attr-defined]
-    presenter._scan_build_card.get_values.return_value = {"source_path": "F:/Anime"}  # type: ignore[attr-defined]
+    presenter._parse_tmdb_form.get_values.return_value = {
+        "ignore_tokens": "x264",
+        "season_folder_format": "Season{season:02}",
+        "tmdb_api_key": "secret",
+    }  # type: ignore[attr-defined]
+    presenter._scan_build_card.get_values.return_value = {
+        "source_path": "F:/Anime",
+    }  # type: ignore[attr-defined]
 
     presenter._load_into_forms()  # type: ignore[attr-defined]
     presenter._on_settings_changed()  # type: ignore[attr-defined]
     presenter.on_reset_clicked()
     presenter.on_load_clicked()
     presenter.on_theme_changed("dark")
-    presenter.on_scan_clicked("F:/Anime")
-    presenter.on_parse_clicked()
-    presenter.on_match_clicked()
-    presenter.on_build_plan_clicked()
 
     presenter._path_rules_form.set_values.assert_called()  # type: ignore[attr-defined]
     assert saved and saved[-1]["scan_build"] == {"source_path": "F:/Anime"}

@@ -6,24 +6,18 @@ Author: Pom Kim
 """
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
+from PySide6.QtWidgets import QFrame, QVBoxLayout
 
 from anivault.constants.gui.components import (
     PARSE_TMDB_FORM_API_KEY_HELP,
     PARSE_TMDB_FORM_HEADER_DESCRIPTION,
     PARSE_TMDB_FORM_HEADER_TITLE,
-    PARSE_TMDB_FORM_IGNORE_TOKENS_DEFAULT,
     PARSE_TMDB_FORM_LABEL_API_KEY,
     PARSE_TMDB_FORM_LABEL_IGNORE_TOKENS,
     PARSE_TMDB_FORM_LABEL_SEASON_FORMAT,
-    PARSE_TMDB_FORM_LABEL_TMDB_SEARCH_MODE,
-    PARSE_TMDB_FORM_LABEL_VIDEO_EXTENSIONS,
-    PARSE_TMDB_FORM_SEASON_FORMAT_DEFAULT,
-    PARSE_TMDB_FORM_VIDEO_EXTENSIONS_DEFAULT,
 )
-from anivault.constants.gui.forms import TMDB_SEARCH_MODES
+from anivault.constants.gui.settings import DEFAULT_PARSE_TMDB
 from anivault.interfaces.gui import theme
-from anivault.interfaces.gui.components.atoms import ComboBox
 from anivault.interfaces.gui.components.molecules import FormField, PanelHeader
 
 
@@ -40,7 +34,9 @@ class ParseTmdbForm(QFrame):
             PanelHeader(PARSE_TMDB_FORM_HEADER_TITLE, PARSE_TMDB_FORM_HEADER_DESCRIPTION)
         )
         body = QVBoxLayout()
-        body.setContentsMargins(18, 18, 18, 18)
+        body_padding = theme.settings_card_body_padding_px()
+        body.setContentsMargins(body_padding, body_padding, body_padding, body_padding)
+        body.setSpacing(theme.settings_section_gap_px())
         self._tmdb_api_key = FormField(
             PARSE_TMDB_FORM_LABEL_API_KEY,
             "line",
@@ -50,36 +46,22 @@ class ParseTmdbForm(QFrame):
         self._ignore_tokens = FormField(
             PARSE_TMDB_FORM_LABEL_IGNORE_TOKENS,
             "line",
-            PARSE_TMDB_FORM_IGNORE_TOKENS_DEFAULT,
+            str(DEFAULT_PARSE_TMDB["ignore_tokens"]),
         )
-        self._video_ext = FormField(
-            PARSE_TMDB_FORM_LABEL_VIDEO_EXTENSIONS,
-            "line",
-            PARSE_TMDB_FORM_VIDEO_EXTENSIONS_DEFAULT,
-        )
-        lbl = QLabel(PARSE_TMDB_FORM_LABEL_TMDB_SEARCH_MODE)
-        lbl.setStyleSheet(theme.form_label_muted())
-        body.addWidget(lbl)
-        self._tmdb_search = ComboBox()
-        self._tmdb_search.addItems(TMDB_SEARCH_MODES)
         self._season_format = FormField(
             PARSE_TMDB_FORM_LABEL_SEASON_FORMAT,
             "line",
-            PARSE_TMDB_FORM_SEASON_FORMAT_DEFAULT,
+            str(DEFAULT_PARSE_TMDB["season_folder_format"]),
         )
         body.addWidget(self._tmdb_api_key)
         body.addWidget(self._ignore_tokens)
-        body.addWidget(self._video_ext)
-        body.addWidget(self._tmdb_search)
         body.addWidget(self._season_format)
         for field in (
             self._tmdb_api_key,
             self._ignore_tokens,
-            self._video_ext,
             self._season_format,
         ):
             field.value_changed.connect(self.settings_changed.emit)
-        self._tmdb_search.currentIndexChanged.connect(lambda: self.settings_changed.emit())
         layout.addLayout(body)
         self.setStyleSheet(theme.card_panel())
 
@@ -87,8 +69,6 @@ class ParseTmdbForm(QFrame):
         return {
             "tmdb_api_key": self._tmdb_api_key.value(),
             "ignore_tokens": self._ignore_tokens.value(),
-            "video_extensions": self._video_ext.value(),
-            "tmdb_search_mode": self._tmdb_search.currentText(),
             "season_folder_format": self._season_format.value(),
         }
 
@@ -99,12 +79,6 @@ class ParseTmdbForm(QFrame):
                 self._tmdb_api_key.set_value(data["tmdb_api_key"])
             if "ignore_tokens" in data:
                 self._ignore_tokens.set_value(data["ignore_tokens"])
-            if "video_extensions" in data:
-                self._video_ext.set_value(data["video_extensions"])
-            if "tmdb_search_mode" in data:
-                idx = self._tmdb_search.findText(data["tmdb_search_mode"])
-                if idx >= 0:
-                    self._tmdb_search.setCurrentIndex(idx)
             if "season_folder_format" in data:
                 self._season_format.set_value(data["season_folder_format"])
         finally:

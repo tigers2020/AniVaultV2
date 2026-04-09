@@ -86,6 +86,11 @@ def test_theme_module_wrappers_and_metrics(monkeypatch) -> None:
     assert theme_module.layout_spacing_md() > 0
     assert theme_module.layout_spacing_lg() > 0
     assert theme_module.layout_main_padding() > 0
+    assert theme_module.settings_card_body_padding_px() > 0
+    assert theme_module.settings_row_gap_px() > 0
+    assert theme_module.settings_section_gap_px() > 0
+    assert theme_module.settings_page_section_gap_px() > 0
+    assert theme_module.settings_page_grid_gap_px() > 0
 
 
 def test_theme_registry_density_and_persistence(tmp_path, monkeypatch) -> None:

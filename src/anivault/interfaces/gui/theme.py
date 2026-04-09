@@ -82,6 +82,11 @@ __all__ = [
     "layout_spacing_md",
     "layout_spacing_lg",
     "layout_main_padding",
+    "settings_card_body_padding_px",
+    "settings_row_gap_px",
+    "settings_section_gap_px",
+    "settings_page_section_gap_px",
+    "settings_page_grid_gap_px",
 ]
 
 
@@ -737,3 +742,33 @@ def layout_main_padding() -> int:
     """
     p = _p()
     return scaled_int(26, p.scale, minimum=18, maximum=36)
+
+
+def settings_card_body_padding_px() -> int:
+    """Return body padding for settings cards."""
+    p = _p()
+    return scaled_int(18, p.scale, minimum=14, maximum=28)
+
+
+def settings_row_gap_px() -> int:
+    """Return row spacing for settings controls."""
+    p = _p()
+    return scaled_int(10, p.grid_spacing_scale, minimum=8, maximum=16)
+
+
+def settings_section_gap_px() -> int:
+    """Return vertical spacing between settings sections inside a card."""
+    p = _p()
+    return scaled_int(14, p.grid_spacing_scale, minimum=10, maximum=20)
+
+
+def settings_page_section_gap_px() -> int:
+    """Return page-level vertical spacing for settings content."""
+    p = _p()
+    return scaled_int(14, p.grid_spacing_scale, minimum=10, maximum=22)
+
+
+def settings_page_grid_gap_px() -> int:
+    """Return spacing between settings grid cards."""
+    p = _p()
+    return scaled_int(16, p.grid_spacing_scale, minimum=12, maximum=24)

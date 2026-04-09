@@ -34,6 +34,10 @@ from anivault.constants.gui.components import (
     PLAN_APPLY_PLAN_PROGRESS_MESSAGE,
     PLAN_APPLY_PLAN_PROGRESS_TITLE,
 )
+from anivault.constants.gui.settings import (
+    scan_source_path_from_loaded,
+    target_root_from_loaded,
+)
 from anivault.interfaces.gui.dialogs.dry_run_dialog import DryRunDialog
 from anivault.interfaces.gui.presenters.plan_helpers import (
     merge_plan_into_pipeline_rows,
@@ -176,9 +180,8 @@ class PlanApplyCoordinator(QObject):
         if self._p._apply_execute is None:  # noqa: SLF001
             return
         settings = load_all()
-        source_root = (settings.get("scan_build") or {}).get("source_path") or ""
-        path_rules = settings.get("path_rules") or {}
-        log_root = (str(source_root).strip() or path_rules.get("target_root") or "").strip()
+        source_root = scan_source_path_from_loaded(settings).strip()
+        log_root = source_root or target_root_from_loaded(settings).strip()
         if not log_root:
             parent = self._p.parent()
             if isinstance(parent, QWidget):
@@ -232,7 +235,7 @@ class PlanApplyCoordinator(QObject):
             self._p._notify_dry_run(self._p._dry_run_should_enable())  # noqa: SLF001
             return
         settings = load_all()
-        scan_source = str((settings.get("scan_build") or {}).get("source_path") or "").strip()
+        scan_source = scan_source_path_from_loaded(settings).strip()
         completion_message = PLAN_APPLY_COMPLETE_MESSAGE_TEMPLATE.format(
             moved_count=result.moved_count
         )

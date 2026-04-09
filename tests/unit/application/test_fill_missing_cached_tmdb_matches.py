@@ -13,11 +13,11 @@ from anivault.application.dto.title_groups import (
 from anivault.application.dto.title_match import GroupTmdbMatchRecord, MatchStatusDto
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.use_cases.fill_missing_cached_tmdb_matches import make_execute
-from anivault.domain.services.title_grouping import TitleGroupingInputRow
 from anivault.constants.gui.components import (
     PIPELINE_ROW_STATUS_TMDB_CACHED,
     PIPELINE_ROW_STATUS_TMDB_MATCHED,
 )
+from anivault.domain.services.title_grouping import TitleGroupingInputRow
 
 
 def _row(
@@ -150,7 +150,9 @@ class _TitleMatch:
         del tmdb_ids
         return {}
 
-    def find_series_candidates_by_title(self, query: str, *, limit: int = 10) -> list[TmdbSeriesCandidateDTO]:
+    def find_series_candidates_by_title(
+        self, query: str, *, limit: int = 10
+    ) -> list[TmdbSeriesCandidateDTO]:
         del query, limit
         return []
 

@@ -215,9 +215,16 @@ def test_start_apply_worker_warns_without_log_root(monkeypatch) -> None:
     monkeypatch.setattr(
         module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title)
     )
-    monkeypatch.setattr(module, "load_all", lambda: {"scan_build": {}, "path_rules": {}})
+    monkeypatch.setattr(
+        module,
+        "load_all",
+        lambda: {"scan_build": {"source_path": ""}, "path_rules": {"target_root": ""}},
+    )
     presenter = SimpleNamespace(
-        _apply_execute=lambda *args: None, parent=lambda: object(), _current_library_root_id=None
+        _apply_execute=lambda *args: None,
+        parent=lambda: object(),
+        _current_library_root_id=None,
+        _on_scan_error=MagicMock(),
     )
     coord = _coord(presenter)
 

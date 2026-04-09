@@ -5,8 +5,9 @@
 Author: Pom Kim
 """
 
-from PySide6.QtWidgets import QGridLayout, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QGridLayout, QScrollArea, QVBoxLayout, QWidget
 
+from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import (
     AppearanceCard,
     ParseTmdbForm,
@@ -36,7 +37,6 @@ class SettingsPage(QWidget):
         if presenter is not None:
             self._presenter.setParent(self)
         scan_card = ScanBuildCard()
-        scan_card.scan_clicked.connect(self._presenter.on_scan_clicked)
         appearance_card = AppearanceCard()
         appearance_card.theme_changed.connect(self._presenter.on_theme_changed)
         path_rules_form = PathRulesForm()
@@ -46,11 +46,13 @@ class SettingsPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
+        scroll.setStyleSheet(theme.scroll_area_transparent())
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setWidgetResizable(True)
         content = QWidget()
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(14)
+        content_layout.setSpacing(theme.settings_page_section_gap_px())
         actions_card = SettingsActionsCard()
         bar = actions_card.action_bar()
         bar.save_clicked.connect(self._presenter.on_save_clicked)
@@ -58,10 +60,11 @@ class SettingsPage(QWidget):
         bar.load_clicked.connect(self._presenter.on_load_clicked)
         settings_grid = QGridLayout()
         settings_grid.setContentsMargins(0, 0, 0, 0)
-        settings_grid.setHorizontalSpacing(14)
-        settings_grid.setVerticalSpacing(14)
-        settings_grid.setColumnStretch(0, 11)
-        settings_grid.setColumnStretch(1, 9)
+        grid_gap = theme.settings_page_grid_gap_px()
+        settings_grid.setHorizontalSpacing(grid_gap)
+        settings_grid.setVerticalSpacing(grid_gap)
+        settings_grid.setColumnStretch(0, 1)
+        settings_grid.setColumnStretch(1, 1)
         settings_grid.addWidget(actions_card, 0, 0)
         settings_grid.addWidget(appearance_card, 0, 1)
         settings_grid.addWidget(scan_card, 1, 0, 1, 2)

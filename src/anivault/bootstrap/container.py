@@ -53,6 +53,7 @@ from anivault.application.use_cases.sync_title_groups import (
     make_execute as make_sync_title_groups_execute,
 )
 from anivault.bootstrap.env_file import read_tmdb_api_key
+from anivault.constants.gui.settings import parse_ignore_tokens_from_loaded
 from anivault.domain.media.extensions import SUBTITLE_SCAN_EXTENSIONS
 from anivault.domain.rules.tmdb_search_query import iter_strip_last_word_chain
 from anivault.interfaces.gui.models import PipelineTableModel
@@ -232,7 +233,7 @@ def _create_parse_execute(
     repos: _SqliteRepositories,
 ) -> Callable[[ParseInput, object, Any], ParseResult]:
     settings = load_all()
-    ignore_tokens = settings.get("parse_tmdb", {}).get("ignore_tokens", "") or ""
+    ignore_tokens = parse_ignore_tokens_from_loaded(settings)
     parser = AnitopyTitleParser(ignore_tokens=ignore_tokens)
     return make_parse_execute(
         parser,

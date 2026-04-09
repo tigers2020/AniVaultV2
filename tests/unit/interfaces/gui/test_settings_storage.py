@@ -3,6 +3,19 @@
 import json
 from pathlib import Path
 
+from anivault.constants.gui.settings import (
+    DEFAULT_PARSE_TMDB,
+    DEFAULT_PATH_RULES,
+    DEFAULT_PIPELINE_RESULTS,
+    DEFAULT_SCAN_BUILD,
+    auto_scan_on_first_show_from_loaded,
+    parse_ignore_tokens_from_loaded,
+    path_rules_from_loaded,
+    pipeline_results_from_loaded,
+    scan_build_from_loaded,
+    scan_source_path_from_loaded,
+    target_root_from_loaded,
+)
 from anivault.interfaces.gui import settings_storage
 
 
@@ -18,6 +31,50 @@ def test_load_all_includes_pipeline_result_defaults(tmp_path: Path, monkeypatch)
 
     assert pipeline["view_key"] == "details"
     assert pipeline["selected_index"] == -1
+
+
+def test_get_defaults_uses_canonical_settings_schema() -> None:
+    """get_defaults should mirror the canonical settings module defaults."""
+    defaults = settings_storage.get_defaults()
+
+    assert defaults["path_rules"] == DEFAULT_PATH_RULES
+    assert defaults["parse_tmdb"] == DEFAULT_PARSE_TMDB
+    assert defaults["scan_build"] == DEFAULT_SCAN_BUILD
+    assert "theme" not in defaults
+
+
+def test_settings_helpers_merge_defaults_for_partial_loaded_payload() -> None:
+    """Helper readers should merge partial loaded settings with canonical defaults."""
+    loaded = {
+        "path_rules": {"target_root": "F:/Library"},
+        "parse_tmdb": {"ignore_tokens": "x264"},
+        "scan_build": {"source_path": "F:/Anime"},
+        "ui_state": {"pipeline_results": {"view_key": "icon_m"}},
+    }
+
+    assert path_rules_from_loaded(loaded)["target_root"] == "F:/Library"
+    assert (
+        path_rules_from_loaded(loaded)["unknown_group_folder"]
+        == DEFAULT_PATH_RULES["unknown_group_folder"]
+    )
+    assert parse_ignore_tokens_from_loaded(loaded) == "x264"
+    assert scan_source_path_from_loaded(loaded) == "F:/Anime"
+    assert scan_build_from_loaded(loaded)["source_path"] == "F:/Anime"
+    assert target_root_from_loaded(loaded) == "F:/Library"
+    assert pipeline_results_from_loaded(loaded)["view_key"] == "icon_m"
+    assert (
+        pipeline_results_from_loaded(loaded)["selected_index"]
+        == DEFAULT_PIPELINE_RESULTS["selected_index"]
+    )
+
+
+def test_auto_scan_helper_accepts_bool_and_string_inputs() -> None:
+    """Auto-scan helper should preserve legacy truthy string handling."""
+    assert auto_scan_on_first_show_from_loaded({"scan_build": {"auto_scan_on_first_show": True}})
+    assert auto_scan_on_first_show_from_loaded({"scan_build": {"auto_scan_on_first_show": "yes"}})
+    assert not auto_scan_on_first_show_from_loaded(
+        {"scan_build": {"auto_scan_on_first_show": "no"}}
+    )
 
 
 def test_save_all_merges_pipeline_result_state(tmp_path: Path, monkeypatch) -> None:
@@ -114,8 +171,6 @@ def test_load_all_migrates_scan_build_target_path_to_path_rules_target_root(
                 "scan_build": {
                     "source_path": "D:/In",
                     "target_path": "D:/LegacyTarget",
-                    "tmdb_mode": "TMDB TV Search",
-                    "unknown_mode": "Unknown to Needs_Review",
                 }
             }
         ),

@@ -81,6 +81,7 @@ def test_container_factory_helpers_wire_dependencies(monkeypatch, tmp_path) -> N
         SimpleNamespace(library_index="library", parse_cache="cache")
     )
     assert parse_execute[0] == "execute"
+    assert parse_execute[1] == ("parser", "x264")
 
     monkeypatch.setattr(
         container_module,
