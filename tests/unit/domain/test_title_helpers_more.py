@@ -79,3 +79,19 @@ def test_companion_subtitle_operations_moves_matching_sidecars(tmp_path: Path) -
     assert len(ops) == 1
     assert ops[0].source_path == str(same_stem)
     assert ops[0].destination_path.endswith(str(Path("Library") / "show.srt"))
+
+
+def test_companion_subtitle_operations_accepts_directory_entries(tmp_path: Path) -> None:
+    source = tmp_path / "show.mkv"
+    source.write_bytes(b"video")
+    same_stem = tmp_path / "show.srt"
+    same_stem.write_text("sub", encoding="utf-8")
+
+    ops = companion_subtitle_operations(
+        str(source),
+        str(tmp_path / "Library" / "show.mkv"),
+        directory_entries=list(tmp_path.iterdir()),
+    )
+
+    assert len(ops) == 1
+    assert ops[0].source_path == str(same_stem)

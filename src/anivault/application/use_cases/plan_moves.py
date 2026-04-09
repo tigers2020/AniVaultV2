@@ -1,6 +1,6 @@
 """plan_moves.py
 
-매칭된 파일로부터 이동 계획을 구성한다.
+Plan move operations from matched rows.
 
 Author: Pom Kim
 """
@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Callable
+from pathlib import Path
 from threading import Event
 from typing import cast
 
@@ -21,7 +22,10 @@ from anivault.application.dto.organize_plan import (
 )
 from anivault.application.dto.plan import (
     PlanInput,
+    PlanMovePreviewMeta,
     PlanResult,
+    match_file_row_group_key,
+    match_file_row_group_label,
     match_file_row_to_path_template_input,
 )
 from anivault.application.dto.progress import ProgressEvent
@@ -35,23 +39,19 @@ from anivault.constants.domain.media import MEDIA_KIND_SUBTITLE, MEDIA_KIND_VIDE
 from anivault.domain.models import FileOperation, OperationType
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.services.companion_subtitles import companion_subtitle_operations
-from anivault.domain.services.path_template import render_destination_path
+from anivault.domain.services.path_template import (
+    effective_resolution_segment,
+    render_destination_path,
+)
 
 PlanProgressCallback = Callable[[ProgressEvent], None]
 
 
 def _plan_input_error_message(input_dto: PlanInput) -> str | None:
-    """플랜 입력이 유효하지 않으면 오류 메시지를, 아니면 None 을 반환한다.
-
-    Args:
-        input_dto: 이동 계획 입력.
-
-    Returns:
-        오류 메시지 또는 None.
-    """
+    """Return a user-facing validation error when planning cannot proceed."""
     target_root = (input_dto.target_root or "").strip()
     if not target_root:
-        return "Settings → Path Rules에서 Target root folder를 지정하세요."
+        return "Settings > Path Rules에서 Target root folder를 지정해 주세요."
 
     files = list(input_dto.files)
     if len(files) == 0:
@@ -59,9 +59,7 @@ def _plan_input_error_message(input_dto: PlanInput) -> str | None:
 
     for row in files:
         if not (row.tmdb_korean_title_group or "").strip():
-            return (
-                "TMDB 한글 제목 그룹이 비어 있는 행이 있습니다. 매칭을 완료한 뒤 다시 시도하세요."
-            )
+            return "TMDB 시리즈 제목 그룹이 비어 있는 항목이 있습니다. 매칭을 완료한 뒤 다시 시도해 주세요."
 
     return None
 
@@ -69,6 +67,7 @@ def _plan_input_error_message(input_dto: PlanInput) -> str | None:
 def _append_primary_and_optional_companion_moves(
     moves: list[FileOperation],
     move_kinds: list[str],
+    move_preview: list[PlanMovePreviewMeta],
     row: MatchFileRow,
     *,
     tpl: str,
@@ -76,22 +75,9 @@ def _append_primary_and_optional_companion_moves(
     unk_res: str,
     unk_grp: str,
     include_companion_subtitles: bool,
+    dir_listing_cache: dict[Path, list[Path]] | None,
 ) -> None:
-    """한 매칭 행에 대해 주 파일 이동과(선택) 동반 자막 이동을 moves 에 추가한다.
-
-    Args:
-        moves: 누적 작업 목록.
-        move_kinds: moves 와 동일 길이로 `video`/`subtitle` 를 쌓는다.
-        row: 매칭 파일 행.
-        tpl: path_template.
-        target_root: Target root 경로.
-        unk_res: 미지정 해상도 폴더명.
-        unk_grp: 미지정 그룹 폴더명.
-        include_companion_subtitles: True면 비디오 옆 같은 stem 자막도 이동.
-
-    Returns:
-        None.
-    """
+    """Append the main move and optional companion subtitle moves for one row."""
     pti = match_file_row_to_path_template_input(row)
     dest = render_destination_path(
         tpl,
@@ -99,6 +85,11 @@ def _append_primary_and_optional_companion_moves(
         target_root=target_root,
         unknown_resolution=unk_res,
         unknown_group_folder=unk_grp,
+    )
+    preview_meta = PlanMovePreviewMeta(
+        group_key=match_file_row_group_key(row),
+        group_label=match_file_row_group_label(row),
+        resolution_segment=effective_resolution_segment(row.resolution, unk_res),
     )
     moves.append(
         FileOperation(
@@ -108,10 +99,25 @@ def _append_primary_and_optional_companion_moves(
         )
     )
     move_kinds.append(MEDIA_KIND_VIDEO)
+    move_preview.append(preview_meta)
     if include_companion_subtitles:
-        for op in companion_subtitle_operations(row.original_file, dest):
+        entries_kw: list[Path] | None = None
+        if dir_listing_cache is not None:
+            parent = Path(row.original_file).parent
+            if parent not in dir_listing_cache:
+                try:
+                    dir_listing_cache[parent] = list(parent.iterdir())
+                except OSError:
+                    dir_listing_cache[parent] = []
+            entries_kw = dir_listing_cache[parent]
+        for op in companion_subtitle_operations(
+            row.original_file,
+            dest,
+            directory_entries=entries_kw,
+        ):
             moves.append(op)
             move_kinds.append(MEDIA_KIND_SUBTITLE)
+            move_preview.append(preview_meta)
 
 
 def _emit_plan_progress(
@@ -121,7 +127,7 @@ def _emit_plan_progress(
     total: int,
     row: MatchFileRow,
 ) -> None:
-    """계획 진행률 이벤트를 조건부로 발행한다."""
+    """Emit progress updates while planning."""
     if progress_callback is None or total <= 0:
         return
     cur = index + 1
@@ -137,6 +143,25 @@ def _emit_plan_progress(
     )
 
 
+def _throttled_plan_progress(
+    progress_callback: PlanProgressCallback | None,
+    *,
+    index: int,
+    total: int,
+    row: MatchFileRow,
+    last_emitted_percent: int,
+) -> int:
+    """Emit plan progress when first, last, or integer percent increases; return new last percent."""
+    if progress_callback is None or total <= 0:
+        return last_emitted_percent
+    cur = index + 1
+    pct = int(PROGRESS_PERCENT_MAX * cur / total)
+    if index != 0 and index != total - 1 and pct <= last_emitted_percent:
+        return last_emitted_percent
+    _emit_plan_progress(progress_callback, index=index, total=total, row=row)
+    return pct
+
+
 def _persist_plan_if_needed(
     *,
     organize_plan: OrganizePlanRepository | None,
@@ -144,18 +169,22 @@ def _persist_plan_if_needed(
     files: list[MatchFileRow],
     moves: list[FileOperation],
     move_kinds: list[str],
+    move_preview: list[PlanMovePreviewMeta],
 ) -> PlanResult | None:
-    """필요한 경우 계획을 저장소에 기록하고 결과를 반환한다.
-
-    Returns:
-        저장을 생략하면 None, 저장 성공/실패 시 해당 PlanResult.
-    """
+    """Persist the preview plan when the organize-plan repository is available."""
     if organize_plan is None or input_dto.index_root_id is None or not moves:
         return None
     if len(move_kinds) != len(moves):
         return PlanResult(
             moves=tuple(moves),
+            move_preview=tuple(move_preview),
             error="내부 오류: 이동 작업과 종류 수가 일치하지 않습니다.",
+        )
+    if len(move_preview) != len(moves):
+        return PlanResult(
+            moves=tuple(moves),
+            move_preview=tuple(move_preview),
+            error="내부 오류: Dry Run 메타 수가 이동 작업과 일치하지 않습니다.",
         )
     try:
         summary = json.dumps(
@@ -182,9 +211,10 @@ def _persist_plan_if_needed(
         )
         item_ids = organize_plan.append_items(plan_id, rows)
     except (OSError, sqlite3.Error) as e:
-        return PlanResult(moves=tuple(moves), error=str(e))
+        return PlanResult(moves=tuple(moves), move_preview=tuple(move_preview), error=str(e))
     return PlanResult(
         moves=tuple(moves),
+        move_preview=tuple(move_preview),
         organize_plan_id=plan_id,
         organize_item_ids=tuple(item_ids),
     )
@@ -193,30 +223,14 @@ def _persist_plan_if_needed(
 def make_execute(
     organize_plan: OrganizePlanRepository | None = None,
 ) -> Callable[[PlanInput, PlanProgressCallback | None, Event], PlanResult]:
-    """이동 계획 실행 함수를 만든다.
-
-    Args:
-        organize_plan: 플랜 영속화 저장소. None이면 DB에 저장하지 않는다.
-
-    Returns:
-        (PlanInput, progress_callback, cancel_token) -> PlanResult 클로저.
-    """
+    """Create the plan-moves use case callable."""
 
     def execute(
         input_dto: PlanInput,
         progress_callback: PlanProgressCallback | None,
         cancel_token: Event,
     ) -> PlanResult:
-        """이동 계획을 생성한다.
-
-        Args:
-            input_dto: 매칭 행과 path_rules 값.
-            progress_callback: ProgressEvent를 받는 콜백. None이면 생략.
-            cancel_token: 설정 시 중단.
-
-        Returns:
-            계획 결과. 검증 실패 시 error에 메시지.
-        """
+        """Build move operations from matched rows and path rules."""
         err = _plan_input_error_message(input_dto)
         if err is not None:
             return PlanResult(error=err)
@@ -227,32 +241,46 @@ def make_execute(
 
         moves: list[FileOperation] = []
         move_kinds: list[str] = []
+        move_preview: list[PlanMovePreviewMeta] = []
         tpl = input_dto.path_template
         unk_res = input_dto.unknown_resolution
         unk_grp = input_dto.unknown_group_folder
+        dir_listing_cache: dict[Path, list[Path]] | None = (
+            {} if input_dto.include_companion_subtitles else None
+        )
+        last_plan_progress_percent = -1
 
         for i, row in enumerate(files):
             if cancel_token.is_set():
-                return PlanResult(moves=tuple(moves))
+                return PlanResult(moves=tuple(moves), move_preview=tuple(move_preview))
             _append_primary_and_optional_companion_moves(
                 moves,
                 move_kinds,
+                move_preview,
                 row,
                 tpl=tpl,
                 target_root=target_root,
                 unk_res=unk_res,
                 unk_grp=unk_grp,
                 include_companion_subtitles=input_dto.include_companion_subtitles,
+                dir_listing_cache=dir_listing_cache,
             )
-            _emit_plan_progress(progress_callback, index=i, total=total, row=row)
+            last_plan_progress_percent = _throttled_plan_progress(
+                progress_callback,
+                index=i,
+                total=total,
+                row=row,
+                last_emitted_percent=last_plan_progress_percent,
+            )
 
-        result = PlanResult(moves=tuple(moves))
+        result = PlanResult(moves=tuple(moves), move_preview=tuple(move_preview))
         persisted = _persist_plan_if_needed(
             organize_plan=organize_plan,
             input_dto=input_dto,
             files=files,
             moves=moves,
             move_kinds=move_kinds,
+            move_preview=move_preview,
         )
         if persisted is None:
             return result

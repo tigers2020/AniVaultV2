@@ -430,3 +430,62 @@ def test_plan_moves_subtitle_only_still_requires_match_data(tmp_path: Path) -> N
     )
 
     assert result.error is not None
+
+
+def test_plan_moves_adds_resolution_preview_meta_per_subgroup(tmp_path: Path) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    first = source_dir / "show-1080p.mkv"
+    second = source_dir / "show-720p.mkv"
+    first.write_bytes(b"1080")
+    second.write_bytes(b"720")
+    first_row = _matched_row(first)
+    second_row = _matched_row(second)
+    second_row.resolution = "720p"
+    execute = make_execute()
+
+    result = execute(
+        PlanInput(
+            files=(first_row, second_row),
+            path_template="{resolution}/{korean_title_group}/{original_filename}",
+            target_root=str(tmp_path / "organized"),
+            unknown_resolution="Unknown",
+            unknown_group_folder="Needs_Review",
+            include_companion_subtitles=False,
+        ),
+        None,
+        Event(),
+    )
+
+    assert result.error is None
+    assert len(result.moves) == 2
+    assert len(result.move_preview) == 2
+    assert {meta.group_key for meta in result.move_preview} == {"tmdb:123"}
+    assert {meta.group_label for meta in result.move_preview} == {"Korean Title"}
+    assert {meta.resolution_segment for meta in result.move_preview} == {"1080p", "720p"}
+
+
+def test_plan_moves_preview_uses_unknown_resolution_and_reuses_video_meta_for_subtitles(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    video = source_dir / "show.mkv"
+    subtitle = source_dir / "show.srt"
+    video.write_bytes(b"video")
+    subtitle.write_text("subtitle", encoding="utf-8")
+    row = _matched_row(video)
+    row.resolution = ""
+    execute = make_execute()
+
+    result = execute(
+        _plan_input(row, tmp_path / "organized", include_companion_subtitles=True),
+        None,
+        Event(),
+    )
+
+    assert result.error is None
+    assert len(result.moves) == 2
+    assert len(result.move_preview) == 2
+    assert result.move_preview[0].resolution_segment == "Unknown"
+    assert result.move_preview[1] == result.move_preview[0]

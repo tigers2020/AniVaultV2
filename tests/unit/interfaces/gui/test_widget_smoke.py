@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QSize
-from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QPushButton, QTableWidget
+from pathlib import Path
 
+from PySide6.QtCore import QEvent, QSize, Qt
+from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QPushButton, QTreeWidget
+
+from anivault.application.dto.plan import PlanMovePreviewMeta
 from anivault.constants.gui.components import (
     DETAILS_PANE_MANUAL_MATCH_BUTTON,
     DRY_RUN_DIALOG_BUTTON_APPLY,
@@ -11,6 +14,7 @@ from anivault.constants.gui.components import (
     FOLDER_SCAN_BAR_BUTTON_SCAN,
     SCAN_BUILD_CARD_BUTTON_SCAN,
 )
+from anivault.domain.models.file_operation import FileOperation, OperationType
 from anivault.interfaces.gui.components.molecules.panel_header import PanelHeader
 from anivault.interfaces.gui.components.molecules.poster_card import PosterCard
 from anivault.interfaces.gui.components.molecules.settings_action_bar import SettingsActionBar
@@ -27,7 +31,12 @@ from anivault.interfaces.gui.components.organisms.settings_actions_card import (
     SettingsActionsCard,
 )
 from anivault.interfaces.gui.components.organisms.stats_grid import StatsGrid
-from anivault.interfaces.gui.dialogs.dry_run_dialog import DryRunDialog
+from anivault.interfaces.gui.dialogs.dry_run_dialog import (
+    DryRunDialog,
+    _ellipsize_display,
+    _format_folder_summary,
+    _format_group_resolution_summary,
+)
 from anivault.interfaces.gui.models import PipelineGroupRow, PipelineRow, group_pipeline_rows
 
 
@@ -295,21 +304,91 @@ def test_scan_and_settings_widgets_public_signals(monkeypatch) -> None:
         widget.close()
 
 
-def test_dry_run_dialog_public_table_and_apply_signal() -> None:
+def test_dry_run_dialog_public_tree_and_apply_signal() -> None:
     _ensure_app()
     dialog = DryRunDialog(
         [
-            ("F:/Anime/Frieren - 01.mkv", "F:/Library/Frieren/Frieren - 01.mkv"),
-            ("F:/Anime/Frieren - 02.mkv", "F:/Library/Frieren/Frieren - 02.mkv"),
-        ]
+            FileOperation(
+                OperationType.MOVE,
+                "F:/Anime/Frieren - 01.mkv",
+                "F:/Library/Frieren/1080p/Frieren - 01.mkv",
+            ),
+            FileOperation(
+                OperationType.MOVE,
+                "F:/Anime/Frieren - 02.mkv",
+                "F:/Library/Frieren/720p/Frieren - 02.mkv",
+            ),
+        ],
+        [
+            PlanMovePreviewMeta("tmdb:1", "Frieren", "1080p"),
+            PlanMovePreviewMeta("tmdb:1", "Frieren", "720p"),
+        ],
     )
     emitted: list[str] = []
     dialog.apply_requested.connect(lambda: emitted.append("apply"))
 
-    table = dialog.findChildren(QTableWidget)[0]
-    assert table.rowCount() == 2
-    assert table.item(0, 0).text() == "F:/Anime/Frieren - 01.mkv"
+    tree = dialog.findChildren(QTreeWidget)[0]
+    group_item = tree.topLevelItem(0)
+    first_resolution_item = group_item.child(0)
+    first_move_item = first_resolution_item.child(0)
+    assert tree.topLevelItemCount() == 1
+    assert group_item.text(0) == "Frieren"
+    assert group_item.text(1) == "1080p / 720p"
+    assert Path(group_item.text(2)) == Path("F:/Anime/Frieren - 01.mkv").parent
+    folder_cells = {Path(p.strip()) for p in group_item.text(3).split("·")}
+    assert folder_cells == {
+        Path("F:/Library/Frieren/1080p"),
+        Path("F:/Library/Frieren/720p"),
+    }
+    assert group_item.data(2, Qt.ItemDataRole.UserRole) == [
+        str(Path("F:/Anime/Frieren - 01.mkv").parent)
+    ]
+    assert group_item.data(3, Qt.ItemDataRole.UserRole) is None
+    assert {group_item.child(i).text(1) for i in range(group_item.childCount())} == {
+        "1080p",
+        "720p",
+    }
+    assert first_move_item.text(2) == "F:/Anime/Frieren - 01.mkv"
 
     _button_by_text(dialog, DRY_RUN_DIALOG_BUTTON_APPLY).click()
     assert emitted == ["apply"]
     dialog.close()
+
+
+def test_dry_run_dialog_group_label_truncated_with_tooltip() -> None:
+    _ensure_app()
+    full_title = "가" * 40
+    dialog = DryRunDialog(
+        [
+            FileOperation(
+                OperationType.MOVE,
+                "F:/Anime/e.mkv",
+                "F:/Library/e.mkv",
+            ),
+        ],
+        [PlanMovePreviewMeta("tmdb:1", full_title, "1080p")],
+    )
+    tree = dialog.findChildren(QTreeWidget)[0]
+    group_item = tree.topLevelItem(0)
+    assert len(group_item.text(0)) == 32
+    assert group_item.text(0).endswith("...")
+    assert group_item.toolTip(0) == full_title
+    assert group_item.text(1) == "1080p"
+    assert Path(group_item.text(2)) == Path("F:/Anime")
+    assert Path(group_item.text(3)) == Path("F:/Library")
+    dialog.close()
+
+
+def test_ellipsize_display_short_and_long() -> None:
+    assert _ellipsize_display("short") == "short"
+    assert len(_ellipsize_display("x" * 50)) == 32
+    assert _ellipsize_display("x" * 50).endswith("...")
+
+
+def test_format_group_resolution_summary_sorted() -> None:
+    assert _format_group_resolution_summary({"720p", "1080p"}) == "1080p / 720p"
+    assert _format_group_resolution_summary(set()) == "—"
+
+
+def test_format_folder_summary_joins_with_middle_dot() -> None:
+    assert _format_folder_summary(["/z/b", "/z/a"]) == "/z/a · /z/b"

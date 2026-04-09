@@ -5,7 +5,10 @@ from anivault.application.dto.match_result import MatchFileRow
 from anivault.application.dto.plan import PlanInput
 from anivault.application.use_cases.plan_moves import make_execute
 from anivault.domain.models.path_template_input import PathTemplateInput
-from anivault.domain.services.path_template import render_destination_path
+from anivault.domain.services.path_template import (
+    effective_resolution_segment,
+    render_destination_path,
+)
 
 
 def _path_template_input(
@@ -55,6 +58,27 @@ def test_render_destination_path_does_not_require_existing_target(tmp_path: Path
 
     assert dest == str(missing_target / "Series KO" / "Season 1" / "Episode 01.mkv")
     assert not missing_target.exists()
+
+
+def test_effective_resolution_segment_matches_render_fallback() -> None:
+    row = PathTemplateInput(
+        original_file="F:/Library/Series/Episode 01.mkv",
+        resolution="",
+        year="2024",
+        season="1",
+        korean_title_group="Series KO",
+    )
+
+    dest = render_destination_path(
+        "{resolution}/{original_file}",
+        row,
+        target_root="F:/Organized",
+        unknown_resolution="Unknown Resolution",
+        unknown_group_folder="Unknown Title",
+    )
+
+    assert effective_resolution_segment("", "Unknown Resolution") == "Unknown Resolution"
+    assert dest.endswith(str(Path("Unknown Resolution") / "Episode 01.mkv"))
 
 
 def test_plan_moves_accepts_original_file_alias_for_large_batch() -> None:

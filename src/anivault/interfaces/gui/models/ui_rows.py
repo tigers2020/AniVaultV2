@@ -9,6 +9,8 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from anivault.application.dto.plan import match_file_row_group_key
+
 
 @dataclass
 class PipelineRow:
@@ -321,13 +323,7 @@ def _pipeline_row_group_key(row: PipelineRow) -> str:
     Returns:
         버킷 키 문자열.
     """
-    tid = (row.tmdb_series_id or "").strip()
-    if tid:
-        return f"tmdb:{tid}"
-    pt = (row.parsed_title or "").strip()
-    if pt:
-        return pt
-    return row.original_file
+    return match_file_row_group_key(row)
 
 
 def group_pipeline_rows(rows: list[PipelineRow]) -> list[PipelineGroupRow]:

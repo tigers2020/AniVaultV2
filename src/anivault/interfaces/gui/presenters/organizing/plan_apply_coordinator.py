@@ -148,7 +148,8 @@ class PlanApplyCoordinator(QObject):
             return
         self._p._pending_plan = result  # noqa: SLF001
         dlg = DryRunDialog(
-            [(move.source_path, move.destination_path) for move in result.moves],
+            result.moves,
+            result.move_preview,
             parent=parent if isinstance(parent, QWidget) else None,
         )
         dlg.apply_requested.connect(lambda: self._on_dry_run_apply_clicked(dlg))

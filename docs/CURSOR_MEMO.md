@@ -8,9 +8,13 @@ Cursor(Composer/Agent) 작업 시 팀 규칙·진행 맥락·반복 실수 목�
 
 - 상세: `@AGENTS.md`, `@.cursor/rules/anivault-root.mdc`
 - **진입점**: `python -m anivault` → GUI(README 동일). 외부 메모·스킬이 “CLI 우선”이라고 해도 이 리포 기준과 혼동하지 말 것.
-- **Taste Skill 등**: 웹 전제 `SKILL.md`는 복붙 금지; AniVault는 **Cursor Rule**(`.mdc`)로 Qt 번역 — [.cursor/rules/anivault-agent-skills-taste-qt.mdc](.cursor/rules/anivault-agent-skills-taste-qt.mdc)
-- 진행: 3단계 대화형(시몬 브리핑 → 담당 브리핑 → 코딩) → 테스 테스트 → 렉스 4단계 검증
-- 검증: pytest → ruff → mypy → black
+- **GUI 규칙**: GUI 작업은 `@persona/gina-gui.md`와 `@.cursor/rules/anivault-qt-gui.mdc`를 함께 본다.
+- 진행: 3단계 대화형(시몬 브리핑 → 담당 브리핑 → 코딩) → 테스 테스트 → 렉스 검증
+- 계획 게이트: 리서치 문서 → 플랜 MD → 사람 승인 → 구현
+- 문서 위치: 기본은 `docs/`, 필요 시 `documents/`
+- 검증: `pytest` → `ruff check .` → `mypy src` → `black .`
+- 미실행 보고: 실행 못 한 명령 / 이유 / 남은 위험
+- `black .`이 파일을 바꾸면 포맷 변경 발생도 함께 보고
 
 ---
 

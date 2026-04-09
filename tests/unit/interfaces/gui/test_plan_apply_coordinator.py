@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from anivault.application.dto.plan import ApplyResult, PlanResult
+from anivault.application.dto.plan import ApplyResult, PlanMovePreviewMeta, PlanResult
 from anivault.domain.models.file_operation import FileOperation, OperationType
 from anivault.interfaces.gui.presenters.organizing import plan_apply_coordinator as module
 
@@ -42,6 +42,7 @@ class _Worker:
 def _plan() -> PlanResult:
     return PlanResult(
         moves=(FileOperation(OperationType.MOVE, "a", "b"),),
+        move_preview=(PlanMovePreviewMeta("tmdb:1", "Frieren", "1080p"),),
         organize_plan_id=7,
         organize_item_ids=(9,),
     )
@@ -159,13 +160,20 @@ def test_on_plan_worker_result_handles_error_and_empty_moves(monkeypatch) -> Non
 def test_on_plan_worker_result_opens_dialog_and_resets_pending_plan(monkeypatch) -> None:
     dialog = MagicMock()
     dialog.apply_requested = _Signal()
-    monkeypatch.setattr(module, "DryRunDialog", lambda rows, parent=None: dialog)
+    calls: list[tuple[object, object, object]] = []
+
+    def _dialog_factory(moves, move_preview, parent=None):
+        calls.append((moves, move_preview, parent))
+        return dialog
+
+    monkeypatch.setattr(module, "DryRunDialog", _dialog_factory)
     presenter = SimpleNamespace(_progress_dialog=None, _pending_plan=None, parent=lambda: None)
     coord = _coord(presenter)
 
     coord._on_plan_worker_result(_plan())
 
     dialog.exec.assert_called_once()
+    assert calls == [(_plan().moves, _plan().move_preview, None)]
     assert presenter._pending_plan is None
 
 

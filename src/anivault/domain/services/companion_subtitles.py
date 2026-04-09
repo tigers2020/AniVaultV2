@@ -9,6 +9,7 @@ Author: Pom Kim
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from anivault.domain.media.extensions import SUBTITLE_EXTENSIONS
@@ -18,6 +19,8 @@ from anivault.domain.models import FileOperation, OperationType
 def companion_subtitle_operations(
     video_source: str,
     video_destination: str,
+    *,
+    directory_entries: Sequence[Path] | None = None,
 ) -> list[FileOperation]:
     """비디오와 동일 stem 의 자막 파일에 대한 MOVE 작업 목록을 반환한다.
 
@@ -27,6 +30,7 @@ def companion_subtitle_operations(
     Args:
         video_source: 비디오 원본 절대 경로.
         video_destination: 비디오 목적지 절대 경로.
+        directory_entries: 이미 읽은 부모 디렉터리 엔트리. None이면 parent 에서 iterdir.
 
     Returns:
         자막별 FileOperation 목록. iterdir 실패 시 빈 목록.
@@ -36,10 +40,13 @@ def companion_subtitle_operations(
     stem = video_path.stem
     parent = video_path.parent
 
-    try:
-        entries = list(parent.iterdir())
-    except OSError:
-        return []
+    if directory_entries is not None:
+        entries = list(directory_entries)
+    else:
+        try:
+            entries = list(parent.iterdir())
+        except OSError:
+            return []
 
     out: list[FileOperation] = []
     for child in entries:

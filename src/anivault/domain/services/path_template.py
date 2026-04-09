@@ -83,6 +83,11 @@ def _format_with_spec(raw: str, spec: str | None, *, numeric: bool) -> str:
     return sanitize_path_segment(raw)
 
 
+def effective_resolution_segment(resolution: str, unknown_resolution: str) -> str:
+    """Return the effective resolution folder segment used by the template renderer."""
+    return (resolution or "").strip() or unknown_resolution.strip() or "Unknown"
+
+
 def _context_values(
     row: PathTemplateInput,
     *,
@@ -101,7 +106,7 @@ def _context_values(
     Returns:
         키 → 값 (아직 sanitize 전일 수 있음).
     """
-    res = (row.resolution or "").strip() or unknown_resolution.strip() or "Unknown"
+    res = effective_resolution_segment(row.resolution, unknown_resolution)
     year = (row.year or "").strip() or "Unknown"
     group = (row.korean_title_group or "").strip() or unknown_group_folder.strip() or "Unknown"
     season_raw = (row.season or "").strip() or "1"
