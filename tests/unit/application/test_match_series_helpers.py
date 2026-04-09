@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import math
 from threading import Event
+from typing import cast
 
 from anivault.application.dto.match_result import MatchFileRow
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
+from anivault.application.ports.title_group_port import TitleGroupRepository
+from anivault.application.ports.title_match_port import TitleMatchRepository
 from anivault.application.use_cases import match_series
+from anivault.constants.gui.components import PIPELINE_ROW_STATUS_TMDB_MATCHED
 
 
 def _row(original: str, *, parsed: str = "", group: str = "") -> MatchFileRow:
@@ -50,16 +55,22 @@ def _candidate(
 
 
 class _TitleMatchRepo:
-    def __init__(self, candidate: TmdbSeriesCandidateDTO | None = None, match: object | None = None) -> None:
+    def __init__(
+        self, candidate: TmdbSeriesCandidateDTO | None = None, match: object | None = None
+    ) -> None:
         self.candidate = candidate
         self.match = match
         self.upserts: list[int] = []
         self.group_matches: list[tuple[int, int, str, float | None]] = []
 
-    def upsert_series(self, chosen: TmdbSeriesCandidateDTO, *, raw_json: str, expires_at: str) -> None:
+    def upsert_series(
+        self, chosen: TmdbSeriesCandidateDTO, *, raw_json: str, expires_at: str
+    ) -> None:
         self.upserts.append(chosen.tmdb_id)
 
-    def set_group_match(self, group_id: int, tmdb_id: int, status: str, score: float | None) -> None:
+    def set_group_match(
+        self, group_id: int, tmdb_id: int, status: str, score: float | None
+    ) -> None:
         self.group_matches.append((group_id, tmdb_id, status, score))
 
     def get_group_match(self, group_id: int) -> object | None:
@@ -99,7 +110,7 @@ def test_select_best_candidate_returns_fallback_for_empty_candidates() -> None:
     best, confidence, reason = match_series._select_best_candidate([], "query", "")
 
     assert best is None
-    assert confidence == 0.0
+    assert math.isclose(confidence, 0.0)
     assert reason == "no_results"
 
 
@@ -142,7 +153,7 @@ def test_apply_tmdb_candidate_to_file_rows_updates_selected_rows() -> None:
     assert files[0].tmdb_series_id == ""
     assert files[1].tmdb_series_id == "99"
     assert files[1].tmdb_korean_title_group == "Frieren"
-    assert files[1].status == "TMDB 매칭됨"
+    assert files[1].status == PIPELINE_ROW_STATUS_TMDB_MATCHED
 
 
 def test_persist_manual_tmdb_selection_requires_valid_dependencies() -> None:
@@ -155,7 +166,7 @@ def test_persist_manual_tmdb_selection_requires_valid_dependencies() -> None:
         _candidate(10),
         root_id=None,
         representative_path_norm=None,
-        title_match=repo,
+        title_match=cast(TitleMatchRepository, repo),
         title_groups=None,
     )
 
@@ -170,8 +181,8 @@ def test_try_series_from_title_match_db_returns_short_circuit_candidate() -> Non
     result = match_series._try_series_from_title_match_db(
         root_id=1,
         representative_path_norm="f:/anime/show.mkv",
-        title_match=title_match,
-        title_groups=_TitleGroupsRepo(5),
+        title_match=cast(TitleMatchRepository, title_match),
+        title_groups=cast(TitleGroupRepository, _TitleGroupsRepo(5)),
     )
 
     assert result == [_candidate(7)]
@@ -201,9 +212,12 @@ def test_match_single_group_search_phase_returns_miss_dto() -> None:
         def search_series(self, query: str, year: int | None = None):
             return []
 
-    dto, candidate = match_series._match_single_group_search_phase("Unknown", _Provider())
+    dto, candidate, provenance = match_series._match_single_group_search_phase(
+        "Unknown", _Provider()
+    )
 
     assert candidate is None
+    assert provenance == "provider"
     assert dto.matched is False
     assert dto.reason == "no_results"
 
@@ -220,8 +234,8 @@ def test_match_single_group_apply_persist_updates_files_and_db() -> None:
         0.8,
         root_id=1,
         representative_path_norm="f:/anime/a.mkv",
-        title_match=title_match,
-        title_groups=_TitleGroupsRepo(11),
+        title_match=cast(TitleMatchRepository, title_match),
+        title_groups=cast(TitleGroupRepository, _TitleGroupsRepo(11)),
     )
 
     assert files[0].tmdb_series_id == "4"
@@ -231,7 +245,11 @@ def test_match_single_group_apply_persist_updates_files_and_db() -> None:
 
 def test_representative_path_norm_for_group_handles_errors(monkeypatch) -> None:
     files = [_row("a.mkv")]
-    monkeypatch.setattr(match_series, "normalize_path_key", lambda path: (_ for _ in ()).throw(OSError()))
+
+    def _normalize_raises(path: object) -> str:
+        raise OSError()
+
+    monkeypatch.setattr(match_series, "normalize_path_key", _normalize_raises)
 
     assert match_series._representative_path_norm_for_group(files, 1, [0]) is None
 
@@ -247,16 +265,19 @@ def test_search_one_group_for_parallel_returns_cancelled_dto() -> None:
     token = Event()
     token.set()
 
-    key, indices, path_norm, dto, candidate = match_series._search_one_group_for_parallel(
-        [_row("a.mkv", group="A")],
-        ("A", [0]),
-        provider=None,  # type: ignore[arg-type]
-        root_scope=1,
-        cancel_token=token,
-        title_match=None,
-        title_groups=None,
+    key, indices, path_norm, dto, candidate, provenance = (
+        match_series._search_one_group_for_parallel(
+            [_row("a.mkv", group="A")],
+            ("A", [0]),
+            provider=None,  # type: ignore[arg-type]
+            root_scope=1,
+            cancel_token=token,
+            title_match=None,
+            title_groups=None,
+        )
     )
 
     assert (key, indices, candidate) == ("A", [0], None)
+    assert provenance == "provider"
     assert path_norm is not None
     assert dto.reason == "cancelled"

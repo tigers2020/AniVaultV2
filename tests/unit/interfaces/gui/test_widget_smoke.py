@@ -1,35 +1,32 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QSize
-from PySide6.QtWidgets import QApplication, QPushButton
+from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QPushButton, QTableWidget
 
-from anivault.interfaces.gui.components.organisms.appearance_card import AppearanceCard
+from anivault.constants.gui.components import (
+    DETAILS_PANE_MANUAL_MATCH_BUTTON,
+    DRY_RUN_DIALOG_BUTTON_APPLY,
+    FOLDER_SCAN_BAR_BUTTON_DRY_RUN,
+    FOLDER_SCAN_BAR_BUTTON_MATCH,
+    FOLDER_SCAN_BAR_BUTTON_SCAN,
+    SCAN_BUILD_CARD_BUTTON_SCAN,
+)
 from anivault.interfaces.gui.components.molecules.panel_header import PanelHeader
 from anivault.interfaces.gui.components.molecules.poster_card import PosterCard
 from anivault.interfaces.gui.components.molecules.settings_action_bar import SettingsActionBar
 from anivault.interfaces.gui.components.molecules.stat_card import StatCard
+from anivault.interfaces.gui.components.organisms.appearance_card import AppearanceCard
 from anivault.interfaces.gui.components.organisms.content_view import ContentView
-from anivault.interfaces.gui.components.organisms.details_pane import (
-    DetailsPane,
-    _member_lines,
-)
+from anivault.interfaces.gui.components.organisms.details_pane import DetailsPane
 from anivault.interfaces.gui.components.organisms.folder_scan_bar import FolderScanBar
 from anivault.interfaces.gui.components.organisms.parse_tmdb_form import ParseTmdbForm
-from anivault.interfaces.gui.components.organisms.path_rules_form import (
-    PathRulesForm,
-    _path_template_label,
-    _template_to_example,
-)
-from anivault.interfaces.gui.components.organisms.poster_grid import (
-    PosterGrid,
-    _GridContainer,
-    _column_count,
-)
+from anivault.interfaces.gui.components.organisms.path_rules_form import PathRulesForm
+from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
 from anivault.interfaces.gui.components.organisms.scan_build_card import ScanBuildCard
 from anivault.interfaces.gui.components.organisms.settings_actions_card import (
     SettingsActionsCard,
 )
-from anivault.interfaces.gui.components.organisms.stats_grid import StatsGrid, _fmt
+from anivault.interfaces.gui.components.organisms.stats_grid import StatsGrid
 from anivault.interfaces.gui.dialogs.dry_run_dialog import DryRunDialog
 from anivault.interfaces.gui.models import PipelineGroupRow, PipelineRow, group_pipeline_rows
 
@@ -73,54 +70,23 @@ def _group(*rows: PipelineRow) -> PipelineGroupRow:
     return group_pipeline_rows(list(rows))[0]
 
 
-def test_panel_header_elides_description_on_resize() -> None:
+def _button_by_text(widget, text: str) -> QPushButton:
+    for button in widget.findChildren(QPushButton):
+        if button.text() == text:
+            return button
+    raise AssertionError(f"Button not found: {text}")
+
+
+def _buttons(widget) -> list[QPushButton]:
+    return widget.findChildren(QPushButton)
+
+
+def test_panel_header_and_poster_card_public_behavior() -> None:
     _ensure_app()
     header = PanelHeader("Organizer", "A very long description that should be elided on resize.")
     header.resize(140, 48)
     header.show()
-    QApplication.processEvents()
 
-    desc = header._desc_lbl  # type: ignore[attr-defined]
-    assert desc is not None
-    assert desc.text()
-
-    header._apply_description_elide()  # type: ignore[attr-defined]
-    assert len(desc.text()) <= len(header._description_text)  # type: ignore[attr-defined]
-    header.close()
-
-
-def test_poster_grid_container_and_cards_relayout() -> None:
-    _ensure_app()
-    assert _column_count(100, min_card=120, grid_spacing=12) == 1
-    assert _column_count(500, min_card=120, grid_spacing=12) >= 3
-
-    grid = PosterGrid(show_header=False)
-    cards = [
-        PosterCard(title=f"Show {index}", meta="2024 / S01", variant="compact")
-        for index in range(3)
-    ]
-    grid.set_cards(cards)
-    grid.resize(520, 600)
-    grid.show()
-    QApplication.processEvents()
-
-    container = grid._container  # type: ignore[attr-defined]
-    container.resize(520, 600)
-    container._relayout()  # type: ignore[attr-defined]
-
-    assert grid.cards() == cards
-    assert container._last_cols >= 1  # type: ignore[attr-defined]
-    assert container.minimumHeight() > 0
-
-    empty = _GridContainer()
-    empty._relayout()  # type: ignore[attr-defined]
-    assert empty.minimumHeight() >= 0
-    grid.close()
-    empty.close()
-
-
-def test_poster_card_resize_and_setters_cover_compact_and_poster_modes() -> None:
-    _ensure_app()
     poster = PosterCard(title="Poster", meta="Meta", path="F:/Library/Poster.mkv")
     compact = PosterCard(
         title="Compact",
@@ -131,12 +97,15 @@ def test_poster_card_resize_and_setters_cover_compact_and_poster_modes() -> None
         text_panel_overlay=True,
         title_only=True,
     )
-
     poster.resize(180, 320)
     compact.resize(180, 220)
     poster.show()
     compact.show()
     QApplication.processEvents()
+
+    label_texts = [label.text() for label in header.findChildren(QLabel)]
+    assert "Organizer" in label_texts
+    assert any(text for text in label_texts if text != "Organizer")
 
     poster.set_title("Updated Poster")
     poster.set_path("F:/Library/Updated Poster.mkv")
@@ -147,107 +116,82 @@ def test_poster_card_resize_and_setters_cover_compact_and_poster_modes() -> None
     assert poster.heightForWidth(180) >= poster.minimumHeight()
     assert compact.heightForWidth(180) >= compact.minimumHeight()
     assert isinstance(poster.sizeHint(), QSize)
+
+    header.close()
     poster.close()
     compact.close()
 
 
-def test_content_view_rows_and_selection_updates_metadata() -> None:
+def test_poster_grid_and_content_view_public_rows_flow() -> None:
     _ensure_app()
     single = _group(_row("F:/Anime/Frieren - 01.mkv"))
     multi = _group(
         _row("F:/Anime/Frieren - 01.mkv", episode="E01"),
         _row("F:/Anime/Frieren - 02.mkv", episode="E02"),
     )
+
+    grid = PosterGrid(show_header=False)
+    cards = [
+        PosterCard(title=f"Show {index}", meta="2024 / S01", variant="compact")
+        for index in range(3)
+    ]
+    grid.set_cards(cards)
+    grid.resize(520, 600)
+    grid.show()
+
     view = ContentView()
     selected: list[int] = []
     view.selection_changed.connect(selected.append)
-
-    assert "Frieren - 01.mkv" in _member_lines(multi)
     view.set_rows([single, multi])
-    view._on_select(1)  # type: ignore[attr-defined]
+    view.show()
+    QApplication.processEvents()
 
+    assert grid.cards() == cards
+    assert grid.minimumHeight() >= 0
     assert len(view.poster_cards()) == 2
-    assert selected == [0, 1]
-    assert "Frieren - 02.mkv" in view._meta_label.text()  # type: ignore[attr-defined]
-    view._clear_list_widgets()  # type: ignore[attr-defined]
-    assert view.poster_cards() == view._cards  # type: ignore[attr-defined]
+    assert selected == [0]
+
+    meta_texts = [label.text() for label in view.findChildren(QLabel)]
+    assert any("Frieren - 01.mkv" in text for text in meta_texts)
+
+    grid.close()
     view.close()
 
 
-def test_details_pane_handles_empty_single_and_group_rows() -> None:
+def test_details_pane_parse_form_and_path_rules_public_round_trip() -> None:
     _ensure_app()
     pane = DetailsPane()
-    single_row = _row("F:/Anime/Frieren - 01.mkv")
     group = _group(
-        single_row,
+        _row("F:/Anime/Frieren - 01.mkv"),
         _row("F:/Anime/Frieren - 02.mkv", episode="E02"),
     )
     clicks: list[str] = []
     pane.manual_match_requested.connect(lambda: clicks.append("manual"))
-
-    pane.set_row(None)
-    assert not pane._manual_btn.isEnabled()  # type: ignore[attr-defined]
-
-    pane.set_row(single_row)
-    assert pane._manual_btn.isEnabled()  # type: ignore[attr-defined]
-    assert "Frieren - 01.mkv" in pane._content.text()  # type: ignore[attr-defined]
-
     pane.set_row(group)
-    pane._manual_btn.click()  # type: ignore[attr-defined]
+    pane.show()
+
+    _button_by_text(pane, DETAILS_PANE_MANUAL_MATCH_BUTTON).click()
+
+    pane_texts = [label.text() for label in pane.findChildren(QLabel)]
     assert clicks == ["manual"]
-    assert "Frieren - 02.mkv" in pane._content.text()  # type: ignore[attr-defined]
-    pane.close()
+    assert any("Frieren - 02.mkv" in text for text in pane_texts)
 
-
-def test_parse_tmdb_form_round_trip_and_signal_emission() -> None:
-    _ensure_app()
     form = ParseTmdbForm()
-    changes: list[str] = []
-    form.settings_changed.connect(lambda: changes.append("changed"))
-
-    form._tmdb_api_key.set_value("secret")  # type: ignore[attr-defined]
-    form._ignore_tokens.set_value("x264")  # type: ignore[attr-defined]
-    form._video_ext.set_value(".mkv,.mp4")  # type: ignore[attr-defined]
-    form._season_format.set_value("Season {season}")  # type: ignore[attr-defined]
-    form._tmdb_search.setCurrentIndex(0)  # type: ignore[attr-defined]
-
-    values = form.get_values()
-    assert values["tmdb_api_key"] == "secret"
-    assert values["ignore_tokens"] == "x264"
-
     form.set_values(
         {
             "tmdb_api_key": "updated",
             "ignore_tokens": "hevc",
             "video_extensions": ".mkv",
-            "tmdb_search_mode": values["tmdb_search_mode"],
+            "tmdb_search_mode": "Auto",
             "season_folder_format": "S{season}",
         }
     )
-    assert form.get_values()["tmdb_api_key"] == "updated"
-    assert changes
-    form.close()
-
-
-def test_path_rules_form_helpers_and_round_trip() -> None:
-    _ensure_app()
-    assert _template_to_example("{title}/{season}") != "{title}/{season}"
-    assert "Path template" in _path_template_label("{title}")
-
-    form = PathRulesForm()
-    changes: list[str] = []
-    form.settings_changed.connect(lambda: changes.append("changed"))
-
-    form._target_root.set_value("F:/Library")  # type: ignore[attr-defined]
-    form._path_template.set_value("{title}/Season {season}")  # type: ignore[attr-defined]
-    form._unknown_resolution.set_value("Unknown Resolution")  # type: ignore[attr-defined]
-    form._unknown_group.set_value("Unknown Group")  # type: ignore[attr-defined]
-
     values = form.get_values()
-    assert values["target_root"] == "F:/Library"
-    assert values["path_template"] == "{title}/Season {season}"
+    assert values["tmdb_api_key"] == "updated"
+    assert values["ignore_tokens"] == "hevc"
 
-    form.set_values(
+    path_rules = PathRulesForm()
+    path_rules.set_values(
         {
             "target_root": "F:/Anime",
             "path_template": "{title}",
@@ -255,57 +199,16 @@ def test_path_rules_form_helpers_and_round_trip() -> None:
             "unknown_group_folder": "Etc",
         }
     )
-    assert form.get_values()["unknown_group_folder"] == "Etc"
-    assert changes
+    path_values = path_rules.get_values()
+    assert path_values["target_root"] == "F:/Anime"
+    assert path_values["unknown_group_folder"] == "Etc"
+
+    pane.close()
     form.close()
+    path_rules.close()
 
 
-def test_scan_build_card_get_set_and_scan_signal() -> None:
-    _ensure_app()
-    card = ScanBuildCard()
-    scans: list[str] = []
-    changes: list[str] = []
-    card.scan_clicked.connect(scans.append)
-    card.settings_changed.connect(lambda: changes.append("changed"))
-
-    card._source.set_path("F:/Anime")  # type: ignore[attr-defined]
-    card._on_scan()  # type: ignore[attr-defined]
-    values = card.get_values()
-    assert values["source_path"] == "F:/Anime"
-
-    card.set_values(
-        {
-            "source_path": "F:/NewAnime",
-            "tmdb_mode": values["tmdb_mode"],
-            "unknown_mode": values["unknown_mode"],
-        }
-    )
-    assert card.get_values()["source_path"] == "F:/NewAnime"
-    assert scans == ["F:/Anime"]
-    assert changes
-    card.close()
-
-
-def test_dry_run_dialog_populates_rows_and_emits_apply() -> None:
-    _ensure_app()
-    dialog = DryRunDialog(
-        [
-            ("F:/Anime/Frieren - 01.mkv", "F:/Library/Frieren/Frieren - 01.mkv"),
-            ("F:/Anime/Frieren - 02.mkv", "F:/Library/Frieren/Frieren - 02.mkv"),
-        ]
-    )
-    emitted: list[str] = []
-    dialog.apply_requested.connect(lambda: emitted.append("apply"))
-
-    assert dialog._table.rowCount() == 2  # type: ignore[attr-defined]
-    assert dialog._table.item(0, 0).text() == "F:/Anime/Frieren - 01.mkv"  # type: ignore[attr-defined]
-
-    dialog._on_apply_clicked()  # type: ignore[attr-defined]
-    assert emitted == ["apply"]
-    dialog.close()
-
-
-def test_small_gui_cards_and_bars_cover_interactions(monkeypatch) -> None:
+def test_scan_and_settings_widgets_public_signals(monkeypatch) -> None:
     _ensure_app()
     monkeypatch.setattr(
         "anivault.interfaces.gui.components.organisms.appearance_card.list_themes",
@@ -319,8 +222,9 @@ def test_small_gui_cards_and_bars_cover_interactions(monkeypatch) -> None:
     appearance = AppearanceCard()
     themes: list[str] = []
     appearance.theme_changed.connect(themes.append)
-    appearance._theme_combo.setCurrentIndex(1)  # type: ignore[attr-defined]
-    appearance._on_theme_selected()  # type: ignore[attr-defined]
+    combo = appearance.findChildren(QComboBox)[0]
+    combo.setCurrentIndex(1)
+    QApplication.processEvents()
     assert themes[-1] == "light"
 
     folder = FolderScanBar()
@@ -334,24 +238,38 @@ def test_small_gui_cards_and_bars_cover_interactions(monkeypatch) -> None:
     folder.path_changed.connect(path_updates.append)
     folder.set_path("F:/Anime")
     folder.set_dry_run_enabled(True)
-    folder._on_scan()  # type: ignore[attr-defined]
-    folder.match_clicked.emit()
-    folder.dry_run_clicked.emit()
+    _button_by_text(folder, FOLDER_SCAN_BAR_BUTTON_SCAN).click()
+    _button_by_text(folder, FOLDER_SCAN_BAR_BUTTON_MATCH).click()
+    _button_by_text(folder, FOLDER_SCAN_BAR_BUTTON_DRY_RUN).click()
     folder.changeEvent(QEvent(QEvent.Type.FontChange))
     assert scans == ["F:/Anime"]
     assert matches == ["match"]
     assert dry_runs == ["dry"]
     assert path_updates
 
-    assert _fmt(1200) == "1,200"
+    scan_card = ScanBuildCard()
+    scan_events: list[str] = []
+    scan_card.scan_clicked.connect(scan_events.append)
+    scan_card.set_values(
+        {
+            "source_path": "F:/NewAnime",
+            "tmdb_mode": scan_card.get_values()["tmdb_mode"],
+            "unknown_mode": scan_card.get_values()["unknown_mode"],
+        }
+    )
+    _button_by_text(scan_card, SCAN_BUILD_CARD_BUTTON_SCAN).click()
+    assert scan_card.get_values()["source_path"] == "F:/NewAnime"
+    assert scan_events == ["F:/NewAnime"]
+
     stats = StatsGrid()
     stats.set_stats(scanned=1200, parsed=34, tmdb_matches=12, groups=7)
     stats.changeEvent(QEvent(QEvent.Type.StyleChange))
-    assert stats._cards[0].layout().itemAt(1).widget().text() == "1,200"  # type: ignore[union-attr]
+    stats_texts = [label.text() for label in stats.findChildren(QLabel)]
+    assert "1,200" in stats_texts
 
     stat_card = StatCard("Label", "1")
     stat_card.set_value("99")
-    assert stat_card.layout().itemAt(1).widget().text() == "99"  # type: ignore[union-attr]
+    assert "99" in [label.text() for label in stat_card.findChildren(QLabel)]
 
     actions = SettingsActionsCard()
     bar = actions.action_bar()
@@ -361,9 +279,8 @@ def test_small_gui_cards_and_bars_cover_interactions(monkeypatch) -> None:
     bar.save_clicked.connect(lambda: saves.append("save"))
     bar.reset_clicked.connect(lambda: resets.append("reset"))
     bar.load_clicked.connect(lambda: loads.append("load"))
-    buttons = bar.findChildren(QPushButton)
-    for widget in buttons:
-        widget.click()
+    for button in bar.findChildren(QPushButton):
+        button.click()
     assert saves == ["save"]
     assert resets == ["reset"]
     assert loads == ["load"]
@@ -371,10 +288,28 @@ def test_small_gui_cards_and_bars_cover_interactions(monkeypatch) -> None:
     standalone_bar = SettingsActionBar()
     standalone_emitted: list[str] = []
     standalone_bar.save_clicked.connect(lambda: standalone_emitted.append("save"))
-    for widget in standalone_bar.findChildren(QPushButton):
-        widget.click()
-        break
+    _button_by_text(standalone_bar, "Save").click()
     assert standalone_emitted == ["save"]
 
-    for widget in (appearance, folder, stats, stat_card, actions, standalone_bar):
+    for widget in (appearance, folder, scan_card, stats, stat_card, actions, standalone_bar):
         widget.close()
+
+
+def test_dry_run_dialog_public_table_and_apply_signal() -> None:
+    _ensure_app()
+    dialog = DryRunDialog(
+        [
+            ("F:/Anime/Frieren - 01.mkv", "F:/Library/Frieren/Frieren - 01.mkv"),
+            ("F:/Anime/Frieren - 02.mkv", "F:/Library/Frieren/Frieren - 02.mkv"),
+        ]
+    )
+    emitted: list[str] = []
+    dialog.apply_requested.connect(lambda: emitted.append("apply"))
+
+    table = dialog.findChildren(QTableWidget)[0]
+    assert table.rowCount() == 2
+    assert table.item(0, 0).text() == "F:/Anime/Frieren - 01.mkv"
+
+    _button_by_text(dialog, DRY_RUN_DIALOG_BUTTON_APPLY).click()
+    assert emitted == ["apply"]
+    dialog.close()

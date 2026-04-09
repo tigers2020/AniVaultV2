@@ -16,7 +16,7 @@ from anivault.constants.application.statuses import (
     MATCH_STATUS_CONFIRMED,
     POSTER_ASSET_KIND_POSTER,
 )
-from anivault.constants.gui.copy import HYDRATE_STATUS_TMDB_CACHED
+from anivault.constants.gui.components import PIPELINE_ROW_STATUS_TMDB_CACHED
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.poster_display import resolve_final_poster_display_source
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
@@ -79,7 +79,7 @@ def _apply_cached_candidate(
         year=year or row.year,
         season=row.season,
         resolution=row.resolution,
-        status=HYDRATE_STATUS_TMDB_CACHED if (candidate.name_ko or "").strip() else row.status,
+        status=PIPELINE_ROW_STATUS_TMDB_CACHED if (candidate.name_ko or "").strip() else row.status,
         poster_url=poster_display or row.poster_url,
         backdrop_url=backdrop_cdn or row.backdrop_url,
         target_path=row.target_path,

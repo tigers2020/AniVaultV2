@@ -90,7 +90,10 @@ def test_sqlite_title_match_repository_poster_assets_and_helpers(tmp_path: Path)
         assert _group_match_from_row((1, 8, "confirmed", 0.7)) is not None
         assert _group_match_from_row((1, 8, "bad", 0.7)) is None
         assert _rank_title_match(candidate, "frieren") == 0
-        assert _decode_unexpired_candidate(json.dumps(asdict(candidate)), "2999-01-01T00:00:00Z") == candidate
+        assert (
+            _decode_unexpired_candidate(json.dumps(asdict(candidate)), "2999-01-01T00:00:00Z")
+            == candidate
+        )
         assert _candidate_from_raw_json(json.dumps(asdict(candidate))) == candidate
 
         ranked = _rank_local_title_hits(

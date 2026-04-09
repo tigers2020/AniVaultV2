@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from threading import Event
-from typing import cast
+from typing import Literal, cast
 
 from anivault.application.dto.match_result import (
     GroupMatchResultDTO,
@@ -51,6 +51,7 @@ from anivault.constants.domain.matching import (
     TMDB_MAX_CANDIDATES,
     TMDB_SERIES_CACHE_TTL_DAYS,
 )
+from anivault.constants.gui.components import PIPELINE_ROW_STATUS_TMDB_MATCHED
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.tmdb_image_url import tmdb_backdrop_cdn_url, tmdb_poster_cdn_url
 from anivault.domain.rules.tmdb_search_query import (
@@ -60,6 +61,8 @@ from anivault.domain.rules.tmdb_search_query import (
 )
 
 MatchProgressCallback = Callable[[ProgressEvent], None]
+
+TmdbCandidateProvenance = Literal["group_db", "provider"]
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +259,8 @@ def apply_tmdb_candidate_to_file_rows(
     files: list[MatchFileRow],
     indices: list[int],
     candidate: TmdbSeriesCandidateDTO,
+    *,
+    korean_status: str | None = None,
 ) -> None:
     """TMDB 시리즈 후보로 지정 인덱스의 파일 행을 갱신한다(자동·수동 매칭 공통).
 
@@ -263,6 +268,7 @@ def apply_tmdb_candidate_to_file_rows(
         files: 전체 파일 행 목록(제자리 수정).
         indices: 갱신할 행 인덱스 목록.
         candidate: 선택된 TMDB 시리즈 후보.
+        korean_status: 한글 제목이 있을 때 넣을 `MatchFileRow.status`. None이면 매칭 완료 문구.
 
     Returns:
         None.
@@ -284,6 +290,7 @@ def apply_tmdb_candidate_to_file_rows(
         backdrop,
         tid,
         tmdb_year,
+        korean_row_status=korean_status,
     )
 
 
@@ -297,6 +304,8 @@ def _apply_tmdb_to_file_rows(
     backdrop: str,
     tid: str,
     tmdb_year: str,
+    *,
+    korean_row_status: str | None = None,
 ) -> None:
     """선택된 TMDB 시리즈 메타로 그룹 내 파일 행을 갱신한다.
 
@@ -310,10 +319,14 @@ def _apply_tmdb_to_file_rows(
         backdrop: 백드롭 전체 URL.
         tid: 시리즈 ID 문자열.
         tmdb_year: first_air_date에서 뽑은 연도 접두.
+        korean_row_status: 한글 제목이 있을 때 쓸 status. None이면 `PIPELINE_ROW_STATUS_TMDB_MATCHED`.
 
     Returns:
         None.
     """
+    status_when_korean = (
+        PIPELINE_ROW_STATUS_TMDB_MATCHED if korean_row_status is None else korean_row_status
+    )
     for idx in indices:
         prev = files[idx]
         files[idx] = MatchFileRow(
@@ -327,7 +340,7 @@ def _apply_tmdb_to_file_rows(
             year=tmdb_year if tmdb_year else prev.year,
             season=prev.season,
             resolution=prev.resolution,
-            status="TMDB 매칭됨" if korean else prev.status,
+            status=status_when_korean if korean else prev.status,
             poster_url=poster or prev.poster_url,
             backdrop_url=backdrop or prev.backdrop_url,
             target_path=prev.target_path,
@@ -469,7 +482,7 @@ def _search_series_candidates_for_group(
     representative_path_norm: str | None = None,
     title_match: TitleMatchRepository | None = None,
     title_groups: TitleGroupRepository | None = None,
-) -> list[TmdbSeriesCandidateDTO]:
+) -> tuple[list[TmdbSeriesCandidateDTO], TmdbCandidateProvenance]:
     """그룹 키에 대해 변형 검색어·끝단어 제거 체인으로 TMDB 후보를 찾는다.
 
     연도 필터는 쓰지 않는다(파일 연도와 TMDB 첫 방영 연도 불일치로 0건이 나오는 것을 피함).
@@ -483,7 +496,7 @@ def _search_series_candidates_for_group(
         title_groups: 작품 그룹 저장소.
 
     Returns:
-        첫 비어 있지 않은 검색 결과. 없으면 빈 목록.
+        (후보 목록, `group_db`면 그룹 매칭 DB 단축, 아니면 provider 검색).
     """
     from_db = _try_series_from_title_match_db(
         root_id=root_id,
@@ -492,8 +505,8 @@ def _search_series_candidates_for_group(
         title_groups=title_groups,
     )
     if from_db is not None:
-        return from_db
-    return _search_series_via_provider(group_key, provider)
+        return from_db, "group_db"
+    return _search_series_via_provider(group_key, provider), "provider"
 
 
 def _match_single_group_search_phase(
@@ -504,7 +517,7 @@ def _match_single_group_search_phase(
     representative_path_norm: str | None = None,
     title_match: TitleMatchRepository | None = None,
     title_groups: TitleGroupRepository | None = None,
-) -> tuple[GroupMatchResultDTO, TmdbSeriesCandidateDTO | None]:
+) -> tuple[GroupMatchResultDTO, TmdbSeriesCandidateDTO | None, TmdbCandidateProvenance]:
     """한 그룹에 대해 TMDB 검색·후보 선택만 수행한다(파일 행·DB 갱신 없음).
 
     Args:
@@ -516,9 +529,9 @@ def _match_single_group_search_phase(
         title_groups: 작품 그룹 저장소.
 
     Returns:
-        (그룹 결과 DTO, 적용할 후보 또는 None).
+        (그룹 결과 DTO, 적용할 후보 또는 None, 후보 출처).
     """
-    raw_candidates = _search_series_candidates_for_group(
+    raw_candidates, provenance = _search_series_candidates_for_group(
         group_key,
         provider,
         root_id=root_id,
@@ -540,6 +553,7 @@ def _match_single_group_search_phase(
                 reason=reason,
             ),
             None,
+            provenance,
         )
 
     korean = (best.name_ko or "").strip()
@@ -553,7 +567,7 @@ def _match_single_group_search_phase(
         confidence=conf,
         reason=reason,
     )
-    return dto, best
+    return dto, best, provenance
 
 
 def search_best_candidate_for_group(
@@ -564,7 +578,7 @@ def search_best_candidate_for_group(
     representative_path_norm: str | None = None,
     title_match: TitleMatchRepository | None = None,
     title_groups: TitleGroupRepository | None = None,
-) -> tuple[GroupMatchResultDTO, TmdbSeriesCandidateDTO | None]:
+) -> tuple[GroupMatchResultDTO, TmdbSeriesCandidateDTO | None, TmdbCandidateProvenance]:
     """공통 그룹 검색 단계: 후보 탐색 + 최적 후보 선택."""
     return _match_single_group_search_phase(
         group_key,
@@ -587,6 +601,7 @@ def _match_single_group_apply_persist(
     representative_path_norm: str | None = None,
     title_match: TitleMatchRepository | None = None,
     title_groups: TitleGroupRepository | None = None,
+    korean_status: str | None = None,
 ) -> None:
     """선택된 후보로 파일 행·그룹 매칭 DB를 갱신한다.
 
@@ -600,11 +615,12 @@ def _match_single_group_apply_persist(
         representative_path_norm: 그룹 대표 path_norm.
         title_match: TMDB 매칭 저장소.
         title_groups: 작품 그룹 저장소.
+        korean_status: 한글 제목이 있을 때 행 status. None이면 매칭 완료 문구.
 
     Returns:
         None.
     """
-    apply_tmdb_candidate_to_file_rows(files, indices, best)
+    apply_tmdb_candidate_to_file_rows(files, indices, best, korean_status=korean_status)
 
     if (
         root_id is not None
@@ -650,6 +666,7 @@ def apply_candidate_and_persist_for_group(
     representative_path_norm: str | None = None,
     title_match: TitleMatchRepository | None = None,
     title_groups: TitleGroupRepository | None = None,
+    korean_status: str | None = None,
 ) -> None:
     """공통 그룹 적용 단계: 파일행 반영 + 저장소 영속화."""
     _match_single_group_apply_persist(
@@ -662,6 +679,7 @@ def apply_candidate_and_persist_for_group(
         representative_path_norm=representative_path_norm,
         title_match=title_match,
         title_groups=title_groups,
+        korean_status=korean_status,
     )
 
 
@@ -691,7 +709,7 @@ def _match_single_group(
     Returns:
         해당 그룹의 매칭 결과 DTO.
     """
-    dto, cand = search_best_candidate_for_group(
+    dto, cand, _provenance = search_best_candidate_for_group(
         group_key,
         provider,
         root_id=root_id,
@@ -771,7 +789,14 @@ def _search_one_group_for_parallel(
     cancel_token: Event,
     title_match: TitleMatchRepository | None,
     title_groups: TitleGroupRepository | None,
-) -> tuple[str, list[int], str | None, GroupMatchResultDTO, TmdbSeriesCandidateDTO | None]:
+) -> tuple[
+    str,
+    list[int],
+    str | None,
+    GroupMatchResultDTO,
+    TmdbSeriesCandidateDTO | None,
+    TmdbCandidateProvenance,
+]:
     """워커 스레드에서 단일 그룹 검색·후보 선택을 수행한다.
 
     Args:
@@ -784,7 +809,7 @@ def _search_one_group_for_parallel(
         title_groups: title_groups 포트.
 
     Returns:
-        (그룹 키, 인덱스, 대표 path_norm, DTO, 후보).
+        (그룹 키, 인덱스, 대표 path_norm, DTO, 후보, 출처).
     """
     key, indices = entry
     path_norm = _representative_path_norm_for_group(files, root_scope, indices)
@@ -803,8 +828,9 @@ def _search_one_group_for_parallel(
                 reason=MATCH_REASON_CANCELLED,
             ),
             None,
+            "provider",
         )
-    dto, cand = _match_single_group_search_phase(
+    dto, cand, provenance = _match_single_group_search_phase(
         key,
         provider,
         root_id=root_scope,
@@ -812,7 +838,7 @@ def _search_one_group_for_parallel(
         title_match=title_match,
         title_groups=title_groups,
     )
-    return key, indices, path_norm, dto, cand
+    return key, indices, path_norm, dto, cand, provenance
 
 
 def _collect_group_match_results(
@@ -851,7 +877,14 @@ def _collect_group_match_results(
     workers = _match_max_workers()
     if workers <= 1:
         ordered: list[
-            tuple[str, list[int], str | None, GroupMatchResultDTO, TmdbSeriesCandidateDTO | None]
+            tuple[
+                str,
+                list[int],
+                str | None,
+                GroupMatchResultDTO,
+                TmdbSeriesCandidateDTO | None,
+                TmdbCandidateProvenance,
+            ]
         ] = []
         for key, indices in items:
             ordered.append(
@@ -875,6 +908,7 @@ def _collect_group_match_results(
             str | None,
             GroupMatchResultDTO,
             TmdbSeriesCandidateDTO | None,
+            TmdbCandidateProvenance,
         ]:
             """단일 그룹 검색 태스크 어댑터.
 
@@ -897,7 +931,7 @@ def _collect_group_match_results(
         with ThreadPoolExecutor(max_workers=workers) as pool:
             ordered = list(pool.map(_parallel_entry, items))
 
-    for n, (key, indices, path_norm, dto, cand) in enumerate(ordered):
+    for n, (key, indices, path_norm, dto, cand, _prov) in enumerate(ordered):
         if cancel_token.is_set():
             break
         _notify_match_progress_step(

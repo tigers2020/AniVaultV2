@@ -16,11 +16,81 @@ from anivault.application.use_cases.match_series import (
     apply_candidate_and_persist_for_group,
     search_best_candidate_for_group,
 )
+from anivault.constants.gui.components import PIPELINE_ROW_STATUS_TMDB_CACHED
 from anivault.domain.rules.poster_display import resolve_final_poster_display_source
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
 from anivault.domain.rules.tmdb_image_url import tmdb_poster_cdn_url
 
 MissingFillExecute = Callable[[MatchInput, object, Event], MatchResult]
+
+
+def _try_fill_group_cached_metadata(
+    files: list[MatchFileRow],
+    group_key: str,
+    indices: list[int],
+    *,
+    cancel_token: Event,
+    root_id: int,
+    provider: MetadataProvider,
+    title_match: TitleMatchRepository,
+    title_groups: TitleGroupRepository,
+) -> None:
+    if cancel_token.is_set():
+        return
+    if not _group_needs_tmdb_fill(files, indices):
+        return
+    path_norm = _representative_path_norm_for_group(files, root_id, indices)
+    dto, candidate, provenance = search_best_candidate_for_group(
+        group_key,
+        provider,
+        root_id=root_id,
+        representative_path_norm=path_norm,
+        title_match=title_match,
+        title_groups=title_groups,
+    )
+    if candidate is None:
+        return
+    if not isinstance(candidate, TmdbSeriesCandidateDTO):
+        return
+    korean_status = PIPELINE_ROW_STATUS_TMDB_CACHED if provenance == "group_db" else None
+    apply_candidate_and_persist_for_group(
+        files,
+        group_key,
+        indices,
+        candidate,
+        dto.confidence,
+        root_id=root_id,
+        representative_path_norm=path_norm,
+        title_match=title_match,
+        title_groups=title_groups,
+        korean_status=korean_status,
+    )
+
+
+def _row_eligible_for_poster_sync(row: MatchFileRow) -> bool:
+    if not _has_missing_poster_data(row):
+        return False
+    if not (row.tmdb_series_id or "").strip():
+        return False
+    return bool(normalize_tmdb_remote_image_path(row.tmdb_poster_path))
+
+
+def _rows_needing_poster_sync(files: list[MatchFileRow]) -> list[MatchFileRow]:
+    return [row for row in files if _row_eligible_for_poster_sync(row)]
+
+
+def _apply_poster_sync_if_configured(
+    files: list[MatchFileRow],
+    poster_sync: Callable[[MatchResult], None] | None,
+    title_match: TitleMatchRepository,
+) -> list[MatchFileRow]:
+    if poster_sync is None:
+        return files
+    poster_targets = _rows_needing_poster_sync(files)
+    if not poster_targets:
+        return files
+    poster_sync(MatchResult(files=tuple(poster_targets), groups=()))
+    return _refresh_poster_display_sources(files, title_match)
 
 
 def _has_missing_tmdb_metadata(row: MatchFileRow) -> bool:
@@ -99,43 +169,18 @@ def make_execute(
 
         key_to_indices = _index_files_by_group_key(files)
         for group_key, indices in key_to_indices.items():
-            if cancel_token.is_set() or not _group_needs_tmdb_fill(files, indices):
-                continue
-            path_norm = _representative_path_norm_for_group(files, root_id, indices)
-            dto, candidate = search_best_candidate_for_group(
-                group_key,
-                provider,
-                root_id=root_id,
-                representative_path_norm=path_norm,
-                title_match=title_match,
-                title_groups=title_groups,
-            )
-            if candidate is None or not isinstance(candidate, TmdbSeriesCandidateDTO):
-                continue
-            apply_candidate_and_persist_for_group(
+            _try_fill_group_cached_metadata(
                 files,
                 group_key,
                 indices,
-                candidate,
-                dto.confidence,
+                cancel_token=cancel_token,
                 root_id=root_id,
-                representative_path_norm=path_norm,
+                provider=provider,
                 title_match=title_match,
                 title_groups=title_groups,
             )
 
-        if poster_sync is not None:
-            poster_targets = [
-                row
-                for row in files
-                if _has_missing_poster_data(row)
-                and (row.tmdb_series_id or "").strip()
-                and normalize_tmdb_remote_image_path(row.tmdb_poster_path)
-            ]
-            if poster_targets:
-                poster_sync(MatchResult(files=tuple(poster_targets), groups=()))
-                files = _refresh_poster_display_sources(files, title_match)
-
+        files = _apply_poster_sync_if_configured(files, poster_sync, title_match)
         return MatchResult(files=tuple(files), groups=())
 
     return execute

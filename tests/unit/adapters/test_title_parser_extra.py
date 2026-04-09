@@ -62,7 +62,9 @@ def test_anitopy_title_parser_uses_anitopy_fields_when_available(monkeypatch) ->
 
 
 def test_anitopy_title_parser_falls_back_when_anitopy_raises(monkeypatch) -> None:
-    monkeypatch.setattr(title_parser.anitopy, "parse", lambda stem: (_ for _ in ()).throw(ValueError()))
+    monkeypatch.setattr(
+        title_parser.anitopy, "parse", lambda stem: (_ for _ in ()).throw(ValueError())
+    )
 
     parsed = AnitopyTitleParser(ignore_tokens="1080p").parse("Show.S01E02.1080p.2025.mkv")
 

@@ -36,7 +36,6 @@ from anivault.application.use_cases.apply_plan import make_apply_execute
 from anivault.application.use_cases.match_series import make_execute as make_match_execute
 from anivault.application.use_cases.parse_titles import make_execute as make_parse_execute
 from anivault.application.use_cases.plan_moves import make_execute as make_plan_execute
-from anivault.application.use_cases.rollback_plan import execute as rollback_execute
 from anivault.application.use_cases.scan_library import make_execute as make_scan_execute
 from anivault.application.use_cases.sync_title_groups import make_execute as make_sync_execute
 from anivault.domain.media.extensions import classify_media_kind
@@ -436,18 +435,6 @@ def test_apply_plan_dry_run_timing(
 
     assert result.error is None
     assert result.log_path is not None
-
-
-@pytest.mark.benchmark
-@pytest.mark.parametrize("cancelled", (False, True))
-def test_rollback_stub_timing(benchmark: BenchmarkCallable, cancelled: bool) -> None:
-    cancel_token = Event()
-    if cancelled:
-        cancel_token.set()
-
-    result = benchmark(lambda: rollback_execute({}, None, cancel_token))
-
-    assert result == {}
 
 
 @pytest.mark.benchmark

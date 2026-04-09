@@ -77,7 +77,9 @@ def _row(original: str, *, parsed: str = "Parsed", title: str = "") -> PipelineR
     )
 
 
-def _file_row(original: str, *, series_id: str = "", poster_path: str = "", poster_url: str = "") -> MatchFileRow:
+def _file_row(
+    original: str, *, series_id: str = "", poster_path: str = "", poster_url: str = ""
+) -> MatchFileRow:
     return MatchFileRow(
         original_file=original,
         parsed_title="Parsed",
@@ -134,7 +136,11 @@ def test_on_progress_updates_dialog_when_token_is_valid() -> None:
 def test_on_match_clicked_warns_when_match_execute_missing(monkeypatch) -> None:
     warnings: list[tuple[object, str, str]] = []
     monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(module.QMessageBox, "warning", lambda parent, title, body: warnings.append((parent, title, body)))
+    monkeypatch.setattr(
+        module.QMessageBox,
+        "warning",
+        lambda parent, title, body: warnings.append((parent, title, body)),
+    )
     presenter = SimpleNamespace(_match_execute=None, parent=lambda: object())
     coord = _coordinator(presenter)
 
@@ -146,7 +152,11 @@ def test_on_match_clicked_warns_when_match_execute_missing(monkeypatch) -> None:
 def test_on_match_clicked_warns_when_no_rows(monkeypatch) -> None:
     infos: list[tuple[object, str, str]] = []
     monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(module.QMessageBox, "information", lambda parent, title, body: infos.append((parent, title, body)))
+    monkeypatch.setattr(
+        module.QMessageBox,
+        "information",
+        lambda parent, title, body: infos.append((parent, title, body)),
+    )
     presenter = SimpleNamespace(
         _match_execute=object(),
         _notify_dry_run=MagicMock(),
@@ -166,7 +176,9 @@ def test_on_match_clicked_starts_worker_without_progress_dialog(monkeypatch) -> 
     monkeypatch.setattr(module, "WorkerSignals", _WorkerSignals)
     monkeypatch.setattr(module, "UseCaseWorker", _Worker)
     monkeypatch.setattr(module, "run_worker", lambda worker: thread)
-    monkeypatch.setattr(module, "pipeline_row_to_match_file", lambda row: _file_row(row.original_file))
+    monkeypatch.setattr(
+        module, "pipeline_row_to_match_file", lambda row: _file_row(row.original_file)
+    )
     presenter = SimpleNamespace(
         _match_execute=lambda *args: None,
         _notify_dry_run=MagicMock(),
@@ -191,7 +203,9 @@ def test_match_file_to_pipeline_row_prefers_local_poster_path(monkeypatch) -> No
     title_match = SimpleNamespace(get_poster_local_path=lambda *args: "C:/poster.jpg")
     presenter = SimpleNamespace(_title_match=title_match)
     coord = _coordinator(presenter)
-    monkeypatch.setattr(module, "resolve_final_poster_display_source", lambda local, remote: local or remote)
+    monkeypatch.setattr(
+        module, "resolve_final_poster_display_source", lambda local, remote: local or remote
+    )
 
     row = coord._match_file_to_pipeline_row(
         _file_row("a.mkv", series_id="7", poster_path="/poster.jpg", poster_url="http://remote")
@@ -207,7 +221,9 @@ def test_match_file_to_pipeline_row_falls_back_when_poster_lookup_errors(monkeyp
     title_match = SimpleNamespace(get_poster_local_path=_raise)
     presenter = SimpleNamespace(_title_match=title_match)
     coord = _coordinator(presenter)
-    monkeypatch.setattr(module, "resolve_final_poster_display_source", lambda local, remote: local or remote)
+    monkeypatch.setattr(
+        module, "resolve_final_poster_display_source", lambda local, remote: local or remote
+    )
 
     row = coord._match_file_to_pipeline_row(
         _file_row("a.mkv", series_id="7", poster_path="/poster.jpg", poster_url="http://remote")
@@ -251,13 +267,23 @@ def test_on_match_result_resets_model_when_update_is_incompatible(monkeypatch) -
 def test_selected_pipeline_group_index_or_warn_paths(monkeypatch) -> None:
     infos: list[tuple[object, str, str]] = []
     monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(module.QMessageBox, "information", lambda parent, title, body: infos.append((parent, title, body)))
+    monkeypatch.setattr(
+        module.QMessageBox,
+        "information",
+        lambda parent, title, body: infos.append((parent, title, body)),
+    )
     presenter = SimpleNamespace(_parent_widget=lambda: object())
     coord = _coordinator(presenter)
     rows = [PipelineGroupRow((_row("a.mkv"),))]
 
-    assert coord._selected_pipeline_group_index_or_warn(cast(PipelineResultPanel, _Panel(0)), rows) == 0
-    assert coord._selected_pipeline_group_index_or_warn(cast(PipelineResultPanel, _Panel(-1)), rows) is None
+    assert (
+        coord._selected_pipeline_group_index_or_warn(cast(PipelineResultPanel, _Panel(0)), rows)
+        == 0
+    )
+    assert (
+        coord._selected_pipeline_group_index_or_warn(cast(PipelineResultPanel, _Panel(-1)), rows)
+        is None
+    )
     assert infos and infos[0][1] == "선택 없음"
 
 
@@ -284,10 +310,18 @@ def test_apply_manual_tmdb_candidate_to_model_updates_rows_and_panel(monkeypatch
     )
     coord = _coordinator(presenter)
     monkeypatch.setattr(module, "pipeline_row_to_match_file", lambda row: files[0])
-    monkeypatch.setattr(module, "apply_tmdb_candidate_to_file_rows", lambda file_rows, indices, chosen: file_rows.__setitem__(0, _file_row("a.mkv", series_id=str(chosen.tmdb_id), poster_url="updated")))
+    monkeypatch.setattr(
+        module,
+        "apply_tmdb_candidate_to_file_rows",
+        lambda file_rows, indices, chosen: file_rows.__setitem__(
+            0, _file_row("a.mkv", series_id=str(chosen.tmdb_id), poster_url="updated")
+        ),
+    )
     monkeypatch.setattr(module, "persist_manual_tmdb_selection", MagicMock())
     monkeypatch.setattr(module, "group_pipeline_rows", lambda rows: merged_groups)
-    monkeypatch.setattr(coord, "_match_file_to_pipeline_row", lambda file: _row(file.original_file, title="Frieren"))
+    monkeypatch.setattr(
+        coord, "_match_file_to_pipeline_row", lambda file: _row(file.original_file, title="Frieren")
+    )
 
     coord._apply_manual_tmdb_candidate_to_model(original_group, _candidate(9), panel)
 
@@ -322,9 +356,15 @@ def test_on_manual_tmdb_match_clicked_control_flow(monkeypatch) -> None:
 
     presenter._pipeline_panel = panel
     monkeypatch.setattr(module, "TmdbManualMatchDialog", lambda parent, default_query: dialog)
-    monkeypatch.setattr(coord, "_selected_pipeline_group_index_or_warn", lambda panel_arg, rows_arg: 0)
+    monkeypatch.setattr(
+        coord, "_selected_pipeline_group_index_or_warn", lambda panel_arg, rows_arg: 0
+    )
     applied: list[tuple[PipelineGroupRow, TmdbSeriesCandidateDTO, _Panel]] = []
-    monkeypatch.setattr(coord, "_apply_manual_tmdb_candidate_to_model", lambda group, chosen, panel_arg: applied.append((group, chosen, panel_arg)))
+    monkeypatch.setattr(
+        coord,
+        "_apply_manual_tmdb_candidate_to_model",
+        lambda group, chosen, panel_arg: applied.append((group, chosen, panel_arg)),
+    )
 
     coord.on_manual_tmdb_match_clicked()
 
@@ -335,10 +375,18 @@ def test_run_tmdb_search_worker_paths(monkeypatch) -> None:
     thread = _Thread()
     warnings: list[str] = []
     monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title))
+    monkeypatch.setattr(
+        module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title)
+    )
     monkeypatch.setattr(module, "WorkerSignals", _WorkerSignals)
     monkeypatch.setattr(module, "UseCaseWorker", _Worker)
-    monkeypatch.setattr(module, "ManualTmdbSearchRelay", lambda dlg, presenter: SimpleNamespace(on_result=lambda result: None, on_error=lambda exc: None, on_finished=lambda: None))
+    monkeypatch.setattr(
+        module,
+        "ManualTmdbSearchRelay",
+        lambda dlg, presenter: SimpleNamespace(
+            on_result=lambda result: None, on_error=lambda exc: None, on_finished=lambda: None
+        ),
+    )
     monkeypatch.setattr(module, "run_worker", lambda worker: thread)
     monkeypatch.setattr(module.QTimer, "singleShot", lambda delay, callback: callback())
     presenter = SimpleNamespace(

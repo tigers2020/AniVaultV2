@@ -99,7 +99,7 @@ SCAN_PARSE_COORDINATOR_RESULT_GROUP_CHUNK_SIZE: Final[int] = 96
 SCAN_PARSE_COORDINATOR_MID_SCAN_MODEL_MAX_GROUPS: Final[int] = 1000
 SCAN_PARSE_COORDINATOR_SCAN_PATH_ERROR_TITLE: Final[str] = "스캔 경로 오류"
 SCAN_PARSE_COORDINATOR_SCAN_PATH_ERROR_MESSAGE_TEMPLATE: Final[str] = (
-    "지정한 폴더를 읽을 수 없습니다(스토리지, 권한, 이동식 드라이브 등).\n\n" "{path}\n\n{error}"
+    "지정한 폴더를 읽을 수 없습니다(스토리지, 권한, 이동식 드라이브 등).\n\n{path}\n\n{error}"
 )
 SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_TITLE: Final[str] = "스캔 경로 없음"
 SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_MESSAGE_TEMPLATE: Final[str] = (
@@ -112,6 +112,8 @@ SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_TITLE: Final[str] = "Parse 중"
 SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_MESSAGE: Final[str] = "파일명 파싱 중..."
 SCAN_PARSE_COORDINATOR_STATUS_SCANNED: Final[str] = "스캔됨"
 SCAN_PARSE_COORDINATOR_STATUS_PARSED: Final[str] = "파싱됨"
+PIPELINE_ROW_STATUS_TMDB_CACHED: Final[str] = "TMDB 캐시 로드"
+PIPELINE_ROW_STATUS_MOVED: Final[str] = "이동됨"
 MANUAL_TMDB_RELAY_ERROR_TITLE: Final[str] = "TMDB 검색 실패"
 
 PATH_SELECT_FIELD_PLACEHOLDER: Final[str] = "폴더 경로"
@@ -135,7 +137,8 @@ PIPELINE_RESULT_PANEL_HEADER_TITLE: Final[str] = "Pipeline Result"
 PIPELINE_RESULT_PANEL_HEADER_DESCRIPTION: Final[str] = (
     "테이블·내용·아이콘 그리드로 결과를 볼 수 있습니다. 보기에서 레이아웃을 선택하세요."
 )
-PIPELINE_RESULT_PANEL_MATCHED_LABEL: Final[str] = "TMDB 매칭됨"
+PIPELINE_RESULT_PANEL_MATCHED_LABEL: Final[str] = "TMDB 한글 제목 있음"
+PIPELINE_ROW_STATUS_TMDB_MATCHED: Final[str] = "TMDB 매칭됨"
 PIPELINE_RESULT_PANEL_UNMATCHED_LABEL: Final[str] = "미매칭·미진행"
 
 PROGRESS_DIALOG_DEFAULT_TITLE: Final[str] = "진행 중"

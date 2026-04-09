@@ -56,9 +56,7 @@ markers = [
 [tool.coverage.run]
 source = ["src/anivault"]
 omit = [
-    "src/anivault/interfaces/gui/sample_panel.py",
     "src/anivault/__main__.py",
-    "src/anivault/bootstrap/settings.py",
 ]
 
 [tool.coverage.report]

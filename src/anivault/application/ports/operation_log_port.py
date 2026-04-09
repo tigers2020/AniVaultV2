@@ -11,7 +11,11 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class OperationLogRepository(Protocol):
-    """작업 로그 저장/조회 계약. apply 전 저장, rollback 시 로드."""
+    """작업 로그 저장/조회 계약.
+
+    `save_plan`은 apply 흐름에서 사용한다. `load_plan`은 롤백 유스케이스 연동 시 쓰기 위한 계약이며,
+    현재 application 레이어에서는 호출하지 않는다.
+    """
 
     def save_plan(self, operations: list[object]) -> Path:
         """계획을 타임스탬프 로그 파일에 저장한다.

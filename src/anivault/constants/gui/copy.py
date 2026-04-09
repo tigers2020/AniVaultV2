@@ -52,5 +52,3 @@ PIPELINE_RESULT_DESCRIPTION: Final[str] = (
 MATCH_PROGRESS_PREPARING: Final[str] = "Preparing TMDB matching..."
 PARSE_PROGRESS_CACHE_CHECK: Final[str] = "Checking parse cache..."
 PARSE_PROGRESS_PARSING: Final[str] = "Parsing filenames..."
-HYDRATE_STATUS_TMDB_CACHED: Final[str] = "TMDB cached"
-MATCH_STATUS_TMDB_MATCHED: Final[str] = "TMDB matched"

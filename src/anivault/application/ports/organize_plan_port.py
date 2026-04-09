@@ -20,7 +20,11 @@ from anivault.application.dto.organize_plan import (
 
 @runtime_checkable
 class OrganizePlanRepository(Protocol):
-    """사용자가 재열람할 수 있는 정리 플랜·항목·상태 저장."""
+    """사용자가 재열람할 수 있는 정리 플랜·항목·상태 저장.
+
+    `load_plan`·`mark_plan_rolled_back`는 어댑터·단위 테스트에서 검증되나,
+    롤백·히스토리 UI가 없어 현재 application 유스케이스에서는 호출하지 않는다.
+    """
 
     def create_plan(
         self,

@@ -1,11 +1,18 @@
 from pathlib import Path
 
 from anivault.application.dto.match_result import MatchFileRow, MatchInput
-from anivault.application.dto.title_match import GroupTmdbMatchRecord
+from anivault.application.dto.title_groups import (
+    TitleGroupListRecord,
+    TitleGroupMemberSync,
+    TitleGroupSyncBundle,
+)
+from anivault.application.dto.title_match import GroupTmdbMatchRecord, MatchStatusDto
 from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.use_cases.hydrate_cached_tmdb_matches import make_execute
+from anivault.constants.gui.components import PIPELINE_ROW_STATUS_TMDB_CACHED
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.tmdb_image_url import tmdb_poster_cdn_url
+from anivault.domain.services.title_grouping import TitleGroupingInputRow
 
 
 def _row(path: str) -> MatchFileRow:
@@ -33,6 +40,11 @@ class _TitleGroups:
         self.path_to_group = path_to_group
         self.bulk_lookups: list[list[str]] = []
 
+    def load_rows_for_grouping(self, root_id: int) -> list[TitleGroupingInputRow]:
+        """Unused by hydrate use case; satisfies TitleGroupRepository."""
+        del root_id
+        return []
+
     def get_group_id_for_path_norm(self, root_id: int, path_norm: str) -> int | None:
         del root_id
         return self.path_to_group.get(path_norm)
@@ -50,6 +62,22 @@ class _TitleGroups:
             if path_norm in self.path_to_group
         }
 
+    def replace_root_title_groups(self, root_id: int, bundles: list[TitleGroupSyncBundle]) -> None:
+        del root_id, bundles
+
+    def replace_group_members(self, group_id: int, members: list[TitleGroupMemberSync]) -> None:
+        del group_id, members
+
+    def list_title_groups_for_root(self, root_id: int) -> list[TitleGroupListRecord]:
+        """Unused by hydrate use case; satisfies TitleGroupRepository."""
+        _ = root_id
+        empty: list[TitleGroupListRecord] = []
+        return empty
+
+    def get_group_id(self, root_id: int, group_key: str) -> int | None:
+        del root_id, group_key
+        return None
+
 
 class _TitleMatch:
     def __init__(
@@ -63,6 +91,35 @@ class _TitleMatch:
         self.candidates = candidates or {}
         self.poster_paths = poster_paths or {}
         self.poster_lookup_count: dict[tuple[int, str, str], int] = {}
+
+    def get_search_cache_json(self, cache_key: str) -> str | None:
+        del cache_key
+        return None
+
+    def put_search_cache(
+        self,
+        cache_key: str,
+        *,
+        language: str,
+        normalized_query: str,
+        year_hint: int | None,
+        page: int,
+        response_json: str,
+        expires_at: str,
+    ) -> None:
+        del cache_key, language, normalized_query, year_hint, page, response_json, expires_at
+
+    def invalidate_search(self, cache_key: str) -> None:
+        del cache_key
+
+    def upsert_series(
+        self,
+        candidate: TmdbSeriesCandidateDTO,
+        *,
+        raw_json: str,
+        expires_at: str,
+    ) -> None:
+        del candidate, raw_json, expires_at
 
     def get_group_match(self, group_id: int) -> GroupTmdbMatchRecord | None:
         return self.matches.get(group_id)
@@ -80,6 +137,27 @@ class _TitleMatch:
             tmdb_id: self.candidates[tmdb_id] for tmdb_id in tmdb_ids if tmdb_id in self.candidates
         }
 
+    def find_series_candidates_by_title(
+        self,
+        query: str,
+        *,
+        limit: int = 10,
+    ) -> list[TmdbSeriesCandidateDTO]:
+        del query, limit
+        return []
+
+    def set_group_match(
+        self,
+        group_id: int,
+        tmdb_id: int,
+        match_status: MatchStatusDto,
+        match_score: float | None,
+    ) -> None:
+        del group_id, tmdb_id, match_status, match_score
+
+    def invalidate_group_match(self, group_id: int) -> None:
+        del group_id
+
     def get_poster_local_path(
         self,
         tmdb_id: int,
@@ -89,6 +167,18 @@ class _TitleMatch:
         key = (tmdb_id, image_kind, remote_path)
         self.poster_lookup_count[key] = self.poster_lookup_count.get(key, 0) + 1
         return self.poster_paths.get((tmdb_id, image_kind, remote_path))
+
+    def save_poster_asset(
+        self,
+        tmdb_id: int,
+        image_kind: str,
+        remote_path: str,
+        *,
+        local_path: str,
+        status: str,
+        verified_at: str | None,
+    ) -> None:
+        del tmdb_id, image_kind, remote_path, local_path, status, verified_at
 
 
 def test_hydrate_cached_tmdb_matches_uses_series_and_local_poster(tmp_path: Path) -> None:
@@ -109,7 +199,6 @@ def test_hydrate_cached_tmdb_matches_uses_series_and_local_poster(tmp_path: Path
         popularity=1.0,
     )
     execute = make_execute(
-        title_groups=_TitleGroups({normalize_path_key(media): group_id}),  # type: ignore[arg-type]
         title_match=_TitleMatch(
             matches={
                 group_id: GroupTmdbMatchRecord(
@@ -121,7 +210,8 @@ def test_hydrate_cached_tmdb_matches_uses_series_and_local_poster(tmp_path: Path
             },
             candidates={tmdb_id: candidate},
             poster_paths={(tmdb_id, "poster", "/poster.jpg"): str(poster)},
-        ),  # type: ignore[arg-type]
+        ),
+        title_groups=_TitleGroups({normalize_path_key(media): group_id}),
     )
 
     result = execute(MatchInput(files=(_row(media),), index_root_id=1))
@@ -134,7 +224,7 @@ def test_hydrate_cached_tmdb_matches_uses_series_and_local_poster(tmp_path: Path
     assert hydrated.year == "2025"
     assert hydrated.poster_url == str(poster)
     assert hydrated.backdrop_url.endswith("/backdrop.jpg")
-    assert hydrated.status == "TMDB cached"
+    assert hydrated.status == PIPELINE_ROW_STATUS_TMDB_CACHED
 
 
 def test_hydrate_cached_tmdb_matches_falls_back_to_cdn_on_missing_local_poster(
@@ -155,7 +245,6 @@ def test_hydrate_cached_tmdb_matches_falls_back_to_cdn_on_missing_local_poster(
         popularity=1.0,
     )
     execute = make_execute(
-        title_groups=_TitleGroups({normalize_path_key(media): group_id}),  # type: ignore[arg-type]
         title_match=_TitleMatch(
             matches={
                 group_id: GroupTmdbMatchRecord(
@@ -166,7 +255,8 @@ def test_hydrate_cached_tmdb_matches_falls_back_to_cdn_on_missing_local_poster(
                 )
             },
             candidates={tmdb_id: candidate},
-        ),  # type: ignore[arg-type]
+        ),
+        title_groups=_TitleGroups({normalize_path_key(media): group_id}),
     )
 
     result = execute(MatchInput(files=(_row(media),), index_root_id=1))
@@ -193,7 +283,6 @@ def test_hydrate_cached_tmdb_matches_applies_hit_to_whole_current_group(
         popularity=1.0,
     )
     execute = make_execute(
-        title_groups=_TitleGroups({normalize_path_key(cached_media): group_id}),  # type: ignore[arg-type]
         title_match=_TitleMatch(
             matches={
                 group_id: GroupTmdbMatchRecord(
@@ -204,7 +293,8 @@ def test_hydrate_cached_tmdb_matches_applies_hit_to_whole_current_group(
                 )
             },
             candidates={tmdb_id: candidate},
-        ),  # type: ignore[arg-type]
+        ),
+        title_groups=_TitleGroups({normalize_path_key(cached_media): group_id}),
     )
 
     result = execute(
@@ -240,7 +330,6 @@ def test_hydrate_cached_tmdb_matches_uses_later_path_hit_for_same_current_group(
         popularity=1.0,
     )
     execute = make_execute(
-        title_groups=_TitleGroups({normalize_path_key(cached_media): group_id}),  # type: ignore[arg-type]
         title_match=_TitleMatch(
             matches={
                 group_id: GroupTmdbMatchRecord(
@@ -251,7 +340,8 @@ def test_hydrate_cached_tmdb_matches_uses_later_path_hit_for_same_current_group(
                 )
             },
             candidates={tmdb_id: candidate},
-        ),  # type: ignore[arg-type]
+        ),
+        title_groups=_TitleGroups({normalize_path_key(cached_media): group_id}),
     )
 
     result = execute(
@@ -272,8 +362,8 @@ def test_hydrate_cached_tmdb_matches_leaves_rows_unchanged_on_cache_miss(tmp_pat
     media = str(tmp_path / "show.mkv")
     row = _row(media)
     execute = make_execute(
-        title_groups=_TitleGroups({}),  # type: ignore[arg-type]
-        title_match=_TitleMatch(),  # type: ignore[arg-type]
+        title_match=_TitleMatch(),
+        title_groups=_TitleGroups({}),
     )
 
     result = execute(MatchInput(files=(row,), index_root_id=1))
@@ -286,7 +376,6 @@ def test_hydrate_cached_tmdb_matches_ignores_rejected_match(tmp_path: Path) -> N
     row = _row(media)
     group_id = 10
     execute = make_execute(
-        title_groups=_TitleGroups({normalize_path_key(media): group_id}),  # type: ignore[arg-type]
         title_match=_TitleMatch(
             matches={
                 group_id: GroupTmdbMatchRecord(
@@ -296,7 +385,8 @@ def test_hydrate_cached_tmdb_matches_ignores_rejected_match(tmp_path: Path) -> N
                     match_score=None,
                 )
             }
-        ),  # type: ignore[arg-type]
+        ),
+        title_groups=_TitleGroups({normalize_path_key(media): group_id}),
     )
 
     result = execute(MatchInput(files=(row,), index_root_id=1))
@@ -337,13 +427,13 @@ def test_hydrate_cached_tmdb_matches_memoizes_poster_lookup_for_shared_candidate
         poster_paths={(tmdb_id, "poster", "/poster.jpg"): str(poster)},
     )
     execute = make_execute(
+        title_match=title_match,
         title_groups=_TitleGroups(
             {
                 normalize_path_key(media_a): group_id,
                 normalize_path_key(media_b): group_id,
             }
-        ),  # type: ignore[arg-type]
-        title_match=title_match,  # type: ignore[arg-type]
+        ),
     )
 
     result = execute(MatchInput(files=(_row(media_a), _row(media_b)), index_root_id=1))

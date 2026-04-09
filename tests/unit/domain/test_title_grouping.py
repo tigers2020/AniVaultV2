@@ -37,8 +37,14 @@ def test_grouping_helpers_cover_bucket_canonical_and_priority() -> None:
     assert _bucket_key_for_row(_row(1, sidecar_group_key=None)) == ("parsed_title_norm", "ptn:show")
     assert _bucket_key_for_row(_row(1, parsed_title_normalized="  ")) is None
 
-    assert _canonical_from_row(_row(1, parsed_title="Shown", parsed_title_normalized="shown")) == ("Shown", "shown")
-    assert _canonical_from_row(_row(1, parsed_title=" ", parsed_title_normalized="shown")) == ("shown", "shown")
+    assert _canonical_from_row(_row(1, parsed_title="Shown", parsed_title_normalized="shown")) == (
+        "Shown",
+        "shown",
+    )
+    assert _canonical_from_row(_row(1, parsed_title=" ", parsed_title_normalized="shown")) == (
+        "shown",
+        "shown",
+    )
 
     representative = _pick_representative(
         [

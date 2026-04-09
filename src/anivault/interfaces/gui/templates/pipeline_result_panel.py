@@ -158,7 +158,7 @@ class PipelineResultPanel(QFrame):
         )
         self._stack.setMinimumHeight(0)
 
-        # 0: Details — TMDB 준비됨 / 미준비 세로 분할 테이블
+        # 0: Details — 한글 제목 있음 / 없음 세로 분할(행 status와 별개; 상단 라벨은 집계 구역 제목)
         self._matched_model = PipelineTableModel()
         self._unmatched_model = PipelineTableModel()
         self._matched_table = PipelineTable(show_header=False, model=self._matched_model)

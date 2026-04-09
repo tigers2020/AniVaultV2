@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from anivault.adapters.metadata.tmdb.mapper import _as_str, _first_air_date_str, tv_show_to_candidate
+from anivault.adapters.metadata.tmdb.mapper import (
+    _as_str,
+    _first_air_date_str,
+    tv_show_to_candidate,
+)
 
 
 class _Lang:

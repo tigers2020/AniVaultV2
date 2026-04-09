@@ -45,7 +45,14 @@ def _seed_repo(tmp_path: Path) -> tuple[object, SqliteTitleGroupRepository, int,
                 confidence, error_code, error_message, created_at, updated_at
             ) VALUES (?, 'v1', ?, 'ok', '{}', ?, ?, 2024, 1, 1, NULL, NULL, NULL, NULL, NULL, ?, ?)
             """,
-            (resolved[0].id, "sig-1", "Show", "show", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+            (
+                resolved[0].id,
+                "sig-1",
+                "Show",
+                "show",
+                "2026-01-01T00:00:00Z",
+                "2026-01-01T00:00:00Z",
+            ),
         )
         conn.execute(
             """
@@ -56,7 +63,14 @@ def _seed_repo(tmp_path: Path) -> tuple[object, SqliteTitleGroupRepository, int,
                 confidence, error_code, error_message, created_at, updated_at
             ) VALUES (?, 'v1', ?, 'ok', '{}', ?, ?, 2025, 1, 2, NULL, NULL, NULL, NULL, NULL, ?, ?)
             """,
-            (resolved[1].id, "sig-2", "Show 2", "show-2", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+            (
+                resolved[1].id,
+                "sig-2",
+                "Show 2",
+                "show-2",
+                "2026-01-01T00:00:00Z",
+                "2026-01-01T00:00:00Z",
+            ),
         )
         conn.commit()
     return conn, repo, root_id, [resolved[0], resolved[1]]

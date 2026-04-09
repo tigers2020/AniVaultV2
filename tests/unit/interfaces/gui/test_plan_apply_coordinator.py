@@ -67,8 +67,12 @@ def test_on_dry_run_clicked_handles_validation_errors(monkeypatch) -> None:
     infos: list[str] = []
     warnings: list[str] = []
     monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(module.QMessageBox, "information", lambda parent, title, body: infos.append(title))
-    monkeypatch.setattr(module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title))
+    monkeypatch.setattr(
+        module.QMessageBox, "information", lambda parent, title, body: infos.append(title)
+    )
+    monkeypatch.setattr(
+        module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title)
+    )
     monkeypatch.setattr(module, "load_all", lambda: {"path_rules": {}})
     presenter = SimpleNamespace(
         _plan_execute=object(),
@@ -79,11 +83,17 @@ def test_on_dry_run_clicked_handles_validation_errors(monkeypatch) -> None:
     )
     coord = _coord(presenter)
 
-    monkeypatch.setattr(module, "try_build_plan_input_from_settings", lambda *args, **kwargs: (None, "empty"))
+    monkeypatch.setattr(
+        module, "try_build_plan_input_from_settings", lambda *args, **kwargs: (None, "empty")
+    )
     coord.on_dry_run_clicked()
-    monkeypatch.setattr(module, "try_build_plan_input_from_settings", lambda *args, **kwargs: (None, "no_matched"))
+    monkeypatch.setattr(
+        module, "try_build_plan_input_from_settings", lambda *args, **kwargs: (None, "no_matched")
+    )
     coord.on_dry_run_clicked()
-    monkeypatch.setattr(module, "try_build_plan_input_from_settings", lambda *args, **kwargs: (None, "path_rules"))
+    monkeypatch.setattr(
+        module, "try_build_plan_input_from_settings", lambda *args, **kwargs: (None, "path_rules")
+    )
     coord.on_dry_run_clicked()
 
     assert infos == ["항목 없음", "TMDB 매칭 없음"]
@@ -96,7 +106,11 @@ def test_on_dry_run_clicked_starts_worker(monkeypatch) -> None:
     monkeypatch.setattr(module, "UseCaseWorker", _Worker)
     monkeypatch.setattr(module, "run_worker", lambda worker: thread)
     monkeypatch.setattr(module, "load_all", lambda: {"path_rules": {}})
-    monkeypatch.setattr(module, "try_build_plan_input_from_settings", lambda *args, **kwargs: (SimpleNamespace(), None))
+    monkeypatch.setattr(
+        module,
+        "try_build_plan_input_from_settings",
+        lambda *args, **kwargs: (SimpleNamespace(), None),
+    )
     presenter = SimpleNamespace(
         _plan_execute=lambda *args: None,
         _model=SimpleNamespace(flat_rows=lambda: [object()]),
@@ -121,8 +135,12 @@ def test_on_plan_worker_result_handles_error_and_empty_moves(monkeypatch) -> Non
     infos: list[str] = []
     warnings: list[str] = []
     monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(module.QMessageBox, "information", lambda parent, title, body: infos.append(title))
-    monkeypatch.setattr(module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title))
+    monkeypatch.setattr(
+        module.QMessageBox, "information", lambda parent, title, body: infos.append(title)
+    )
+    monkeypatch.setattr(
+        module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title)
+    )
     presenter = SimpleNamespace(
         _progress_dialog=MagicMock(),
         _notify_dry_run=MagicMock(),
@@ -154,7 +172,9 @@ def test_on_plan_worker_result_opens_dialog_and_resets_pending_plan(monkeypatch)
 def test_on_dry_run_apply_clicked_warns_when_apply_execute_missing(monkeypatch) -> None:
     warnings: list[str] = []
     monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title))
+    monkeypatch.setattr(
+        module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title)
+    )
     presenter = SimpleNamespace(_pending_plan=_plan(), _apply_execute=None, parent=lambda: object())
     coord = _coord(presenter)
     dlg = MagicMock()
@@ -167,7 +187,9 @@ def test_on_dry_run_apply_clicked_warns_when_apply_execute_missing(monkeypatch) 
 
 def test_on_dry_run_apply_clicked_schedules_apply_worker(monkeypatch) -> None:
     scheduled: list[object] = []
-    monkeypatch.setattr(module.QTimer, "singleShot", lambda delay, callback: scheduled.append(callback))
+    monkeypatch.setattr(
+        module.QTimer, "singleShot", lambda delay, callback: scheduled.append(callback)
+    )
     presenter = SimpleNamespace(_pending_plan=_plan(), _apply_execute=object(), parent=lambda: None)
     coord = _coord(presenter)
     monkeypatch.setattr(coord, "_start_apply_worker", lambda plan: scheduled.append(plan))
@@ -182,9 +204,13 @@ def test_on_dry_run_apply_clicked_schedules_apply_worker(monkeypatch) -> None:
 def test_start_apply_worker_warns_without_log_root(monkeypatch) -> None:
     warnings: list[str] = []
     monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title))
+    monkeypatch.setattr(
+        module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title)
+    )
     monkeypatch.setattr(module, "load_all", lambda: {"scan_build": {}, "path_rules": {}})
-    presenter = SimpleNamespace(_apply_execute=lambda *args: None, parent=lambda: object(), _current_library_root_id=None)
+    presenter = SimpleNamespace(
+        _apply_execute=lambda *args: None, parent=lambda: object(), _current_library_root_id=None
+    )
     coord = _coord(presenter)
 
     coord._start_apply_worker(_plan())
@@ -197,7 +223,11 @@ def test_start_apply_worker_starts_worker(monkeypatch) -> None:
     monkeypatch.setattr(module, "WorkerSignals", _WorkerSignals)
     monkeypatch.setattr(module, "UseCaseWorker", _Worker)
     monkeypatch.setattr(module, "run_worker", lambda worker: thread)
-    monkeypatch.setattr(module, "load_all", lambda: {"scan_build": {"source_path": "/src"}, "path_rules": {"target_root": "/dest"}})
+    monkeypatch.setattr(
+        module,
+        "load_all",
+        lambda: {"scan_build": {"source_path": "/src"}, "path_rules": {"target_root": "/dest"}},
+    )
     presenter = SimpleNamespace(
         _apply_execute=lambda *args: None,
         _current_library_root_id=3,
@@ -220,8 +250,12 @@ def test_on_apply_worker_result_handles_error_and_rescan(monkeypatch) -> None:
     criticals: list[str] = []
     infos: list[str] = []
     monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(module.QMessageBox, "critical", lambda parent, title, body: criticals.append(title))
-    monkeypatch.setattr(module.QMessageBox, "information", lambda parent, title, body: infos.append(title))
+    monkeypatch.setattr(
+        module.QMessageBox, "critical", lambda parent, title, body: criticals.append(title)
+    )
+    monkeypatch.setattr(
+        module.QMessageBox, "information", lambda parent, title, body: infos.append(title)
+    )
     presenter = SimpleNamespace(
         _progress_dialog=MagicMock(),
         _notify_dry_run=MagicMock(),
@@ -247,9 +281,13 @@ def test_on_apply_worker_result_merges_plan_when_no_rescan(monkeypatch) -> None:
     infos: list[str] = []
     panel = SimpleNamespace(sync_views_from_model=MagicMock())
     monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(module.QMessageBox, "information", lambda parent, title, body: infos.append(title))
+    monkeypatch.setattr(
+        module.QMessageBox, "information", lambda parent, title, body: infos.append(title)
+    )
     merged: list[tuple[object, object]] = []
-    monkeypatch.setattr(module, "merge_plan_into_pipeline_rows", lambda model, plan: merged.append((model, plan)))
+    monkeypatch.setattr(
+        module, "merge_plan_into_pipeline_rows", lambda model, plan: merged.append((model, plan))
+    )
     monkeypatch.setattr(module, "load_all", lambda: {"scan_build": {"source_path": ""}})
     presenter = SimpleNamespace(
         _progress_dialog=None,

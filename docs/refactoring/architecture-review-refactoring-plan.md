@@ -49,7 +49,7 @@ AniVault V2의 현재 구조에서 가장 큰 리스크는 기능 부족보다 *
 
 | 우선순위 | 목표 | 핵심 대상 |
 |----------|------|-----------|
-| P0 | 구조 분해와 팩토리 통합 | `composition.py`, `organizer_presenter.py`, `pipeline_result_panel.py` |
+| P0 | 구조 분해와 팩토리 통합 | `bootstrap/container.py`(팩토리), `organizer_presenter.py`, `pipeline_result_panel.py` — 과거 `composition.py`는 제거됨 |
 | P1-A | 반복 제거와 단일 출처 정리 | worker 실행 패턴, SQL 상수 |
 | P1-B | 성능/동작 정책 재검토 | `modelReset`, `match_series` 병렬화 |
 | P2 | dead surface 및 UX 정책 정리 | autoscan, dead 메서드, `ImageLoader`, `pyproject.toml` |
@@ -58,9 +58,9 @@ AniVault V2의 현재 구조에서 가장 큰 리스크는 기능 부족보다 *
 
 # P0 — 구조 분해·공장 통합
 
-## P0-1. `composition.py` 팩토리 통합
+## P0-1. 팩토리 통합(구 `composition.py` → `container.py`)
 
-**상태: 완료**
+**상태: 완료** — 페이지/유스케이스 조립은 `src/anivault/bootstrap/container.py`의 `create_organizer_page` 등으로 일원화되었다. 별도 `composition.py` 모듈은 현재 트리에 없다.
 
 ### 대상
 
@@ -427,7 +427,7 @@ AniVault V2의 현재 구조에서 가장 큰 리스크는 기능 부족보다 *
 
 # 구현 순서 권장
 
-1. **P0-1** `composition.py` 통합
+1. **P0-1** `container.py` 팩토리 통합(구 `composition.py` 역할)
 2. **P0-2** `OrganizerPresenter` 내부 coordinator 분리
 3. **P0-3** `PipelineResultPanel` helper/controller 추출
 4. **P1-A** worker helper, SQL 단일화
@@ -471,7 +471,7 @@ python -m anivault
 
 ## P0 이후
 
-- ~~composition mode별 factory 구성 테스트~~ → `test_composition_organizer_factory.py` 추가됨
+- ~~composition mode별 factory 구성 테스트~~ → `bootstrap/container.py` 조립은 `tests/unit/bootstrap/test_container_extra.py` 등으로 보강
 - ~~Presenter facade 유지 테스트~~ → `test_organizer_presenter_facade.py` 추가됨
 - manual TMDB match 흐름 테스트(기존 `tests/unit/test_manual_tmdb_match.py` 등 유지·보강 여지)
 

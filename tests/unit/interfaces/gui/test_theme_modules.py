@@ -99,7 +99,9 @@ def test_theme_registry_density_and_persistence(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(themes_module, "_current", None)
     monkeypatch.setattr(themes_module, "_current_theme_name", "dark")
     monkeypatch.setattr(themes_module, "_current_density_key", "standard")
-    monkeypatch.setattr(themes_module, "_on_color_theme_changed", [lambda: callbacks.append("theme")])
+    monkeypatch.setattr(
+        themes_module, "_on_color_theme_changed", [lambda: callbacks.append("theme")]
+    )
     monkeypatch.setattr(themes_module, "_on_density_changed", [lambda: callbacks.append("density")])
     monkeypatch.setattr(themes_module, "get_profile", lambda key: SimpleNamespace(scale=1.25))
     monkeypatch.setattr(themes_module, "choose_density_key", lambda width, height: "compact")
@@ -114,7 +116,10 @@ def test_theme_registry_density_and_persistence(tmp_path, monkeypatch) -> None:
     themes_module.set_current_theme("light")
     themes_module.set_responsive_density_key("compact")
     assert callbacks == ["theme", "density"]
-    assert themes_module.set_responsive_density_for_size(width=800, height=600, notify=False) == "compact"
+    assert (
+        themes_module.set_responsive_density_for_size(width=800, height=600, notify=False)
+        == "compact"
+    )
 
     theme_file = tmp_path / "theme.json"
     monkeypatch.setattr(themes_module, "CONFIG_DIR", tmp_path)
@@ -126,7 +131,11 @@ def test_theme_registry_density_and_persistence(tmp_path, monkeypatch) -> None:
 
 def test_responsive_helpers_choose_profiles_and_bounds() -> None:
     assert responsive_module.choose_density_key(width=100, height=100) == "compact"
-    assert responsive_module.choose_density_key(width=1280, height=768) in {"standard", "expanded", "spacious"}
+    assert responsive_module.choose_density_key(width=1280, height=768) in {
+        "standard",
+        "expanded",
+        "spacious",
+    }
     assert responsive_module.get_profile("compact").key == "compact"
     assert responsive_module.clamp_int(5.6, minimum=1, maximum=5) == 5
     assert responsive_module.scaled_int(10, 1.5, minimum=12, maximum=20) == 15

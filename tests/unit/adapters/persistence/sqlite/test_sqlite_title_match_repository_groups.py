@@ -163,7 +163,9 @@ def test_title_match_repository_series_bulk_lookup_and_poster_state_changes(tmp_
         conn.close()
 
 
-def test_title_match_repository_local_search_filters_invalid_and_expired_rows(tmp_path: Path) -> None:
+def test_title_match_repository_local_search_filters_invalid_and_expired_rows(
+    tmp_path: Path,
+) -> None:
     conn = create_connection(tmp_path / "tmdb.db")
     repo = SqliteTitleMatchRepository(conn, threading.Lock())
     try:

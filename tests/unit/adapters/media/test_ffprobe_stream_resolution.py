@@ -22,7 +22,9 @@ def test_resolution_from_ffprobe_json_extracts_video_label() -> None:
 
 
 def test_probe_display_resolution_returns_empty_without_ffprobe(monkeypatch) -> None:
-    monkeypatch.setattr("anivault.adapters.media.ffprobe_stream_resolution.shutil.which", lambda _: None)
+    monkeypatch.setattr(
+        "anivault.adapters.media.ffprobe_stream_resolution.shutil.which", lambda _: None
+    )
 
     assert FfprobeStreamResolution().probe_display_resolution("video.mkv") == ""
 

@@ -12,6 +12,7 @@ from typing import Any
 
 from anivault.application.dto.match_result import MatchFileRow
 from anivault.application.dto.plan import PlanInput, PlanResult
+from anivault.constants.gui.components import PIPELINE_ROW_STATUS_MOVED
 from anivault.domain.rules.poster_display import resolve_final_poster_display_source
 from anivault.interfaces.gui.models import (
     PipelineRow,
@@ -160,7 +161,7 @@ def merge_plan_into_pipeline_rows(model: PipelineTableModel, plan: PlanResult) -
                     year=row.year,
                     season=row.season,
                     resolution=row.resolution,
-                    status="이동됨",
+                    status=PIPELINE_ROW_STATUS_MOVED,
                     poster_url=row.poster_url,
                     backdrop_url=row.backdrop_url,
                     target_path=src_to_dest[lookup],

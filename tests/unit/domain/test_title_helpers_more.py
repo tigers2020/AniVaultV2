@@ -9,16 +9,38 @@ from anivault.domain.services.companion_subtitles import companion_subtitle_oper
 
 
 def test_apply_anime_title_refine_covers_episode_ordinals_and_durarara() -> None:
-    info = ParsedInfo(title="Bleach 14th TV 2010 DVDRip-Hi 3화", parse_group="", year="2010", season="3", episode="", resolution="1080p")
+    info = ParsedInfo(
+        title="Bleach 14th TV 2010 DVDRip-Hi 3화",
+        parse_group="",
+        year="2010",
+        season="3",
+        episode="",
+        resolution="1080p",
+    )
     refined = apply_anime_title_refine("Bleach 14th TV 2010 DVDRip-Hi", info)
     assert refined.title == "Bleach"
     assert refined.episode == "3"
     assert refined.season == ""
 
-    durarara = apply_anime_title_refine("Durarara!! x2 Ten", ParsedInfo(title="Durarara!! x2 Ten", parse_group="", year="", season="", episode="", resolution=""))
+    durarara = apply_anime_title_refine(
+        "Durarara!! x2 Ten",
+        ParsedInfo(
+            title="Durarara!! x2 Ten", parse_group="", year="", season="", episode="", resolution=""
+        ),
+    )
     assert durarara.title == "Durarara!!"
 
-    theater = apply_anime_title_refine("[극장판] Gekijouban Foo", ParsedInfo(title="[극장판] Gekijouban Foo", parse_group="", year="", season="", episode="", resolution=""))
+    theater = apply_anime_title_refine(
+        "[극장판] Gekijouban Foo",
+        ParsedInfo(
+            title="[극장판] Gekijouban Foo",
+            parse_group="",
+            year="",
+            season="",
+            episode="",
+            resolution="",
+        ),
+    )
     assert theater.title == "Foo"
 
 
@@ -29,7 +51,9 @@ def test_parent_folder_title_uses_parent_only_for_weak_titles() -> None:
 
     unchanged = augment_parsed_info_with_parent_folder(
         "F:/Anime/Season/01.mkv",
-        ParsedInfo(title="Strong Title", parse_group="", year="", season="", episode="", resolution=""),
+        ParsedInfo(
+            title="Strong Title", parse_group="", year="", season="", episode="", resolution=""
+        ),
     )
     assert unchanged.title == "Strong Title"
 

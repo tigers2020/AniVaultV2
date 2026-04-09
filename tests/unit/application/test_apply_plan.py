@@ -76,9 +76,7 @@ def test_move_operation_or_error_updates_library_index() -> None:
 
     assert error is None
     assert moved == (str(Path("/src/episode.mkv")), str(Path("/dest/episode.mkv")))
-    assert index.calls == [
-        (7, str(Path("/src/episode.mkv")), str(Path("/dest/episode.mkv")))
-    ]
+    assert index.calls == [(7, str(Path("/src/episode.mkv")), str(Path("/dest/episode.mkv")))]
 
 
 def test_apply_operations_or_error_stops_on_cancel() -> None:

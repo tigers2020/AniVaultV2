@@ -16,7 +16,9 @@ class _LoadedSignal:
 
 
 class _FakePixmap:
-    def __init__(self, source: object = None, *, load_ok: bool = True, is_null: bool = False) -> None:
+    def __init__(
+        self, source: object = None, *, load_ok: bool = True, is_null: bool = False
+    ) -> None:
         self.source = source
         self._load_ok = load_ok
         self._is_null = is_null
@@ -58,13 +60,19 @@ def test_image_loader_load_paths_and_finished(monkeypatch, tmp_path) -> None:
     assert loader._load_local(str(local_file)) is True  # type: ignore[attr-defined]
     assert loader.loaded.calls[-1][0] == str(local_file)  # type: ignore[attr-defined]
 
-    monkeypatch.setattr(image_loader_module, "QUrl", lambda url: SimpleNamespace(toLocalFile=lambda: "F:/poster.jpg"))
+    monkeypatch.setattr(
+        image_loader_module,
+        "QUrl",
+        lambda url: SimpleNamespace(toLocalFile=lambda: "F:/poster.jpg"),
+    )
     assert loader._load_local("file:///poster.jpg") is True  # type: ignore[attr-defined]
     assert loader._load_local("not-a-real-path") is False  # type: ignore[attr-defined]
 
     requests: list[object] = []
     loader._nam = SimpleNamespace(get=lambda request: requests.append(request) or _Reply())  # type: ignore[attr-defined]
-    monkeypatch.setattr(image_loader_module, "QNetworkRequest", lambda url: SimpleNamespace(url=url))
+    monkeypatch.setattr(
+        image_loader_module, "QNetworkRequest", lambda url: SimpleNamespace(url=url)
+    )
     monkeypatch.setattr(image_loader_module, "QUrl", lambda url: f"url::{url}")
     loader._load_remote("http://image")  # type: ignore[attr-defined]
     loader._load_remote("http://image")  # type: ignore[attr-defined]
