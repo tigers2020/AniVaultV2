@@ -3,12 +3,19 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from PySide6.QtWidgets import QApplication
+
 from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
     VIEW_CONTENT,
     VIEW_DETAILS,
     VIEW_ICON_M,
 )
-from anivault.interfaces.gui.models import PipelineGroupRow, PipelineRow, group_pipeline_rows
+from anivault.interfaces.gui.models import (
+    PipelineGroupRow,
+    PipelineRow,
+    PipelineTableModel,
+    group_pipeline_rows,
+)
 from anivault.interfaces.gui.templates import pipeline_result_panel as panel_module
 from anivault.interfaces.gui.templates.pipeline_result_panel import PipelineResultPanel
 
@@ -223,3 +230,62 @@ def test_sync_views_from_model_updates_tables_cards_and_selection() -> None:
     panel._apply_list_content_for_view_key.assert_called_once_with(VIEW_CONTENT, grouped_rows)  # type: ignore[attr-defined]
     panel._ensure_poster_grid_for_view_key.assert_called_once_with(VIEW_CONTENT, grouped_rows)  # type: ignore[attr-defined]
     panel._on_selection.assert_called_once_with(1)  # type: ignore[attr-defined]
+
+
+def _ensure_qapp() -> QApplication:
+    inst = QApplication.instance()
+    return inst if isinstance(inst, QApplication) else QApplication([])
+
+
+def test_panel_syncs_on_model_data_changed_without_reset(monkeypatch) -> None:
+    """TMDB 증분 갱신(update_rows_if_compatible)은 dataChanged만 쏘므로 패널도 구독해야 한다."""
+    _ensure_qapp()
+    monkeypatch.setattr(panel_module, "load_all", lambda: {})
+    monkeypatch.setattr(panel_module, "save_all", lambda _payload: None)
+
+    model = PipelineTableModel()
+    panel = PipelineResultPanel(model=model)
+    path = "F:/Anime/show01.mkv"
+    unmatched = PipelineRow(
+        original_file=path,
+        parsed_title="Show",
+        parse_group="show",
+        tmdb_korean_title_group="",
+        tmdb_series_id="",
+        tmdb_poster_path="",
+        tmdb_backdrop_path="",
+        year="2024",
+        season="1",
+        resolution="1080p",
+        status="parsed",
+        poster_url="",
+        backdrop_url="",
+        target_path="",
+    )
+    model.set_rows(group_pipeline_rows([unmatched]))
+    QApplication.processEvents()
+
+    assert len(panel._rows) == 1  # type: ignore[attr-defined]
+    assert (panel._rows[0].tmdb_korean_title_group or "").strip() == ""  # type: ignore[attr-defined]
+
+    matched = PipelineRow(
+        original_file=path,
+        parsed_title="Show",
+        parse_group="show",
+        tmdb_korean_title_group="KoreanDisplay",
+        tmdb_series_id="",
+        tmdb_poster_path="",
+        tmdb_backdrop_path="",
+        year="2024",
+        season="1",
+        resolution="1080p",
+        status="matched",
+        poster_url="",
+        backdrop_url="",
+        target_path="",
+    )
+    updated = group_pipeline_rows([matched])
+    assert model.update_rows_if_compatible(updated) is True
+    QApplication.processEvents()
+
+    assert (panel._rows[0].tmdb_korean_title_group or "").strip() == "KoreanDisplay"  # type: ignore[attr-defined]

@@ -239,8 +239,11 @@ class PipelineResultPanel(QFrame):
 
         self._view_bar.view_changed.connect(self._on_view_changed)
 
-        # Sync content/poster grids when model changes
+        # Sync content/poster grids when model changes.
+        # modelReset: full replace (set_rows, clear). dataChanged: incremental
+        # (PipelineTableModel.update_rows_if_compatible — TMDB match / manual match).
         self._model.modelReset.connect(self._sync_views_from_model)
+        self._model.dataChanged.connect(self._sync_views_from_model)
         self._restore_ui_state()
 
     def _apply_list_content_for_view_key(self, key: str, rows: list[PipelineGroupRow]) -> None:
