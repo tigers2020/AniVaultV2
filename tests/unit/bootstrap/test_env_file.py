@@ -62,6 +62,7 @@ class _SuccessfulParser:
             year="2025",
             season="1",
             episode="01",
+            episode_numbers=[1],
             resolution="1080p",
         )
 
@@ -235,6 +236,7 @@ def test_domain_parsed_info_defaults_match_previous_dto_shape() -> None:
     assert parsed.year == ""
     assert parsed.season == ""
     assert parsed.episode == ""
+    assert parsed.episode_numbers == []
     assert parsed.resolution == ""
 
 
@@ -246,6 +248,7 @@ def test_parse_titles_loads_valid_cache_without_running_parser() -> None:
         year="2025",
         season="1",
         episode="01",
+        episode_numbers=[1],
         resolution="1080p",
     )
     cache = _ParseCache({7: cached})

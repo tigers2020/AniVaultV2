@@ -1,6 +1,6 @@
 """Parsed title information used by domain parsing rules."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -12,4 +12,5 @@ class ParsedInfo:
     year: str = ""
     season: str = ""
     episode: str = ""
+    episode_numbers: list[int] = field(default_factory=list)
     resolution: str = ""

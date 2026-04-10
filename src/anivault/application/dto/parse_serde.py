@@ -47,5 +47,10 @@ def parsed_info_from_compact_json(raw: str) -> ParsedInfo:
         year=str(data.get("year", "")),
         season=str(data.get("season", "")),
         episode=str(data.get("episode", "")),
+        episode_numbers=[
+            int(value)
+            for value in data.get("episode_numbers", [])
+            if isinstance(value, int) or (isinstance(value, str) and value.isdigit())
+        ],
         resolution=str(data.get("resolution", "")),
     )

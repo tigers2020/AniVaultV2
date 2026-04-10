@@ -11,6 +11,7 @@ from threading import Event
 from typing import TYPE_CHECKING, Any, cast
 
 from anivault.adapters.fs import FsFileRepository
+from anivault.adapters.media import FfprobeStreamResolution
 from anivault.adapters.metadata.tmdb import (
     CachingMetadataProvider,
     TmdbApiClient,
@@ -152,13 +153,21 @@ def _create_organizer_page(
     file_repo = FsFileRepository()
     repos = _create_sqlite_repositories()
     library_index_repo = cast(LibraryIndexRepository, repos.library_index)
+    resolution_probe = FfprobeStreamResolution()
     scan_execute = (
-        make_scan_execute(file_repo, library_index=library_index_repo)
+        make_scan_execute(
+            file_repo,
+            library_index=library_index_repo,
+            parse_cache=repos.parse_cache,
+            resolution_probe=resolution_probe,
+        )
         if scan_extensions is None
         else make_scan_execute(
             file_repo,
             extensions=scan_extensions,
             library_index=library_index_repo,
+            parse_cache=repos.parse_cache,
+            resolution_probe=resolution_probe,
         )
     )
     parse_execute = _create_parse_execute(repos)

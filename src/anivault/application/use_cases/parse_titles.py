@@ -54,6 +54,16 @@ def _optional_int_from_str(s: str) -> int | None:
         return None
 
 
+def _episode_bounds(info: ParsedInfo) -> tuple[int | None, int | None, int | None]:
+    """Compute parse-cache summary fields from normalized episode numbers."""
+    if info.episode_numbers:
+        return info.episode_numbers[0], info.episode_numbers[-1], len(info.episode_numbers)
+    one = _optional_int_from_str(info.episode)
+    if one is None:
+        return None, None, None
+    return one, one, 1
+
+
 def _as_progress_callback(progress_callback: object) -> ProgressCallback | None:
     """호출 가능한 진행률 콜백만 좁혀서 반환한다."""
     if not callable(progress_callback):
@@ -165,6 +175,7 @@ def _build_ok_write(
 ) -> ParseCacheOkWrite:
     """정상 파싱 결과를 캐시 write DTO로 변환한다."""
     dto_json = parsed_info_to_compact_json(info)
+    episode_start, episode_end, episode_count = _episode_bounds(info)
     return ParseCacheOkWrite(
         media_file_id=media_file_id,
         parser_version=PARSER_VERSION,
@@ -175,9 +186,9 @@ def _build_ok_write(
         parsed_title_normalized=normalize_title_for_parse_cache(info.title),
         parsed_year=_optional_int_from_str(info.year),
         season_number=_optional_int_from_str(info.season),
-        episode_start=_optional_int_from_str(info.episode),
-        episode_end=None,
-        episode_count=None,
+        episode_start=episode_start,
+        episode_end=episode_end,
+        episode_count=episode_count,
         confidence=None,
     )
 

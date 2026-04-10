@@ -5,6 +5,7 @@
 Author: Pom Kim
 """
 
+import re
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -92,6 +93,48 @@ def _aggregate_resolution(members: tuple[PipelineRow, ...]) -> str:
     if len(vals) == 1:
         return vals[0]
     return " / ".join(vals)
+
+
+def _episode_numbers_from_text(value: str) -> list[int]:
+    text = (value or "").strip()
+    if not text:
+        return []
+    range_match = re.fullmatch(r"(\d+)\s*[-~]\s*(\d+)", text)
+    if range_match:
+        start = int(range_match.group(1))
+        end = int(range_match.group(2))
+        if start <= end:
+            return list(range(start, end + 1))
+        return [start, end]
+    if text.isdigit():
+        return [int(text)]
+    return [int(match) for match in re.findall(r"\d+", text)]
+
+
+def _episode_numbers_to_text(values: list[int]) -> str:
+    numbers: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        if value <= 0 or value in seen:
+            continue
+        seen.add(value)
+        numbers.append(value)
+    if not numbers:
+        return ""
+    if len(numbers) == 1:
+        return str(numbers[0])
+    if numbers == list(range(numbers[0], numbers[-1] + 1)):
+        return f"{numbers[0]}-{numbers[-1]}"
+    return ",".join(str(value) for value in numbers)
+
+
+def _aggregate_episode(members: tuple[PipelineRow, ...]) -> str:
+    numbers: list[int] = []
+    for member in members:
+        numbers.extend(_episode_numbers_from_text(member.episode))
+    if numbers:
+        return _episode_numbers_to_text(sorted(numbers))
+    return _aggregate_str(members, "episode")
 
 
 @dataclass(frozen=True)
@@ -201,7 +244,7 @@ class PipelineGroupRow:
         Returns:
             공통 또는 mixed.
         """
-        return _aggregate_str(self.members, "episode")
+        return _aggregate_episode(self.members)
 
     @property
     def resolution(self) -> str:

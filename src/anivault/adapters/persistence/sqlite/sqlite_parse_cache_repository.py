@@ -22,6 +22,7 @@ from anivault.constants.application.statuses import (
     PARSE_CACHE_STATUS_ERROR,
     PARSE_CACHE_STATUS_OK,
 )
+from anivault.domain.parsing.parser_version import PARSER_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +163,7 @@ class SqliteParseCacheRepository:
                 placeholders = ",".join("?" * len(chunk))
                 cur = self._conn.execute(
                     f"""
-                    SELECT media_file_id, parse_status, parse_input_signature, dto_json
+                    SELECT media_file_id, parser_version, parse_status, parse_input_signature, dto_json
                     FROM parse_cache
                     WHERE media_file_id IN ({placeholders})
                     """,
@@ -173,10 +174,15 @@ class SqliteParseCacheRepository:
         out: dict[int, ParsedInfo] = {}
         for row in rows:
             media_file_id = int(row[0])
-            status = str(row[1])
-            stored_sig = str(row[2])
-            dto_json = str(row[3])
-            if status != PARSE_CACHE_STATUS_OK or stored_sig != signature_by_id.get(media_file_id):
+            parser_version = str(row[1])
+            status = str(row[2])
+            stored_sig = str(row[3])
+            dto_json = str(row[4])
+            if (
+                parser_version != PARSER_VERSION
+                or status != PARSE_CACHE_STATUS_OK
+                or stored_sig != signature_by_id.get(media_file_id)
+            ):
                 continue
             try:
                 out[media_file_id] = parsed_info_from_compact_json(dto_json)

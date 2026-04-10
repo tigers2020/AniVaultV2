@@ -88,6 +88,9 @@ def _extract_season_episode(stem: str) -> tuple[str, str]:
     m_se = re.search(r"(?i)S(\d+)[\s.\-_]*E(\d+)", stem)
     if m_se:
         return str(int(m_se.group(1))), str(int(m_se.group(2)))
+    m_dash = re.search(r"(?i)\bS(\d+)\b\s*-\s*(\d+)\b", stem)
+    if m_dash:
+        return str(int(m_dash.group(1))), str(int(m_dash.group(2)))
     season = _extract_season(stem)
     episode = ""
     m_ep = re.search(r"(?i)\bEP(\d+)\b", stem)
@@ -100,14 +103,93 @@ def _extract_season_episode(stem: str) -> tuple[str, str]:
     return season, episode
 
 
+def _normalize_episode_numbers(values: list[int]) -> list[int]:
+    """Preserve order while removing duplicates and non-positive numbers."""
+    out: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        if value <= 0 or value in seen:
+            continue
+        seen.add(value)
+        out.append(value)
+    return out
+
+
+def _episode_numbers_from_text(raw: str) -> list[int]:
+    """Parse a single episode token or range token into normalized episode numbers."""
+    text = (raw or "").strip()
+    if not text:
+        return []
+    range_match = re.fullmatch(r"(\d+)\s*[-~]\s*(\d+)", text)
+    if range_match:
+        start = int(range_match.group(1))
+        end = int(range_match.group(2))
+        if start <= end:
+            return list(range(start, end + 1))
+        return [start, end]
+    if text.isdigit():
+        return [int(text)]
+    return [int(match) for match in re.findall(r"\d+", text)]
+
+
+def _episode_numbers_to_text(values: list[int]) -> str:
+    """Render normalized episode numbers to a compact display string."""
+    numbers = _normalize_episode_numbers(values)
+    if not numbers:
+        return ""
+    if len(numbers) == 1:
+        return str(numbers[0])
+    if numbers == list(range(numbers[0], numbers[-1] + 1)):
+        return f"{numbers[0]}-{numbers[-1]}"
+    return ",".join(str(value) for value in numbers)
+
+
+def _extract_episode_numbers(stem: str) -> list[int]:
+    """Extract episode numbers from common filename patterns."""
+    m_se = re.search(r"(?i)S(\d+)[\s.\-_]*E(\d+(?:\s*[-~]\s*\d+)?)", stem)
+    if m_se:
+        return _episode_numbers_from_text(m_se.group(2))
+    m_dash = re.search(r"(?i)\bS(\d+)\b\s*-\s*(\d+(?:\s*[-~]\s*\d+)?)\b", stem)
+    if m_dash:
+        return _episode_numbers_from_text(m_dash.group(2))
+    m_ep = re.search(r"(?i)\bEP(\d+(?:\s*[-~]\s*\d+)?)\b", stem)
+    if m_ep:
+        return _episode_numbers_from_text(m_ep.group(1))
+    m_e = re.search(r"(?i)\bE(\d+(?:\s*[-~]\s*\d+)?)\b", stem)
+    if m_e:
+        return _episode_numbers_from_text(m_e.group(1))
+    m_plain_dash = re.search(
+        r"(?i)(?:^|[\s._\]])-+[\s._]*(\d+(?:(?:\s*[-~,]\s*)\d+)+)\b",
+        stem,
+    )
+    if m_plain_dash:
+        return _episode_numbers_from_text(m_plain_dash.group(1))
+    return []
+
+
 def _episode_from_anitopy(value: object) -> str:
     """anitopy ``episode_number`` 등을 표시용 에피 문자열로 만든다."""
     s = _anitopy_field_str(value)
     if not s:
         return ""
+    numbers = _episode_numbers_from_anitopy(value)
+    if numbers:
+        return _episode_numbers_to_text(numbers)
     if s.isdigit():
         return str(int(s))
     return s.strip()
+
+
+def _episode_numbers_from_anitopy(value: object) -> list[int]:
+    """Extract normalized episode numbers from anitopy episode fields."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        numbers: list[int] = []
+        for item in value:
+            numbers.extend(_episode_numbers_from_anitopy(item))
+        return _normalize_episode_numbers(numbers)
+    return _normalize_episode_numbers(_episode_numbers_from_text(str(value).strip()))
 
 
 def _extract_year(stem: str) -> str:
@@ -186,12 +268,15 @@ class MinimalTitleParser(FilenameParser):
         stem = _get_stem(filename)
         title = _clean_title(stem, self._tokens) or stem
         season, episode = _extract_season_episode(stem)
+        episode_numbers = _extract_episode_numbers(stem)
+        episode = episode or _episode_numbers_to_text(episode_numbers)
         return ParsedInfo(
             title=title,
             parse_group=title,
             year=_extract_year(stem),
             season=season,
             episode=episode,
+            episode_numbers=episode_numbers,
             resolution=resolution_from_filename(filename),
         )
 
@@ -233,9 +318,14 @@ class AnitopyTitleParser(FilenameParser):
         year = _anitopy_field_str(data.get("anime_year")) if data else ""
         year = year or _extract_year(stem)
         stem_season, stem_episode = _extract_season_episode(stem)
+        stem_episode_numbers = _extract_episode_numbers(stem)
         anitopy_episode = _episode_from_anitopy(data.get("episode_number")) if data else ""
+        anitopy_episode_numbers = (
+            _episode_numbers_from_anitopy(data.get("episode_number")) if data else []
+        )
+        episode_numbers = stem_episode_numbers or anitopy_episode_numbers
         season = stem_season
-        episode = stem_episode or anitopy_episode
+        episode = stem_episode or _episode_numbers_to_text(episode_numbers) or anitopy_episode
         res_raw = _anitopy_field_str(data.get("video_resolution")) if data else ""
         resolution = (
             normalize_resolution_from_raw(res_raw)
@@ -248,5 +338,6 @@ class AnitopyTitleParser(FilenameParser):
             year=year,
             season=season,
             episode=episode,
+            episode_numbers=episode_numbers,
             resolution=resolution,
         )

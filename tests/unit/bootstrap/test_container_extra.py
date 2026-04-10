@@ -122,6 +122,7 @@ def test_container_factory_helpers_wire_dependencies(monkeypatch, tmp_path) -> N
 def test_create_organizer_page_handles_api_key_and_scan_extensions(monkeypatch) -> None:
     monkeypatch.setattr(container_module, "PipelineTableModel", lambda: "model")
     monkeypatch.setattr(container_module, "FsFileRepository", lambda: "files")
+    monkeypatch.setattr(container_module, "FfprobeStreamResolution", lambda: "ffprobe-probe")
     monkeypatch.setattr(
         container_module,
         "_create_sqlite_repositories",
@@ -176,6 +177,62 @@ def test_create_organizer_page_handles_api_key_and_scan_extensions(monkeypatch) 
 
     assert page[0] == "page"
     presenter_kwargs = page[1]["presenter"][1]
+    scan_execute = presenter_kwargs["scan_execute"]
+    assert scan_execute[2]["parse_cache"] == "parse-cache"
+    assert scan_execute[2]["resolution_probe"] == "ffprobe-probe"
+    assert scan_execute[2]["extensions"] == (".srt",)
     assert presenter_kwargs["plan_execute"][1]["organize_plan"] == "organize-plan"
     assert presenter_kwargs["apply_execute"][2]["library_index"] == "library-index"
     assert presenter_kwargs["apply_execute"][2]["organize_plan"] == "organize-plan"
+
+
+def test_create_organizer_page_wires_scan_resolution_fallback_for_default_scan(monkeypatch) -> None:
+    monkeypatch.setattr(container_module, "PipelineTableModel", lambda: "model")
+    monkeypatch.setattr(container_module, "FsFileRepository", lambda: "files")
+    monkeypatch.setattr(container_module, "FfprobeStreamResolution", lambda: "ffprobe-probe")
+    monkeypatch.setattr(
+        container_module,
+        "_create_sqlite_repositories",
+        lambda: SimpleNamespace(
+            library_index="library-index",
+            organize_plan="organize-plan",
+            parse_cache="parse-cache",
+            title_groups="title-groups",
+            title_match="title-match",
+            search_tv_library="search-tv-library",
+        ),
+    )
+    monkeypatch.setattr(
+        container_module, "make_scan_execute", lambda *args, **kwargs: ("scan", args, kwargs)
+    )
+    monkeypatch.setattr(container_module, "_create_parse_execute", lambda repos: "parse")
+    monkeypatch.setattr(
+        container_module, "make_cached_tmdb_hydrate_execute", lambda **kwargs: "hydrate"
+    )
+    monkeypatch.setattr(container_module, "make_plan_execute", lambda **kwargs: ("plan", kwargs))
+    monkeypatch.setattr(
+        container_module, "make_apply_execute", lambda *args, **kwargs: ("apply", args, kwargs)
+    )
+    monkeypatch.setattr(container_module, "make_sync_title_groups_execute", lambda repo: "sync")
+    monkeypatch.setattr(
+        container_module, "OrganizerPresenterPorts", lambda **kwargs: ("ports", kwargs)
+    )
+    monkeypatch.setattr(
+        container_module, "OrganizerPresenter", lambda **kwargs: ("presenter", kwargs)
+    )
+    monkeypatch.setattr(container_module, "OrganizerPage", lambda **kwargs: ("page", kwargs))
+    monkeypatch.setattr(container_module, "read_tmdb_api_key", lambda: "")
+    monkeypatch.setattr(container_module.os, "environ", {})
+
+    page = _create_organizer_page(
+        pipeline_model=None,
+        progress_dialog=None,
+        scan_extensions=None,
+        include_companion_subtitles=True,
+    )
+
+    scan_execute = page[1]["presenter"][1]["scan_execute"]
+    assert scan_execute[2]["library_index"] == "library-index"
+    assert scan_execute[2]["parse_cache"] == "parse-cache"
+    assert scan_execute[2]["resolution_probe"] == "ffprobe-probe"
+    assert "extensions" not in scan_execute[2]

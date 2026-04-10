@@ -29,6 +29,7 @@ def _parsed(title: str) -> ParsedInfo:
         year="2025",
         season="1",
         episode="01",
+        episode_numbers=[1],
         resolution="1080p",
     )
 
@@ -44,9 +45,9 @@ def _ok_write(media_file_id: int, signature: str, parsed: ParsedInfo) -> ParseCa
         parsed_title_normalized=normalize_title_for_parse_cache(parsed.title),
         parsed_year=int(parsed.year),
         season_number=int(parsed.season),
-        episode_start=int(parsed.episode),
-        episode_end=None,
-        episode_count=None,
+        episode_start=parsed.episode_numbers[0],
+        episode_end=parsed.episode_numbers[-1],
+        episode_count=len(parsed.episode_numbers),
         confidence=None,
     )
 
@@ -117,5 +118,26 @@ def test_sqlite_parse_cache_bulk_write_and_read_filters_invalid_rows(tmp_path: P
         assert hits == {media[0].id: first}
         assert cache.get_valid_parse(media[0].id, "sig-1") == first
         assert cache.get_valid_parse(media[2].id, "sig-3") is None
+    finally:
+        conn.close()
+
+
+def test_sqlite_parse_cache_ignores_rows_with_stale_parser_version(tmp_path: Path) -> None:
+    conn, media = _seed_media(tmp_path, 1)
+    cache = SqliteParseCacheRepository(conn, threading.Lock())
+    parsed = _parsed("Season Two")
+
+    try:
+        cache.upsert_parse_ok_many([_ok_write(media[0].id, "sig-1", parsed)])
+        conn.execute(
+            "UPDATE parse_cache SET parser_version = ? WHERE media_file_id = ?",
+            ("1", media[0].id),
+        )
+        conn.commit()
+
+        hits = cache.get_valid_parses([ParseCacheLookup(media[0].id, "sig-1")])
+
+        assert hits == {}
+        assert cache.get_valid_parse(media[0].id, "sig-1") is None
     finally:
         conn.close()

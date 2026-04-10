@@ -31,9 +31,9 @@ def _ok_write(media_file_id: int, signature: str, parsed: ParsedInfo):
         parsed_title_normalized=normalize_title_for_parse_cache(parsed.title),
         parsed_year=int(parsed.year),
         season_number=int(parsed.season),
-        episode_start=int(parsed.episode),
-        episode_end=None,
-        episode_count=None,
+        episode_start=parsed.episode_numbers[0],
+        episode_end=parsed.episode_numbers[-1],
+        episode_count=len(parsed.episode_numbers),
         confidence=None,
     )
 
@@ -70,12 +70,13 @@ def test_parse_cache_single_upserts_and_resolution_paths(tmp_path: Path) -> None
         year="2024",
         season="1",
         episode="01",
+        episode_numbers=[1],
         resolution="1080p",
     )
     try:
         repo.upsert_parse_ok(
             media_file_id=media[0].id,
-            parser_version="v1",
+            parser_version=PARSER_VERSION,
             parse_input_signature="sig-ok",
             parsed=parsed,
             dto_json='{"title":"Show"}',
@@ -84,13 +85,13 @@ def test_parse_cache_single_upserts_and_resolution_paths(tmp_path: Path) -> None
             parsed_year=2024,
             season_number=1,
             episode_start=1,
-            episode_end=None,
-            episode_count=None,
+            episode_end=1,
+            episode_count=1,
             confidence=0.8,
         )
         repo.upsert_parse_error(
             media_file_id=media[1].id,
-            parser_version="v1",
+            parser_version=PARSER_VERSION,
             parse_input_signature="sig-err",
             error_code="ValueError",
             error_message="bad parse",
@@ -156,6 +157,7 @@ def test_parse_cache_bulk_methods_ignore_empty_inputs(tmp_path: Path) -> None:
         year="2024",
         season="1",
         episode="01",
+        episode_numbers=[1],
         resolution="1080p",
     )
     try:

@@ -44,9 +44,6 @@ class PipelineTableModel(QAbstractTableModel):
         row = self._rows[index.row()]
         _, key = PIPELINE_TABLE_COLUMNS[index.column()]
         value = getattr(row, key, "")
-        if key == "season":
-            s = (value or "").strip()
-            return s if s else "1"
         return value
 
     def headerData(
