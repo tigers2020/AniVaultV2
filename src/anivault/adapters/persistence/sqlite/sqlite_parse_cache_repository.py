@@ -109,6 +109,46 @@ class SqliteParseCacheRepository:
         self._lock = lock
         self._resolution_write_depth = 0
 
+    def _enter_resolution_batch_write(self) -> tuple[bool, str | None]:
+        """락 보유 상태에서 배치 쓰기 깊이를 올리고 트랜잭션/세이브포인트를 연다."""
+        started_transaction = False
+        savepoint_name: str | None = None
+        self._resolution_write_depth += 1
+        if self._resolution_write_depth != 1:
+            return started_transaction, savepoint_name
+        if self._conn.in_transaction:
+            savepoint_name = "__parse_cache_resolution_batch__"
+            self._conn.execute(f"SAVEPOINT {savepoint_name}")
+        else:
+            self._conn.execute("BEGIN IMMEDIATE")
+            started_transaction = True
+        return started_transaction, savepoint_name
+
+    def _finalize_resolution_savepoint(self, savepoint_name: str, ok: bool) -> None:
+        if ok:
+            self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+            return
+        self._conn.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
+        self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+
+    def _finish_resolution_batch(
+        self,
+        savepoint_name: str | None,
+        started_transaction: bool,
+        ok: bool,
+    ) -> None:
+        """락 보유 상태에서 깊이를 내리고 커밋/롤백 또는 세이브포인트를 정리한다."""
+        self._resolution_write_depth -= 1
+        if self._resolution_write_depth != 0:
+            return
+        if savepoint_name is not None:
+            self._finalize_resolution_savepoint(savepoint_name, ok)
+        elif started_transaction:
+            if ok:
+                self._conn.commit()
+            else:
+                self._conn.rollback()
+
     @contextmanager
     def resolution_write_batch(self) -> Iterator[None]:
         """`upsert_resolution` 다건을 한 트랜잭션으로 묶는다.
@@ -122,36 +162,15 @@ class SqliteParseCacheRepository:
         Returns:
             None.
         """
-        started_transaction = False
-        savepoint_name: str | None = None
         with self._lock:
-            self._resolution_write_depth += 1
-            if self._resolution_write_depth == 1:
-                if self._conn.in_transaction:
-                    savepoint_name = "__parse_cache_resolution_batch__"
-                    self._conn.execute(f"SAVEPOINT {savepoint_name}")
-                else:
-                    self._conn.execute("BEGIN IMMEDIATE")
-                    started_transaction = True
+            started_transaction, savepoint_name = self._enter_resolution_batch_write()
         ok = False
         try:
             yield
             ok = True
         finally:
             with self._lock:
-                self._resolution_write_depth -= 1
-                if self._resolution_write_depth == 0:
-                    if savepoint_name is not None:
-                        if ok:
-                            self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
-                        else:
-                            self._conn.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
-                            self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
-                    elif started_transaction:
-                        if ok:
-                            self._conn.commit()
-                        else:
-                            self._conn.rollback()
+                self._finish_resolution_batch(savepoint_name, started_transaction, ok)
 
     def get_valid_parse(self, media_file_id: int, signature: str) -> ParsedInfo | None:
         """Return one valid cache hit, or None."""

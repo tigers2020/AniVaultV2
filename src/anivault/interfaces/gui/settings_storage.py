@@ -7,7 +7,7 @@ Author: Pom Kim
 
 import json
 from contextlib import suppress
-from typing import Any, cast
+from typing import Any
 
 from anivault.constants.gui.settings import (
     CONFIG_DIR,
@@ -72,9 +72,23 @@ def _safe_load_config_data() -> Any:
     return None
 
 
+def _string_key_dict(value: object) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    return {str(key): item for key, item in value.items()}
+
+
+def _result_group(result: dict[str, Any], key: str) -> dict[str, Any]:
+    group = _string_key_dict(result.get(key))
+    if group is None:
+        group = {}
+    result[key] = group
+    return group
+
+
 def _merge_string_key_group(
     *,
-    target_group: dict[str, str],
+    target_group: dict[str, Any],
     loaded_data_group: Any,
     keys: tuple[str, ...],
 ) -> None:
@@ -117,7 +131,7 @@ def _migrate_scan_build_target_path_to_target_root(
         return
     if "target_path" not in scan_loaded:
         return
-    cast(dict[str, str], result["path_rules"])["target_root"] = str(scan_loaded["target_path"])
+    _result_group(result, "path_rules")["target_root"] = str(scan_loaded["target_path"])
 
 
 def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
@@ -134,19 +148,19 @@ def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
         result["theme"] = str(data["theme"])
 
     _merge_string_key_group(
-        target_group=cast(dict[str, str], result["path_rules"]),
+        target_group=_result_group(result, "path_rules"),
         loaded_data_group=data.get("path_rules"),
         keys=PATH_RULES_KEYS,
     )
     _merge_string_key_group(
-        target_group=cast(dict[str, str], result["parse_tmdb"]),
+        target_group=_result_group(result, "parse_tmdb"),
         loaded_data_group=data.get("parse_tmdb"),
         keys=PARSE_TMDB_KEYS,
     )
     scan_loaded = data.get("scan_build")
     str_keys = tuple(k for k in SCAN_BUILD_KEYS if k not in SCAN_BUILD_BOOL_KEYS)
     _merge_string_key_group(
-        target_group=cast(dict[str, str], result["scan_build"]),
+        target_group=_result_group(result, "scan_build"),
         loaded_data_group=scan_loaded,
         keys=str_keys,
     )
@@ -162,9 +176,7 @@ def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
     if not isinstance(pipeline_results, dict):
         return
 
-    result_pipeline = cast(
-        dict[str, Any], cast(dict[str, Any], result["ui_state"])["pipeline_results"]
-    )
+    result_pipeline = _result_group(_result_group(result, "ui_state"), "pipeline_results")
     _merge_pipeline_results(result_pipeline, pipeline_results)
 
 
@@ -172,7 +184,7 @@ def _merge_scan_build_bool_keys(result: dict[str, Any], scan_loaded: Any) -> Non
     """scan_build의 bool 키를 안전하게 병합한다."""
     if not isinstance(scan_loaded, dict):
         return
-    scan_target = cast(dict[str, Any], result["scan_build"])
+    scan_target = _result_group(result, "scan_build")
     for key in SCAN_BUILD_BOOL_KEYS:
         value = scan_loaded.get(key)
         if isinstance(value, bool):
@@ -206,11 +218,11 @@ def load_all() -> dict[str, Any]:
     if not CONFIG_FILE.exists():
         return result
 
-    loaded = _safe_load_config_data()
-    if not isinstance(loaded, dict):
+    loaded = _string_key_dict(_safe_load_config_data())
+    if loaded is None:
         return result
 
-    _merge_loaded_data(result, cast(dict[str, Any], loaded))
+    _merge_loaded_data(result, loaded)
     return result
 
 

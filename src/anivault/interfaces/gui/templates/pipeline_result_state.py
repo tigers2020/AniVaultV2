@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import TypedDict
 
 from anivault.constants.gui.navigation import LEGACY_VIEW_KEY_MAP, VIEW_TO_INDEX
 from anivault.constants.gui.settings import (
@@ -19,7 +19,14 @@ class PipelineResultUiState(TypedDict):
     selected_index: int
 
 
-DEFAULT_UI_STATE: PipelineResultUiState = cast(PipelineResultUiState, default_pipeline_results())
+def _default_ui_state() -> PipelineResultUiState:
+    defaults = default_pipeline_results()
+    view_key = defaults.get("view_key")
+    selected_index = defaults.get("selected_index")
+    return {
+        "view_key": view_key if isinstance(view_key, str) else "details",
+        "selected_index": selected_index if isinstance(selected_index, int) else -1,
+    }
 
 
 def normalize_ui_state(data: dict[str, object]) -> PipelineResultUiState:
@@ -28,8 +35,8 @@ def normalize_ui_state(data: dict[str, object]) -> PipelineResultUiState:
     view_key = data.get("view_key")
     selected_index = data.get("selected_index")
     normalized: PipelineResultUiState = {
-        "view_key": DEFAULT_UI_STATE["view_key"],
-        "selected_index": DEFAULT_UI_STATE["selected_index"],
+        "view_key": _default_ui_state()["view_key"],
+        "selected_index": _default_ui_state()["selected_index"],
     }
     if isinstance(view_key, str):
         view_key = LEGACY_VIEW_KEY_MAP.get(view_key, view_key)
@@ -38,6 +45,9 @@ def normalize_ui_state(data: dict[str, object]) -> PipelineResultUiState:
     if isinstance(selected_index, int):
         normalized["selected_index"] = selected_index
     return normalized
+
+
+DEFAULT_UI_STATE: PipelineResultUiState = _default_ui_state()
 
 
 def load_ui_state() -> PipelineResultUiState:

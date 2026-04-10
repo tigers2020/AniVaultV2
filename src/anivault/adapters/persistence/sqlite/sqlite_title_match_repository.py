@@ -12,7 +12,7 @@ import logging
 import sqlite3
 from pathlib import Path
 from threading import Lock
-from typing import Any, cast
+from typing import Any
 
 from anivault.adapters.persistence.sqlite.sql_queries import GROUP_TMDB_MATCH_UPSERT_SQL
 from anivault.adapters.persistence.sqlite.sqlite_time import (
@@ -646,11 +646,11 @@ def _group_match_from_row(row: sqlite3.Row | tuple[Any, ...]) -> GroupTmdbMatchR
 
 def _match_status_from_string(value: str) -> MatchStatus | None:
     if value == MATCH_STATUS_AUTO_MATCHED:
-        return cast(MatchStatus, MATCH_STATUS_AUTO_MATCHED)
+        return "auto_matched"
     if value == MATCH_STATUS_CONFIRMED:
-        return cast(MatchStatus, MATCH_STATUS_CONFIRMED)
+        return "confirmed"
     if value == MATCH_STATUS_REJECTED:
-        return cast(MatchStatus, MATCH_STATUS_REJECTED)
+        return "rejected"
     return None
 
 

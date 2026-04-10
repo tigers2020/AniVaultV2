@@ -6,16 +6,12 @@ import json
 import logging
 from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
-from typing import Protocol, cast
+from typing import Final, Protocol
 
 from anivault.application.ports.title_group_port import TitleGroupRepository
 from anivault.application.ports.title_match_port import (
     GroupMatchRepository,
     TmdbSeriesRepository,
-)
-from anivault.constants.application.statuses import (
-    MATCH_STATUS_AUTO_MATCHED,
-    MATCH_STATUS_CONFIRMED,
 )
 from anivault.constants.domain.matching import TMDB_SERIES_CACHE_TTL_DAYS
 from anivault.constants.gui.components import PIPELINE_ROW_STATUS_TMDB_MATCHED
@@ -25,6 +21,8 @@ from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.domain.rules.tmdb_image_url import tmdb_backdrop_cdn_url, tmdb_poster_cdn_url
 
 logger = logging.getLogger(__name__)
+CONFIRMED_MATCH_STATUS: Final[MatchStatus] = "confirmed"
+AUTO_MATCHED_STATUS: Final[MatchStatus] = "auto_matched"
 
 
 class _MatchPersistenceRepository(TmdbSeriesRepository, GroupMatchRepository, Protocol):
@@ -112,7 +110,7 @@ def persist_manual_tmdb_selection(
         title_match.set_group_match(
             group_id,
             int(chosen.tmdb_id),
-            cast(MatchStatus, MATCH_STATUS_CONFIRMED),
+            CONFIRMED_MATCH_STATUS,
             None,
         )
     except Exception:
@@ -155,14 +153,14 @@ def _match_single_group_apply_persist(
         existing = title_match.get_group_match(group_id)
         preserve_confirmed = (
             existing is not None
-            and existing.match_status == MATCH_STATUS_CONFIRMED
+            and existing.match_status == CONFIRMED_MATCH_STATUS
             and int(existing.tmdb_id) == int(best.tmdb_id)
         )
         if not preserve_confirmed:
             title_match.set_group_match(
                 group_id,
                 int(best.tmdb_id),
-                cast(MatchStatus, MATCH_STATUS_AUTO_MATCHED),
+                AUTO_MATCHED_STATUS,
                 confidence,
             )
     except Exception:

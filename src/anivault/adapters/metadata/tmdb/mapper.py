@@ -117,14 +117,14 @@ def tv_show_to_search_tv_library_record(tv: Any, language: str) -> SearchTvLibra
     if gids is None:
         genre_ids_json = "[]"
     else:
-        genre_ids_json = json.dumps([int(x) for x in list(gids)], separators=(",", ":"))
+        genre_ids_json = json.dumps([int(x) for x in gids], separators=(",", ":"))
 
     oc = getattr(tv, "origin_country", None)
     if oc is None:
         origin_country_json = "[]"
     else:
         origin_country_json = json.dumps(
-            [_country_code_item(c) for c in list(oc)],
+            [_country_code_item(c) for c in oc],
             ensure_ascii=False,
             separators=(",", ":"),
         )

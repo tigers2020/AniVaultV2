@@ -7,14 +7,10 @@ import sqlite3
 from collections.abc import Callable
 from pathlib import Path
 from threading import Event
-from typing import cast
+from typing import Final
 
 from anivault.application.ports.organize_plan_port import OrganizePlanRepository
 from anivault.constants.application.progress import PROGRESS_PERCENT_MAX, PROGRESS_STAGE_PLAN
-from anivault.constants.application.statuses import (
-    ORGANIZE_OPERATION_KIND_MOVE,
-    ORGANIZE_PLAN_STATUS_PREVIEWED,
-)
 from anivault.constants.domain.media import MEDIA_KIND_SUBTITLE, MEDIA_KIND_VIDEO
 from anivault.contracts.organize_plan import (
     OrganizeOperationKind,
@@ -34,6 +30,8 @@ from anivault.domain.services.path_template import (
 )
 
 PlanProgressCallback = Callable[[ProgressEvent], None]
+PREVIEWED_PLAN_STATUS: Final[OrganizePlanStatus] = "previewed"
+MOVE_OPERATION_KIND: Final[OrganizeOperationKind] = "move"
 
 
 def _pipeline_row_to_path_template_input(row: PipelineRow) -> PathTemplateInput:
@@ -187,14 +185,14 @@ def _persist_plan_if_needed(
         )
         plan_id = organize_plan.create_plan(
             input_dto.index_root_id,
-            cast(OrganizePlanStatus, ORGANIZE_PLAN_STATUS_PREVIEWED),
+            PREVIEWED_PLAN_STATUS,
             summary,
         )
         rows = tuple(
             OrganizePlanAppendRow(
                 src_path_norm=normalize_path_key(move.source_path),
                 dst_path_norm=normalize_path_key(move.destination_path),
-                operation_kind=cast(OrganizeOperationKind, ORGANIZE_OPERATION_KIND_MOVE),
+                operation_kind=MOVE_OPERATION_KIND,
                 detail_json=json.dumps({"kind": kind}, ensure_ascii=False),
             )
             for move, kind in zip(moves, move_kinds, strict=True)

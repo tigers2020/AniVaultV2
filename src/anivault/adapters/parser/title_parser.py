@@ -159,7 +159,7 @@ def _extract_episode_numbers(stem: str) -> list[int]:
     if m_e:
         return _episode_numbers_from_text(m_e.group(1))
     m_plain_dash = re.search(
-        r"(?i)(?:^|[\s._\]])-+[\s._]*(\d+(?:(?:\s*[-~,]\s*)\d+)+)\b",
+        r"(?i)(?:^|[\s._\]])-+[\s._]*(\d+(?:\s*[-~,]\s*\d+)+)\b",
         stem,
     )
     if m_plain_dash:

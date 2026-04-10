@@ -8,13 +8,10 @@ Author: Pom Kim
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, cast
+from typing import Final, Literal
 
 from anivault.constants.domain.media import (
     IMAGE_EXTENSIONS,
-    MEDIA_KIND_OTHER,
-    MEDIA_KIND_SUBTITLE,
-    MEDIA_KIND_VIDEO,
     SUBTITLE_EXTENSIONS,
     SUBTITLE_SCAN_EXTENSIONS,
     VIDEO_EXTENSIONS,
@@ -22,6 +19,9 @@ from anivault.constants.domain.media import (
 )
 
 MediaKind = Literal["video", "subtitle", "other"]
+VIDEO_MEDIA_KIND: Final[MediaKind] = "video"
+SUBTITLE_MEDIA_KIND: Final[MediaKind] = "subtitle"
+OTHER_MEDIA_KIND: Final[MediaKind] = "other"
 
 __all__ = [
     "MediaKind",
@@ -38,9 +38,9 @@ def classify_media_kind(path: str | Path) -> MediaKind:
     """Classify a path by suffix."""
     suf = Path(path).suffix.lower()
     if suf in VIDEO_EXTENSIONS:
-        return cast(MediaKind, MEDIA_KIND_VIDEO)
+        return VIDEO_MEDIA_KIND
     if suf in SUBTITLE_EXTENSIONS:
-        return cast(MediaKind, MEDIA_KIND_SUBTITLE)
+        return SUBTITLE_MEDIA_KIND
     if suf in IMAGE_EXTENSIONS:
-        return cast(MediaKind, MEDIA_KIND_OTHER)
-    return cast(MediaKind, MEDIA_KIND_OTHER)
+        return OTHER_MEDIA_KIND
+    return OTHER_MEDIA_KIND

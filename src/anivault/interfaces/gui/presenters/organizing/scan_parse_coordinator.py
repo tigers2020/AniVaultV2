@@ -18,6 +18,8 @@ from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
 
 from anivault.constants.gui.components import (
+    PIPELINE_BUSY_MESSAGE,
+    PIPELINE_BUSY_TITLE,
     SCAN_PARSE_COORDINATOR_MID_SCAN_MODEL_MAX_GROUPS,
     SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_MESSAGE,
     SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_TITLE,
@@ -187,8 +189,25 @@ class ScanParseCoordinator(QObject):
             return
         if not self._scan_path_is_usable_directory(path):
             return
+        if presenter_runtime.has_active_pipeline_work(self._p):
+            parent = presenter_runtime.parent_widget(self._p)
+            if isinstance(parent, QWidget):
+                QMessageBox.information(parent, PIPELINE_BUSY_TITLE, PIPELINE_BUSY_MESSAGE)
+            return
+        self._start_scan_worker(path)
+
+    def run_scan_after_apply_completion(self, path: str) -> None:
+        """적용 완료 후 자동 재스캔: 사용자 가드 없이 동일 스캔 파이프라인을 시작한다."""
+
+        p = (path or "").strip()
+        if not p:
+            return
+        if not self._scan_path_is_usable_directory(p):
+            return
+        self._start_scan_worker(p)
+
+    def _start_scan_worker(self, path: str) -> None:
         presenter_runtime.set_current_library_root_id(self._p, None)
-        presenter_runtime.notify_dry_run(self._p, False)
         execute = presenter_runtime.scan_execute(self._p)
         if execute is None:
             return

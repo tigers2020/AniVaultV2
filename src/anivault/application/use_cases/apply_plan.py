@@ -10,25 +10,23 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from threading import Event
-from typing import cast
+from typing import Final
 
 from anivault.application.ports.file_repository import FileRepository
 from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.operation_log_port import OperationLogRepository
 from anivault.application.ports.organize_plan_port import OrganizePlanRepository
 from anivault.constants.application.progress import PROGRESS_PERCENT_MAX, PROGRESS_STAGE_APPLY
-from anivault.constants.application.statuses import (
-    ORGANIZE_PLAN_ITEM_STATUS_APPLIED,
-    ORGANIZE_PLAN_ITEM_STATUS_FAILED,
-    ORGANIZE_PLAN_STATUS_APPLIED,
-    ORGANIZE_PLAN_STATUS_FAILED,
-)
 from anivault.contracts.organize_plan import OrganizePlanItemStatus, OrganizePlanStatus
 from anivault.contracts.planning import ApplyInput, ApplyResult
 from anivault.contracts.progress import ProgressEvent
 from anivault.domain.models import FileOperation
 
 ApplyProgressCallback = Callable[[ProgressEvent], None]
+FAILED_PLAN_STATUS: Final[OrganizePlanStatus] = "failed"
+APPLIED_PLAN_STATUS: Final[OrganizePlanStatus] = "applied"
+FAILED_ITEM_STATUS: Final[OrganizePlanItemStatus] = "failed"
+APPLIED_ITEM_STATUS: Final[OrganizePlanItemStatus] = "applied"
 
 
 def _get_operations_or_error(input_dto: ApplyInput) -> ApplyResult | None:
@@ -52,7 +50,8 @@ def _save_plan_log_or_error(
 ) -> tuple[Path | None, ApplyResult | None]:
     op_log = operation_log_factory(Path(log_root))
     try:
-        log_path = op_log.save_plan(cast(list[object], ops))
+        serializable_ops: list[object] = list(ops)
+        log_path = op_log.save_plan(serializable_ops)
     except OSError as e:
         return None, ApplyResult(log_path=None, moved_count=0, error=str(e))
     return log_path, None
@@ -63,9 +62,7 @@ def _mark_plan_failed_if_needed(
     plan_id: int | None,
 ) -> None:
     if organize_plan is not None and plan_id is not None:
-        organize_plan.update_plan_status(
-            plan_id, cast(OrganizePlanStatus, ORGANIZE_PLAN_STATUS_FAILED)
-        )
+        organize_plan.update_plan_status(plan_id, FAILED_PLAN_STATUS)
 
 
 def _mark_item_failed_if_needed(
@@ -74,10 +71,7 @@ def _mark_item_failed_if_needed(
     index: int,
 ) -> None:
     if organize_plan is not None and index < len(item_ids):
-        organize_plan.update_item_status(
-            item_ids[index],
-            cast(OrganizePlanItemStatus, ORGANIZE_PLAN_ITEM_STATUS_FAILED),
-        )
+        organize_plan.update_item_status(item_ids[index], FAILED_ITEM_STATUS)
 
 
 def _mark_item_applied_if_needed(
@@ -86,10 +80,7 @@ def _mark_item_applied_if_needed(
     index: int,
 ) -> None:
     if organize_plan is not None and index < len(item_ids):
-        organize_plan.update_item_status(
-            item_ids[index],
-            cast(OrganizePlanItemStatus, ORGANIZE_PLAN_ITEM_STATUS_APPLIED),
-        )
+        organize_plan.update_item_status(item_ids[index], APPLIED_ITEM_STATUS)
 
 
 def _emit_apply_progress_if_needed(
@@ -232,9 +223,7 @@ def _execute_apply(
         return apply_result
 
     if organize_plan is not None and plan_id is not None:
-        organize_plan.update_plan_status(
-            plan_id, cast(OrganizePlanStatus, ORGANIZE_PLAN_STATUS_APPLIED)
-        )
+        organize_plan.update_plan_status(plan_id, APPLIED_PLAN_STATUS)
 
     source_root = (input_dto.source_root or "").strip()
     if source_root:

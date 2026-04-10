@@ -472,6 +472,7 @@ def test_organizer_page_constructor_wires_components(monkeypatch) -> None:
             super().__init__(parent)
             self.pipeline_model = pipeline_model
             self.dry_run_handler = None
+            self.pipeline_busy_handler = None
             self.panel = None
 
         def on_scan_clicked(self, *_args):
@@ -488,6 +489,12 @@ def test_organizer_page_constructor_wires_components(monkeypatch) -> None:
 
         def set_dry_run_enabled_handler(self, handler):
             self.dry_run_handler = handler
+
+        def set_pipeline_busy_handler(self, handler):
+            self.pipeline_busy_handler = handler
+
+        def refresh_pipeline_action_bar_state(self) -> None:
+            pass
 
         def set_pipeline_result_panel(self, panel):
             self.panel = panel
@@ -508,6 +515,9 @@ def test_organizer_page_constructor_wires_components(monkeypatch) -> None:
 
         def set_dry_run_enabled(self, enabled: bool) -> None:
             self.dry_run_enabled = enabled
+
+        def set_pipeline_busy(self, busy: bool) -> None:
+            self.pipeline_busy = busy
 
     class FakeStatsGrid(QWidget):
         def __init__(self):

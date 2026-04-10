@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import MagicMock, call
 
 from anivault.contracts.parse import ParseResult
 from anivault.contracts.pipeline import MatchInput, MatchResult, PipelineRow
+from anivault.contracts.progress import ProgressEvent
 from anivault.contracts.scan import ScanResult
 from anivault.domain.models.parsed_info import ParsedInfo
+from anivault.interfaces.gui.models import PipelineTableModel
 from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow
 from anivault.interfaces.gui.presenters.organizing import scan_parse_coordinator as module
 
@@ -19,8 +22,9 @@ class _Signal:
         self.callbacks.append(callback)
 
     def emit(self, *args, **kwargs) -> None:
-        for callback in list(self.callbacks):
-            callback(*args, **kwargs)
+        for callback in self.callbacks:
+            if callable(callback):
+                callback(*args, **kwargs)
 
 
 class _Thread:
@@ -101,7 +105,10 @@ def test_scan_path_is_usable_directory_covers_success_and_errors(monkeypatch) ->
     monkeypatch.setattr(module.Path, "is_dir", lambda self: True)
     assert coord._scan_path_is_usable_directory("F:/Anime") is True
 
-    monkeypatch.setattr(module.Path, "is_dir", lambda self: (_ for _ in ()).throw(OSError("bad")))
+    def _is_dir_raises(_self) -> bool:
+        raise OSError("bad")
+
+    monkeypatch.setattr(module.Path, "is_dir", _is_dir_raises)
     assert coord._scan_path_is_usable_directory("F:/Anime") is False
     monkeypatch.setattr(module.Path, "is_dir", lambda self: False)
     assert coord._scan_path_is_usable_directory("F:/Anime") is False
@@ -121,7 +128,7 @@ def test_on_scan_clicked_handles_blank_invalid_and_no_execute(monkeypatch) -> No
     coord.on_scan_clicked("F:/Anime")
 
     assert warned == ["스캔 경로 없음"]
-    presenter._notify_dry_run.assert_called_once_with(False)
+    assert not presenter._notify_dry_run.called
 
 
 def test_on_scan_clicked_starts_worker(monkeypatch) -> None:
@@ -166,7 +173,9 @@ def test_on_progress_updates_dialog_when_token_valid() -> None:
     dialog.is_progress_token_valid.return_value = True
     coord = _coord(SimpleNamespace(_progress_dialog=dialog))
 
-    coord._on_progress(SimpleNamespace(message="msg", current=1, total=2), 5)
+    coord._on_progress(
+        ProgressEvent(stage="", current=1, total=2, message="msg", percent=0), 5
+    )
 
     dialog.update_progress.assert_called_once()
 
@@ -189,7 +198,7 @@ def test_on_scan_result_sets_rows_or_starts_parse(monkeypatch) -> None:
     presenter._model.set_rows.assert_called_once_with(["group"])
     presenter._finish_worker_session.assert_called_once()
 
-    started: list[object] = []
+    started: list[tuple[list[PipelineRow], object, int]] = []
     monkeypatch.setattr(coord, "_scan_result_to_rows", lambda result: [_row("a.mkv")])
     monkeypatch.setattr(
         coord,
@@ -238,7 +247,7 @@ def test_start_parse_worker_handles_missing_execute_and_starts_worker(monkeypatc
 
 
 def test_on_parse_result_ignores_stale_generation_and_merges_rows(monkeypatch) -> None:
-    applied: list[object] = []
+    applied: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
     model = SimpleNamespace(flat_rows=lambda: [_row("a.mkv")])
     presenter = SimpleNamespace(
         _model=model, _parse_index_root_id=5, _sync_title_groups_execute=None
@@ -372,7 +381,7 @@ def test_on_cached_tmdb_hydrate_result_applies_grouped_rows_when_current(monkeyp
     monkeypatch.setattr(coord, "_apply_parse_result_groups_chunked", capture_apply)
 
     coord._on_cached_tmdb_hydrate_result(
-        MatchResult(files=(SimpleNamespace(original_file="a.mkv"),)), MagicMock(), 1
+        MatchResult(files=(_row("a.mkv"),)), MagicMock(), 1
     )
 
     assert applied
@@ -388,11 +397,12 @@ def test_after_parse_result_groups_applied_syncs_panel_and_optionally_runs_worke
         _dry_run_should_enable=lambda: True,
     )
     coord = _coord(presenter)
-    monkeypatch.setattr(coord, "_run_pending_cached_tmdb_hydrate", MagicMock(return_value=False))
-    monkeypatch.setattr(
-        coord, "_run_pending_cached_tmdb_missing_fill", MagicMock(return_value=False)
-    )
-    monkeypatch.setattr(coord, "_run_title_groups_sync_worker", MagicMock())
+    mock_hydrate = MagicMock(return_value=False)
+    mock_missing_fill = MagicMock(return_value=False)
+    mock_title_sync = MagicMock()
+    monkeypatch.setattr(coord, "_run_pending_cached_tmdb_hydrate", mock_hydrate)
+    monkeypatch.setattr(coord, "_run_pending_cached_tmdb_missing_fill", mock_missing_fill)
+    monkeypatch.setattr(coord, "_run_title_groups_sync_worker", mock_title_sync)
 
     coord._after_parse_result_groups_applied(
         session_gen=4, root_for_sync=8, sync_fn=lambda root: None
@@ -400,9 +410,9 @@ def test_after_parse_result_groups_applied_syncs_panel_and_optionally_runs_worke
 
     panel.sync_views_from_model.assert_called_once()
     assert presenter._notify_dry_run.call_args_list == [call(False), call(True)]
-    coord._run_pending_cached_tmdb_hydrate.assert_called_once_with(4)
-    coord._run_pending_cached_tmdb_missing_fill.assert_called_once_with(4)
-    coord._run_title_groups_sync_worker.assert_called_once()
+    mock_hydrate.assert_called_once_with(4)
+    mock_missing_fill.assert_called_once_with(4)
+    mock_title_sync.assert_called_once()
 
 
 def test_after_parse_result_groups_applied_skips_dry_run_enable_when_followup_starts(
@@ -451,7 +461,7 @@ def test_schedule_parse_result_chunk_work_processes_all_chunks(monkeypatch) -> N
     grouped = [PipelineGroupRow((_row("a.mkv"),)), PipelineGroupRow((_row("b.mkv"),))]
 
     coord._schedule_parse_result_chunk_work(
-        model,
+        cast(PipelineTableModel, model),
         grouped,
         session_gen=0,
         chunk_sz=1,
@@ -476,7 +486,7 @@ def test_apply_parse_result_groups_chunked_clears_model_and_schedules(monkeypatc
     )
 
     coord._apply_parse_result_groups_chunked(
-        model,
+        cast(PipelineTableModel, model),
         [PipelineGroupRow((_row("a.mkv"),))],
         session_gen=1,
         root_for_sync=None,

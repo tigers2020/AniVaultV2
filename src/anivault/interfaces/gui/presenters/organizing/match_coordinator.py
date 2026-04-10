@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt, QTimer
 from PySide6.QtWidgets import QDialog, QMessageBox, QWidget
 
-from anivault.application.ports.poster_sync_port import PosterAssetSyncPort
-from anivault.application.ports.title_group_port import TitleGroupRepository
-from anivault.application.ports.title_match_port import PosterAssetRepository, TitleMatchRepository
 from anivault.application.use_cases.match_series import (
     apply_tmdb_candidate_to_file_rows,
     persist_manual_tmdb_selection,
@@ -25,6 +22,8 @@ from anivault.constants.gui.components import (
     MATCH_COORDINATOR_NO_SELECTION_TITLE,
     MATCH_COORDINATOR_PROGRESS_MESSAGE,
     MATCH_COORDINATOR_PROGRESS_TITLE,
+    PIPELINE_BUSY_MESSAGE,
+    PIPELINE_BUSY_TITLE,
 )
 from anivault.contracts.pipeline import MatchInput, MatchResult, PipelineRow
 from anivault.contracts.progress import (
@@ -76,8 +75,12 @@ class MatchCoordinator(QObject):
                     MATCH_COORDINATOR_MISSING_API_MESSAGE,
                 )
             return
+        if presenter_runtime.has_active_pipeline_work(self._p):
+            parent = presenter_runtime.parent_widget(self._p)
+            if isinstance(parent, QWidget):
+                QMessageBox.information(parent, PIPELINE_BUSY_TITLE, PIPELINE_BUSY_MESSAGE)
+            return
 
-        presenter_runtime.notify_dry_run(self._p, False)
         rows = presenter_runtime.flat_rows(self._p)
         if not rows:
             parent = presenter_runtime.parent_widget(self._p)
@@ -118,16 +121,12 @@ class MatchCoordinator(QObject):
             )
         else:
             thread = run_worker(worker)
-        thread.finished.connect(lambda t=thread: presenter_runtime.on_worker_finished(self._p, t))
-        presenter_runtime.update_current_worker_thread(self._p, thread)
+        presenter_runtime.register_worker_thread(self._p, thread)
 
     def _match_file_to_pipeline_row(self, match_file: PipelineRow) -> PipelineRow:
         return match_file_to_pipeline_row(
             match_file,
-            title_match=cast(
-                PosterAssetRepository | None,
-                presenter_runtime.title_match(self._p),
-            ),
+            title_match=presenter_runtime.title_match(self._p),
         )
 
     def _on_match_result(self, result: MatchResult) -> None:
@@ -196,19 +195,10 @@ class MatchCoordinator(QObject):
             chosen,
             root_id=presenter_runtime.current_library_root_id(self._p),
             representative_path_norm=representative_norm,
-            title_match=cast(
-                TitleMatchRepository | None,
-                presenter_runtime.title_match(self._p),
-            ),
-            title_groups=cast(
-                TitleGroupRepository | None,
-                presenter_runtime.title_groups(self._p),
-            ),
+            title_match=presenter_runtime.title_match(self._p),
+            title_groups=presenter_runtime.title_groups(self._p),
         )
-        poster_sync = cast(
-            PosterAssetSyncPort | None,
-            presenter_runtime.poster_sync(self._p),
-        )
+        poster_sync = presenter_runtime.poster_sync(self._p)
         if poster_sync is not None:
             poster_sync.sync_from_files(files_list)
         merged_rows = [self._match_file_to_pipeline_row(row) for row in files_list]
@@ -263,6 +253,12 @@ class MatchCoordinator(QObject):
         if execute is None:
             dlg.set_search_busy(False)
             return
+        if presenter_runtime.has_active_pipeline_work(self._p):
+            dlg.set_search_busy(False)
+            parent = presenter_runtime.parent_widget(self._p)
+            if isinstance(parent, QWidget):
+                QMessageBox.information(parent, PIPELINE_BUSY_TITLE, PIPELINE_BUSY_MESSAGE)
+            return
         q = (query or "").strip()
         if not q:
             dlg.set_search_busy(False)
@@ -294,15 +290,12 @@ class MatchCoordinator(QObject):
             except Exception:
                 dlg.set_search_busy(False)
                 return
-            thread.finished.connect(
-                lambda t=thread: presenter_runtime.on_worker_finished(self._p, t)
-            )
             thread.finished.connect(lambda d=dlg: d.set_search_busy(False))
 
             def _clear_tmdb_keepalive() -> None:
                 presenter_runtime.set_tmdb_worker_keepalive(self._p, None)
 
             thread.finished.connect(_clear_tmdb_keepalive)
-            presenter_runtime.update_current_worker_thread(self._p, thread)
+            presenter_runtime.register_worker_thread(self._p, thread)
 
         QTimer.singleShot(0, _start_tmdb_thread)

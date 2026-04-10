@@ -10,7 +10,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Event
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
 from anivault.adapters.fs import FsFileRepository
 from anivault.adapters.media import FfprobeStreamResolution
@@ -32,7 +32,6 @@ from anivault.adapters.persistence.sqlite import (
     create_connection,
 )
 from anivault.adapters.persistence.sqlite.db_path import default_poster_cache_dir
-from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.ports.operation_log_port import OperationLogRepository
 from anivault.application.use_cases.apply_plan import make_apply_execute
@@ -250,11 +249,10 @@ def _build_organizer_page(
 ) -> OrganizerPage:
     model = pipeline_model if pipeline_model is not None else PipelineTableModel()
     repos = dependencies.repos
-    library_index_repo = cast(LibraryIndexRepository, repos.library_index)
     scan_execute = (
         make_scan_execute(
             dependencies.file_repo,
-            library_index=library_index_repo,
+            library_index=repos.library_index,
             parse_cache=repos.parse_cache,
             resolution_probe=dependencies.resolution_probe,
         )
@@ -262,7 +260,7 @@ def _build_organizer_page(
         else make_scan_execute(
             dependencies.file_repo,
             extensions=scan_extensions,
-            library_index=library_index_repo,
+            library_index=repos.library_index,
             parse_cache=repos.parse_cache,
             resolution_probe=dependencies.resolution_probe,
         )
@@ -353,13 +351,13 @@ def _create_sqlite_repositories() -> _SqliteRepositories:
 
 def _create_parse_execute(
     repos: _SqliteRepositories,
-) -> Callable[[ParseInput, object, Any], ParseResult]:
+) -> Callable[[ParseInput, Callable[[ProgressEvent], None] | None, Event], ParseResult]:
     settings = load_all()
     ignore_tokens = parse_ignore_tokens_from_loaded(settings)
     parser = AnitopyTitleParser(ignore_tokens=ignore_tokens)
     return make_parse_execute(
         parser,
-        library_index=cast(LibraryIndexRepository, repos.library_index),
+        library_index=repos.library_index,
         parse_cache=repos.parse_cache,
     )
 

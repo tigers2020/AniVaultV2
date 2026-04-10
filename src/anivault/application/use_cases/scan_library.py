@@ -10,10 +10,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from contextlib import nullcontext
-from functools import partial
 from pathlib import Path
 from threading import Event
-from typing import cast
+from typing import Final
 
 from anivault.application.ports.file_repository import FileRepository
 from anivault.application.ports.library_index_port import (
@@ -22,11 +21,6 @@ from anivault.application.ports.library_index_port import (
 )
 from anivault.application.ports.parse_cache_port import ParseCacheRepository
 from anivault.application.ports.video_stream_resolution_port import VideoStreamResolutionPort
-from anivault.constants.application.statuses import (
-    SCAN_SESSION_STATUS_CANCELLED,
-    SCAN_SESSION_STATUS_FAILED,
-    SCAN_SESSION_STATUS_SUCCESS,
-)
 from anivault.contracts.library_index import BulkMediaUpsertItem, IndexedMediaForParse
 from anivault.contracts.progress import ProgressEvent
 from anivault.contracts.scan import ScanInput, ScanResult
@@ -35,10 +29,10 @@ from anivault.domain.rules.resolution_from_filename import resolution_from_filen
 from anivault.domain.services.subtitle_scan_filter import filter_subtitle_paths_without_paired_video
 
 logger = logging.getLogger(__name__)
-
-SCAN_STATUS_CANCELLED: ScanSessionStatus = cast(ScanSessionStatus, SCAN_SESSION_STATUS_CANCELLED)
-SCAN_STATUS_SUCCESS: ScanSessionStatus = cast(ScanSessionStatus, SCAN_SESSION_STATUS_SUCCESS)
-SCAN_STATUS_FAILED: ScanSessionStatus = cast(ScanSessionStatus, SCAN_SESSION_STATUS_FAILED)
+type ScanProgressCallback = Callable[[ProgressEvent], None]
+SCAN_STATUS_CANCELLED: Final[ScanSessionStatus] = "cancelled"
+SCAN_STATUS_SUCCESS: Final[ScanSessionStatus] = "success"
+SCAN_STATUS_FAILED: Final[ScanSessionStatus] = "failed"
 
 
 def _try_persist_library_index(
@@ -126,7 +120,7 @@ def _try_persist_library_index(
         return None
 
 
-def _notify_progress(progress_callback: object, event: ProgressEvent) -> None:
+def _notify_progress(progress_callback: ScanProgressCallback | None, event: ProgressEvent) -> None:
     """progress_callback이 호출 가능하면 ProgressEvent를 넘긴다.
 
     Args:
@@ -136,13 +130,13 @@ def _notify_progress(progress_callback: object, event: ProgressEvent) -> None:
     Returns:
         None.
     """
-    if not callable(progress_callback):
+    if progress_callback is None:
         return
-    cast(Callable[[ProgressEvent], None], progress_callback)(event)
+    progress_callback(event)
 
 
 def _make_scan_list_progress_callback(
-    progress_callback: object,
+    progress_callback: ScanProgressCallback | None,
 ) -> Callable[[int, str | None], None]:
     """file_repo.list_files용 진행 콜백을 만든다.
 
@@ -212,7 +206,7 @@ def _persist_index_and_resolve(
     if not callable(resolve_media):
         return index_root_id, None
     resolved = resolve_media(index_root_id, str_paths)
-    return index_root_id, cast(list[IndexedMediaForParse | None], resolved)
+    return index_root_id, resolved
 
 
 def _resolve_resolution_for_scanned_path(
@@ -279,7 +273,7 @@ def _maybe_write_resolution_to_parse_cache(
 
 
 def _emit_resolution_row_progress(
-    progress_callback: object,
+    progress_callback: ScanProgressCallback | None,
     *,
     row_index: int,
     total: int,
@@ -296,7 +290,7 @@ def _emit_resolution_row_progress(
     Returns:
         None.
     """
-    if not callable(progress_callback) or total <= 0:
+    if progress_callback is None or total <= 0:
         return
     _notify_progress(
         progress_callback,
@@ -316,7 +310,7 @@ def _collect_resolutions_after_scan(
     resolved: list[IndexedMediaForParse | None] | None,
     parse_cache: ParseCacheRepository | None,
     resolution_probe: VideoStreamResolutionPort | None,
-    progress_callback: object,
+    progress_callback: ScanProgressCallback | None,
     cancel_token: Event,
 ) -> list[str] | None:
     """배치 컨텍스트 안에서 경로별 해상도를 수집한다.
@@ -372,7 +366,7 @@ def _execute_scan(
     parse_cache: ParseCacheRepository | None,
     resolution_probe: VideoStreamResolutionPort | None,
     input_dto: ScanInput,
-    progress_callback: object,
+    progress_callback: ScanProgressCallback | None,
     cancel_token: Event,
 ) -> ScanResult:
     """스캔·인덱스·해상도 수집을 한 번에 수행한다.
@@ -458,7 +452,7 @@ def make_execute(
     library_index: LibraryIndexRepository | None = None,
     parse_cache: ParseCacheRepository | None = None,
     resolution_probe: VideoStreamResolutionPort | None = None,
-) -> Callable[[ScanInput, object, Event], ScanResult]:
+) -> Callable[[ScanInput, ScanProgressCallback | None, Event], ScanResult]:
     """FileRepository가 주입된 스캔 실행 함수를 만든다.
 
     Args:
@@ -471,17 +465,24 @@ def make_execute(
     Returns:
         (ScanInput, progress_callback, cancel_token) -> ScanResult 클로저.
     """
-    return cast(
-        Callable[[ScanInput, object, Event], ScanResult],
-        partial(
-            _execute_scan,
+
+    def execute(
+        input_dto: ScanInput,
+        progress_callback: ScanProgressCallback | None,
+        cancel_token: Event,
+    ) -> ScanResult:
+        return _execute_scan(
             file_repo,
             extensions,
             library_index,
             parse_cache,
             resolution_probe,
-        ),
-    )
+            input_dto,
+            progress_callback,
+            cancel_token,
+        )
+
+    return execute
 
 
 def _resolution_signature(size_bytes: int, mtime_ns: int) -> str:

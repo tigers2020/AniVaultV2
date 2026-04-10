@@ -11,7 +11,6 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 from threading import Event
-from typing import cast
 
 from anivault.application.ports.filename_parser import FilenameParser
 from anivault.application.ports.library_index_port import LibraryIndexRepository
@@ -69,7 +68,7 @@ def _as_progress_callback(progress_callback: object) -> ProgressCallback | None:
     """호출 가능한 진행률 콜백만 좁혀서 반환한다."""
     if not callable(progress_callback):
         return None
-    return cast(ProgressCallback, progress_callback)
+    return progress_callback if callable(progress_callback) else None
 
 
 def _build_cache_state(
@@ -241,7 +240,7 @@ def _execute_parse_titles(
     library_index: LibraryIndexRepository | None,
     parse_cache: ParseCacheRepository | None,
     input_dto: ParseInput,
-    progress_callback: object,
+    progress_callback: ProgressCallback | None,
     cancel_token: Event,
 ) -> ParseResult:
     """경로 순서대로 파일명을 파싱한 ParsedInfo 목록을 반환한다."""
@@ -250,7 +249,6 @@ def _execute_parse_titles(
         return ParseResult(parsed=[])
 
     total = len(paths)
-    callback = _as_progress_callback(progress_callback)
     index_root_id = input_dto.index_root_id
     use_cache = index_root_id is not None and library_index is not None and parse_cache is not None
     resolved, signatures, cached_by_media_id = _build_cache_state(
@@ -260,7 +258,7 @@ def _execute_parse_titles(
         library_index=library_index,
         parse_cache=parse_cache,
     )
-    _emit_initial_progress(callback, total=total, use_cache=use_cache)
+    _emit_initial_progress(progress_callback, total=total, use_cache=use_cache)
     parsed: list[ParsedInfo] = []
     cache_hits: list[bool] = []
     pending_ok: list[ParseCacheOkWrite] = []
@@ -293,7 +291,7 @@ def _execute_parse_titles(
         if error_write is not None:
             pending_errors.append(error_write)
         _emit_item_progress(
-            callback,
+            progress_callback,
             index=i,
             total=total,
             path=path,
@@ -314,7 +312,7 @@ def make_execute(
     *,
     library_index: LibraryIndexRepository | None = None,
     parse_cache: ParseCacheRepository | None = None,
-) -> Callable[[ParseInput, object, Event], ParseResult]:
+) -> Callable[[ParseInput, ProgressCallback | None, Event], ParseResult]:
     """FilenameParser가 주입된 파싱 실행 함수를 만든다.
 
     Args:
@@ -325,11 +323,19 @@ def make_execute(
     Returns:
         (ParseInput, progress_callback, cancel_token) -> ParseResult 클로저.
     """
-    return lambda input_dto, progress_callback, cancel_token: _execute_parse_titles(
-        parser=parser,
-        library_index=library_index,
-        parse_cache=parse_cache,
-        input_dto=input_dto,
-        progress_callback=progress_callback,
-        cancel_token=cancel_token,
-    )
+
+    def execute(
+        input_dto: ParseInput,
+        progress_callback: ProgressCallback | None,
+        cancel_token: Event,
+    ) -> ParseResult:
+        return _execute_parse_titles(
+            parser=parser,
+            library_index=library_index,
+            parse_cache=parse_cache,
+            input_dto=input_dto,
+            progress_callback=progress_callback,
+            cancel_token=cancel_token,
+        )
+
+    return execute

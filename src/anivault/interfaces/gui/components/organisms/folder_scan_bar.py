@@ -35,12 +35,12 @@ class FolderScanBar(QFrame):
         self._path_field = PathSelectField(placeholder=FOLDER_SCAN_BAR_PATH_PLACEHOLDER)
         self._path_field.path_changed.connect(self.path_changed.emit)
         layout.addWidget(self._path_field, 1)
-        scan_btn = Button(FOLDER_SCAN_BAR_BUTTON_SCAN, "primary")
-        scan_btn.clicked.connect(self._on_scan)
-        layout.addWidget(scan_btn)
-        match_btn = Button(FOLDER_SCAN_BAR_BUTTON_MATCH)
-        match_btn.clicked.connect(self.match_clicked.emit)
-        layout.addWidget(match_btn)
+        self._scan_btn = Button(FOLDER_SCAN_BAR_BUTTON_SCAN, "primary")
+        self._scan_btn.clicked.connect(self._on_scan)
+        layout.addWidget(self._scan_btn)
+        self._match_btn = Button(FOLDER_SCAN_BAR_BUTTON_MATCH)
+        self._match_btn.clicked.connect(self.match_clicked.emit)
+        layout.addWidget(self._match_btn)
         self._dry_run_btn = Button(FOLDER_SCAN_BAR_BUTTON_DRY_RUN)
         self._dry_run_btn.setEnabled(False)
         self._dry_run_btn.clicked.connect(self.dry_run_clicked.emit)
@@ -51,6 +51,12 @@ class FolderScanBar(QFrame):
 
     def set_dry_run_enabled(self, enabled: bool) -> None:
         self._dry_run_btn.setEnabled(enabled)
+
+    def set_pipeline_busy(self, busy: bool) -> None:
+        """백그라운드 파이프라인 작업 중이면 스캔·매칭 버튼을 비활성화한다."""
+
+        self._scan_btn.setEnabled(not busy)
+        self._match_btn.setEnabled(not busy)
 
     def set_path(self, path: str) -> None:
         self._path_field.set_path(path)

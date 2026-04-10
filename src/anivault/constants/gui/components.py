@@ -24,6 +24,11 @@ FOLDER_SCAN_BAR_BUTTON_SCAN: Final[str] = "스캔"
 FOLDER_SCAN_BAR_BUTTON_MATCH: Final[str] = "TMDB 매칭"
 FOLDER_SCAN_BAR_BUTTON_DRY_RUN: Final[str] = "Dry Run"
 
+PIPELINE_BUSY_TITLE: Final[str] = "작업 진행 중"
+PIPELINE_BUSY_MESSAGE: Final[str] = (
+    "스캔, TMDB 매칭, Dry Run 등 다른 작업이 끝날 때까지 기다려 주세요."
+)
+
 SCAN_BUILD_CARD_HEADER_TITLE: Final[str] = "Scan and Build Plan"
 SCAN_BUILD_CARD_HEADER_DESCRIPTION: Final[str] = (
     "입력 폴더 스캔과 파이프라인 단계별 실행. 출력 루트(Target root)는 아래 Path Rules에서 설정"

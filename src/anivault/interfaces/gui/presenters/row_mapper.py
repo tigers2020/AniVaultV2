@@ -4,12 +4,19 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import replace
+from typing import cast
 
 from anivault.application.ports.title_match_port import PosterAssetRepository
 from anivault.constants.gui.components import SCAN_PARSE_COORDINATOR_STATUS_SCANNED
 from anivault.contracts.pipeline import PipelineRow
 from anivault.domain.rules.poster_display import resolve_final_poster_display_source
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
+
+
+def _pipeline_row_replace(row: PipelineRow, **kwargs: str) -> PipelineRow:
+    # replace() is typed as returning DataclassInstance; narrow for PipelineRow callers.
+    replaced: object = replace(row, **kwargs)
+    return cast(PipelineRow, replaced)
 
 
 def pipeline_row_to_match_file(row: PipelineRow) -> PipelineRow:
@@ -41,7 +48,7 @@ def match_file_to_pipeline_row(
     poster_display = resolve_final_poster_display_source(local_poster, match_file.poster_url)
     if poster_display == match_file.poster_url:
         return match_file
-    return replace(match_file, poster_url=poster_display)
+    return _pipeline_row_replace(match_file, poster_url=poster_display)
 
 
 def scan_path_to_pipeline_row(path: str, resolution: str) -> PipelineRow:
@@ -94,7 +101,7 @@ def copy_pipeline_row(row: PipelineRow, **changes: str | None) -> PipelineRow:
     updates = {field_name: value for field_name, value in changes.items() if value is not None}
     if not updates:
         return row
-    return replace(row, **updates)
+    return _pipeline_row_replace(row, **updates)
 
 
 def pipeline_rows_to_match_files(rows: Iterable[PipelineRow]) -> tuple[PipelineRow, ...]:

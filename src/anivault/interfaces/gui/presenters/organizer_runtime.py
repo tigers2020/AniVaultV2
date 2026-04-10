@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from PySide6.QtCore import QThread
 from PySide6.QtWidgets import QWidget
 
+from anivault.application.ports.poster_sync_port import PosterAssetSyncPort
+from anivault.application.ports.title_group_port import TitleGroupRepository
+from anivault.application.ports.title_match_port import TitleMatchRepository
 from anivault.contracts.pipeline import PipelineRow
 from anivault.contracts.planning import PlanResult
 from anivault.interfaces.gui.components.molecules import ProgressDialog
@@ -34,11 +37,14 @@ def progress_dialog(host: object) -> ProgressDialog | None:
 def parent_widget(host: object) -> QWidget | None:
     method = getattr(host, "parent_widget", None)
     if callable(method):
-        return method()
+        result = method()
+        return result if isinstance(result, QWidget) else None
     method = getattr(host, "_parent_widget", None)
     if callable(method):
-        return method()
-    parent = host.parent() if hasattr(host, "parent") else None
+        result = method()
+        return result if isinstance(result, QWidget) else None
+    parent_getter = getattr(host, "parent", None)
+    parent = parent_getter() if callable(parent_getter) else None
     return parent if isinstance(parent, QWidget) else None
 
 
@@ -48,6 +54,19 @@ def finish_worker_session(host: object, dialog: ProgressDialog, *, hide: bool) -
         method(dialog, hide=hide)
         return
     host._finish_worker_session(dialog, hide=hide)  # type: ignore[attr-defined]
+
+
+def has_active_pipeline_work(host: object) -> bool:
+    method = getattr(host, "has_active_pipeline_work", None)
+    if callable(method):
+        return bool(method())
+    return False
+
+
+def refresh_pipeline_action_bar_state(host: object) -> None:
+    method = getattr(host, "refresh_pipeline_action_bar_state", None)
+    if callable(method):
+        method()
 
 
 def notify_dry_run(host: object, enabled: bool) -> None:
@@ -155,15 +174,15 @@ def set_pending_plan(host: object, value: PlanResult | None) -> None:
     host._pending_plan = value  # type: ignore[attr-defined]
 
 
-def title_match(host: object) -> object | None:
+def title_match(host: object) -> TitleMatchRepository | None:
     return _call_or_attr(host, "title_match_repository", "_title_match")
 
 
-def title_groups(host: object) -> object | None:
+def title_groups(host: object) -> TitleGroupRepository | None:
     return _call_or_attr(host, "title_group_repository", "_title_groups")
 
 
-def poster_sync(host: object) -> object | None:
+def poster_sync(host: object) -> PosterAssetSyncPort | None:
     return _call_or_attr(host, "poster_sync_port", "_poster_sync")
 
 
@@ -218,10 +237,10 @@ def set_tmdb_worker_keepalive(host: object, worker: UseCaseWorker | None) -> Non
 def map_match_file_to_pipeline_row(host: object, match_file: PipelineRow) -> PipelineRow:
     method = getattr(host, "match_file_to_pipeline_row", None)
     if callable(method):
-        return method(match_file)
+        return cast(PipelineRow, method(match_file))
     method = getattr(host, "_match_file_to_pipeline_row", None)
     if callable(method):
-        return method(match_file)
+        return cast(PipelineRow, method(match_file))
     return match_file_to_pipeline_row(match_file)
 
 
@@ -236,7 +255,7 @@ def set_rows(host: object, rows: list[PipelineRow]) -> None:
 def grouped_rows(host: object) -> list[PipelineGroupRow]:
     rows_method = getattr(model(host), "rows", None)
     if callable(rows_method):
-        return rows_method()
+        return cast(list[PipelineGroupRow], rows_method())
     return []
 
 
@@ -253,8 +272,6 @@ def on_worker_finished(host: object, thread: QThread) -> None:
 
 
 def update_current_worker_thread(host: object, thread: QThread) -> None:
-    method = getattr(host, "set_current_worker_thread", None)
-    if callable(method):
-        method(thread)
-        return
-    host._worker_thread = thread  # type: ignore[attr-defined]
+    """레거시: 신규 코드는 `register_worker_thread`만 사용한다."""
+
+    register_worker_thread(host, thread)

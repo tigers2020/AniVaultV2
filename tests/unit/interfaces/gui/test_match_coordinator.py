@@ -5,6 +5,8 @@ from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock
 
+from PySide6.QtWidgets import QWidget
+
 from anivault.contracts.pipeline import MatchResult, PipelineRow
 from anivault.contracts.progress import ProgressEvent
 from anivault.contracts.tmdb import TmdbSeriesCandidate
@@ -168,7 +170,7 @@ def test_on_match_clicked_warns_when_no_rows(monkeypatch) -> None:
 
     coord.on_match_clicked()
 
-    presenter._notify_dry_run.assert_called_once_with(False)
+    assert not presenter._notify_dry_run.called
     assert infos and infos[0][1] == "매칭할 항목 없음"
 
 
@@ -177,6 +179,9 @@ def test_on_match_clicked_starts_worker_without_progress_dialog(monkeypatch) -> 
     monkeypatch.setattr(module, "WorkerSignals", _WorkerSignals)
     monkeypatch.setattr(module, "UseCaseWorker", _Worker)
     monkeypatch.setattr(module, "run_worker", lambda worker: thread)
+    register = MagicMock()
+    monkeypatch.setattr(module.presenter_runtime, "has_active_pipeline_work", lambda _p: False)
+    monkeypatch.setattr(module.presenter_runtime, "register_worker_thread", register)
     presenter = SimpleNamespace(
         _match_execute=lambda *args: None,
         _notify_dry_run=MagicMock(),
@@ -184,8 +189,6 @@ def test_on_match_clicked_starts_worker_without_progress_dialog(monkeypatch) -> 
         _current_library_root_id=5,
         _on_scan_error=MagicMock(),
         _progress_dialog=None,
-        _on_worker_finished=MagicMock(),
-        _worker_thread=None,
         parent=lambda: None,
     )
     coord = _coordinator(presenter)
@@ -193,8 +196,7 @@ def test_on_match_clicked_starts_worker_without_progress_dialog(monkeypatch) -> 
     coord.on_match_clicked()
     thread.finished.emit()
 
-    assert presenter._worker_thread is thread
-    presenter._on_worker_finished.assert_called_once_with(thread)
+    register.assert_called_once_with(presenter, thread)
 
 
 def test_match_file_to_pipeline_row_prefers_local_poster_path(monkeypatch) -> None:
@@ -274,7 +276,7 @@ def test_selected_pipeline_group_index_or_warn_paths(monkeypatch) -> None:
         "information",
         lambda parent, title, body: infos.append((parent, title, body)),
     )
-    presenter = SimpleNamespace(_parent_widget=lambda: object())
+    presenter = SimpleNamespace(parent_widget=lambda: MagicMock(spec=QWidget))
     coord = _coordinator(presenter)
     rows = [PipelineGroupRow((_row("a.mkv"),))]
 
@@ -389,11 +391,12 @@ def test_run_tmdb_search_worker_paths(monkeypatch) -> None:
     )
     monkeypatch.setattr(module, "run_worker", lambda worker: thread)
     monkeypatch.setattr(module.QTimer, "singleShot", lambda delay, callback: callback())
+    register = MagicMock()
+    monkeypatch.setattr(module.presenter_runtime, "has_active_pipeline_work", lambda _p: False)
+    monkeypatch.setattr(module.presenter_runtime, "register_worker_thread", register)
     presenter = SimpleNamespace(
         _tmdb_search_execute=None,
         _tmdb_worker_keepalive=None,
-        _on_worker_finished=MagicMock(),
-        _worker_thread=None,
         parent=lambda: object(),
     )
     coord = _coordinator(presenter)
@@ -407,5 +410,4 @@ def test_run_tmdb_search_worker_paths(monkeypatch) -> None:
     thread.finished.emit()
 
     assert "검색어 없음" in warnings
-    presenter._on_worker_finished.assert_called_once_with(thread)
-    assert presenter._worker_thread is thread
+    register.assert_called_once_with(presenter, thread)

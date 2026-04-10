@@ -426,11 +426,10 @@ class SqliteLibraryIndexRepository(LibraryIndexRepository):
                 for row in rows
                 if row.path_norm not in existing
             ]
-            try:
-                with sqlite_transaction(self._conn):
-                    if update_params:
-                        self._conn.executemany(
-                            """
+            with sqlite_transaction(self._conn):
+                if update_params:
+                    self._conn.executemany(
+                        """
                         UPDATE media_files SET
                             relative_path = ?,
                             dir_norm = ?,
@@ -449,31 +448,29 @@ class SqliteLibraryIndexRepository(LibraryIndexRepository):
                             updated_at = ?
                         WHERE root_id = ? AND path_norm = ?
                         """,
-                            update_params,
-                        )
-                if insert_params:
-                    self._conn.executemany(
-                        """
-                        INSERT INTO media_files (
-                            root_id, relative_path, path_norm, dir_norm,
-                            file_name, file_stem, extension, media_kind,
-                            size_bytes, mtime_ns, ctime_ns, inode_hint,
-                            content_fingerprint, sidecar_group_key,
-                            is_deleted, first_seen_scan_id, last_seen_scan_id,
-                            created_at, updated_at
-                        ) VALUES (
-                            ?, ?, ?, ?,
-                            ?, ?, ?, ?,
-                            ?, ?, ?, ?,
-                            NULL, ?,
-                            0, ?, ?,
-                            ?, ?
-                        )
-                        """,
-                        insert_params,
+                        update_params,
                     )
-            except Exception:
-                raise
+            if insert_params:
+                self._conn.executemany(
+                    """
+                    INSERT INTO media_files (
+                        root_id, relative_path, path_norm, dir_norm,
+                        file_name, file_stem, extension, media_kind,
+                        size_bytes, mtime_ns, ctime_ns, inode_hint,
+                        content_fingerprint, sidecar_group_key,
+                        is_deleted, first_seen_scan_id, last_seen_scan_id,
+                        created_at, updated_at
+                    ) VALUES (
+                        ?, ?, ?, ?,
+                        ?, ?, ?, ?,
+                        ?, ?, ?, ?,
+                        NULL, ?,
+                        0, ?, ?,
+                        ?, ?
+                    )
+                    """,
+                    insert_params,
+                )
         return BulkMediaUpsertResult(
             files_added=len(insert_params),
             files_updated=len(update_params),

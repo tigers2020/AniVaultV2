@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from anivault.constants.adapters.operation_log import (
     OPERATION_LOG_DEFAULT_OPERATION_TYPE,
@@ -93,7 +93,7 @@ class FsOperationLogRepository:
         data = json.loads(raw)
         if not isinstance(data, list):
             raise ValueError(OPERATION_LOG_JSON_ARRAY_ERROR)
-        out: list[FileOperation] = []
+        out: list[object] = []
         for item in data:
             if not isinstance(item, dict):
                 continue
@@ -115,4 +115,4 @@ class FsOperationLogRepository:
                     destination_path=str(item.get(OPERATION_LOG_KEY_DESTINATION_PATH, "")),
                 )
             )
-        return cast(list[object], out)
+        return out

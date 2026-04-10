@@ -41,8 +41,10 @@ def test_notify_dry_run_and_should_enable_follow_model_rows() -> None:
     presenter = OrganizerPresenter.__new__(OrganizerPresenter)
     calls: list[bool] = []
     presenter._dry_run_enabled_handler = lambda enabled: calls.append(enabled)  # type: ignore[attr-defined]
-    presenter._notify_dry_run(True)  # type: ignore[attr-defined]
+    presenter._pipeline_busy_handler = lambda _busy: None  # type: ignore[attr-defined]
+    presenter._worker_threads = []  # type: ignore[attr-defined]
     presenter._model = SimpleNamespace(flat_rows=lambda: [_make_pipeline_row(matched=True)])  # type: ignore[attr-defined]
+    presenter._notify_dry_run(True)  # type: ignore[attr-defined]
     assert presenter._dry_run_should_enable() is True  # type: ignore[attr-defined]
     presenter._model = SimpleNamespace(flat_rows=lambda: [_make_pipeline_row(matched=False)])  # type: ignore[attr-defined]
     assert presenter._dry_run_should_enable() is False  # type: ignore[attr-defined]
@@ -70,6 +72,9 @@ def test_register_and_finish_worker_threads_tracks_last_active_thread() -> None:
     presenter = OrganizerPresenter.__new__(OrganizerPresenter)
     presenter._worker_thread = None  # type: ignore[attr-defined]
     presenter._worker_threads = []  # type: ignore[attr-defined]
+    presenter._model = SimpleNamespace(flat_rows=lambda: [])  # type: ignore[attr-defined]
+    presenter._dry_run_enabled_handler = MagicMock()  # type: ignore[attr-defined]
+    presenter._pipeline_busy_handler = MagicMock()  # type: ignore[attr-defined]
 
     finished_callbacks: list[object] = []
     thread_a = SimpleNamespace(

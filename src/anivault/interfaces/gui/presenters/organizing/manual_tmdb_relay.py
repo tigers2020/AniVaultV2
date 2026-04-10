@@ -5,9 +5,6 @@ WorkerSignals를 수동 TMDB 대화상자로 넘기는 Qt 릴레이.
 Author: Pom Kim
 """
 
-from collections.abc import Sequence
-from typing import cast
-
 from PySide6.QtCore import QObject, Slot
 from PySide6.QtWidgets import QMessageBox
 
@@ -42,7 +39,12 @@ class ManualTmdbSearchRelay(QObject):
         Returns:
             None.
         """
-        self._dlg.set_candidates(list(cast(Sequence[TmdbSeriesCandidate], result)))
+        if isinstance(result, (list, tuple)) and all(
+            isinstance(candidate, TmdbSeriesCandidate) for candidate in result
+        ):
+            self._dlg.set_candidates(list(result))
+            return
+        self._dlg.set_candidates([])
 
     @Slot()
     def on_finished(self) -> None:

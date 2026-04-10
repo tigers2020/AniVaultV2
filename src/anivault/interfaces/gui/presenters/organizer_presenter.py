@@ -46,6 +46,11 @@ ApplyExecuteFn = Callable[
     [ApplyInput, Callable[[ProgressEvent], None] | None, Event],
     ApplyResult,
 ]
+ScanExecuteFn = Callable[[ScanInput, Callable[[ProgressEvent], None] | None, Event], ScanResult]
+ParseExecuteFn = Callable[
+    [ParseInput, Callable[[ProgressEvent], None] | None, Event],
+    ParseResult,
+]
 CachedTmdbHydrateFn = Callable[[MatchInput], MatchResult]
 CachedTmdbMissingFillFn = Callable[[MatchInput, object, Event], MatchResult]
 
@@ -63,8 +68,8 @@ class OrganizerPresenterPorts:
 class OrganizerPresenterUseCases:
     """OrganizerPresenter가 호출하는 유즈케이스 함수 묶음."""
 
-    scan_execute: Callable[[ScanInput, object, Any], ScanResult] | None = None
-    parse_execute: Callable[[ParseInput, object, Any], ParseResult] | None = None
+    scan_execute: ScanExecuteFn | None = None
+    parse_execute: ParseExecuteFn | None = None
     match_execute: (
         Callable[
             [MatchInput, Callable[[ProgressEvent], None] | None, Event],
@@ -127,6 +132,7 @@ class OrganizerPresenter(QObject):
         self._worker_thread: QThread | None = None
         self._worker_threads: list[QThread] = []
         self._dry_run_enabled_handler: Callable[[bool], None] | None = None
+        self._pipeline_busy_handler: Callable[[bool], None] | None = None
         self._pending_plan: PlanResult | None = None
         self._scan_progress_handoff_done: bool = False
         self._pipeline_panel: PipelineResultPanel | None = None
@@ -173,10 +179,10 @@ class OrganizerPresenter(QObject):
     def progress_dialog(self) -> ProgressDialog | None:
         return self._progress_dialog
 
-    def scan_execute(self) -> Callable[[ScanInput, object, Any], ScanResult] | None:
+    def scan_execute(self) -> ScanExecuteFn | None:
         return self._scan_execute
 
-    def parse_execute(self) -> Callable[[ParseInput, object, Any], ParseResult] | None:
+    def parse_execute(self) -> ParseExecuteFn | None:
         return self._parse_execute
 
     def match_execute(
@@ -294,11 +300,33 @@ class OrganizerPresenter(QObject):
     def on_dry_run_clicked(self) -> None:
         self._plan_apply_coordinator.on_dry_run_clicked()
 
+    def has_active_pipeline_work(self) -> bool:
+        for t in self._worker_threads:
+            is_running = getattr(t, "isRunning", None)
+            if callable(is_running) and is_running():
+                return True
+        return False
+
+    def set_pipeline_busy_handler(self, handler: Callable[[bool], None] | None) -> None:
+        self._pipeline_busy_handler = handler
+
+    def refresh_pipeline_action_bar_state(self) -> None:
+        busy = self.has_active_pipeline_work()
+        if self._pipeline_busy_handler is not None:
+            self._pipeline_busy_handler(busy)
+        dry = self._dry_run_should_enable() and not busy
+        if self._dry_run_enabled_handler is not None:
+            self._dry_run_enabled_handler(dry)
+
+    def run_scan_after_apply_completion(self, path: str) -> None:
+        self._scan_parse_coordinator.run_scan_after_apply_completion(path)
+
     def register_worker_thread(self, thread: QThread) -> None:
         self._worker_thread = thread
         if thread not in self._worker_threads:
             self._worker_threads.append(thread)
-        thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
+            thread.finished.connect(lambda t=thread: self._on_worker_finished(t))
+        self.refresh_pipeline_action_bar_state()
 
     def _on_scan_error(self, exc: Exception) -> None:
         del exc
@@ -315,6 +343,7 @@ class OrganizerPresenter(QObject):
             self._worker_threads.remove(thread)
         if self._worker_thread is thread:
             self._worker_thread = self._worker_threads[-1] if self._worker_threads else None
+        self.refresh_pipeline_action_bar_state()
 
     def on_worker_finished(self, thread: QThread) -> None:
         self._on_worker_finished(thread)
@@ -336,8 +365,10 @@ class OrganizerPresenter(QObject):
         self._dry_run_enabled_handler = handler
 
     def _notify_dry_run(self, enabled: bool) -> None:
-        if self._dry_run_enabled_handler is not None:
-            self._dry_run_enabled_handler(enabled)
+        """호환용: Dry Run 외 스캔/매칭 버튼까지 `refresh_pipeline_action_bar_state`로 맞춘다."""
+
+        del enabled
+        self.refresh_pipeline_action_bar_state()
 
     def notify_dry_run(self, enabled: bool) -> None:
         self._notify_dry_run(enabled)

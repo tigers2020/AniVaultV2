@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from anivault.contracts.planning import ApplyResult, PlanMovePreviewMeta, PlanResult
+from anivault.contracts.progress import ProgressEvent
 from anivault.domain.models.file_operation import FileOperation, OperationType
 from anivault.interfaces.gui.presenters.organizing import plan_apply_coordinator as module
 
@@ -16,8 +17,9 @@ class _Signal:
         self.callbacks.append(callback)
 
     def emit(self, *args, **kwargs) -> None:
-        for callback in list(self.callbacks):
-            callback(*args, **kwargs)
+        for callback in self.callbacks:
+            if callable(callback):
+                callback(*args, **kwargs)
 
 
 class _Thread:
@@ -59,7 +61,10 @@ def test_on_progress_updates_dialog_when_token_valid() -> None:
     dialog.is_progress_token_valid.return_value = True
     coord = _coord(SimpleNamespace(_progress_dialog=dialog))
 
-    coord._on_progress(SimpleNamespace(message="msg", current=1, total=2), 5)
+    coord._on_progress(
+        ProgressEvent(stage="plan", current=1, total=2, message="msg", percent=0),
+        5,
+    )
 
     dialog.update_progress.assert_called_once()
 
@@ -112,6 +117,9 @@ def test_on_dry_run_clicked_starts_worker(monkeypatch) -> None:
         "try_build_plan_input_from_settings",
         lambda *args, **kwargs: (SimpleNamespace(), None),
     )
+    register = MagicMock()
+    monkeypatch.setattr(module.presenter_runtime, "has_active_pipeline_work", lambda _p: False)
+    monkeypatch.setattr(module.presenter_runtime, "register_worker_thread", register)
     presenter = SimpleNamespace(
         _plan_execute=lambda *args: None,
         _model=SimpleNamespace(flat_rows=lambda: [object()]),
@@ -119,8 +127,6 @@ def test_on_dry_run_clicked_starts_worker(monkeypatch) -> None:
         _current_library_root_id=1,
         _on_scan_error=MagicMock(),
         _progress_dialog=None,
-        _on_worker_finished=MagicMock(),
-        _worker_thread=None,
         parent=lambda: None,
     )
     coord = _coord(presenter)
@@ -128,8 +134,7 @@ def test_on_dry_run_clicked_starts_worker(monkeypatch) -> None:
     coord.on_dry_run_clicked()
     thread.finished.emit()
 
-    presenter._on_worker_finished.assert_called_once_with(thread)
-    assert presenter._worker_thread is thread
+    register.assert_called_once_with(presenter, thread)
 
 
 def test_on_plan_worker_result_handles_error_and_empty_moves(monkeypatch) -> None:
@@ -204,7 +209,8 @@ def test_on_dry_run_apply_clicked_schedules_apply_worker(monkeypatch) -> None:
     dlg = MagicMock()
 
     coord._on_dry_run_apply_clicked(dlg)
-    scheduled[0]()
+    if callable(scheduled[0]):
+        scheduled[0]()
 
     assert scheduled[1] == presenter._pending_plan
 
@@ -243,13 +249,14 @@ def test_start_apply_worker_starts_worker(monkeypatch) -> None:
         "load_all",
         lambda: {"scan_build": {"source_path": "/src"}, "path_rules": {"target_root": "/dest"}},
     )
+    register = MagicMock()
+    monkeypatch.setattr(module.presenter_runtime, "has_active_pipeline_work", lambda _p: False)
+    monkeypatch.setattr(module.presenter_runtime, "register_worker_thread", register)
     presenter = SimpleNamespace(
         _apply_execute=lambda *args: None,
         _current_library_root_id=3,
         _on_scan_error=MagicMock(),
         _progress_dialog=None,
-        _on_worker_finished=MagicMock(),
-        _worker_thread=None,
         parent=lambda: None,
     )
     coord = _coord(presenter)
@@ -257,8 +264,7 @@ def test_start_apply_worker_starts_worker(monkeypatch) -> None:
     coord._start_apply_worker(_plan())
     thread.finished.emit()
 
-    presenter._on_worker_finished.assert_called_once_with(thread)
-    assert presenter._worker_thread is thread
+    register.assert_called_once_with(presenter, thread)
 
 
 def test_on_apply_worker_result_handles_error_and_rescan(monkeypatch) -> None:
@@ -276,7 +282,7 @@ def test_on_apply_worker_result_handles_error_and_rescan(monkeypatch) -> None:
         _notify_dry_run=MagicMock(),
         _dry_run_should_enable=lambda: False,
         _scan_execute=object(),
-        on_scan_clicked=MagicMock(),
+        run_scan_after_apply_completion=MagicMock(),
         _model=MagicMock(),
         _pipeline_panel=None,
         parent=lambda: object(),
@@ -289,7 +295,7 @@ def test_on_apply_worker_result_handles_error_and_rescan(monkeypatch) -> None:
 
     assert criticals == ["이동 오류"]
     assert infos == ["완료"]
-    presenter.on_scan_clicked.assert_called_once_with("/scan")
+    presenter.run_scan_after_apply_completion.assert_called_once_with("/scan")
 
 
 def test_on_apply_worker_result_merges_plan_when_no_rescan(monkeypatch) -> None:
