@@ -46,6 +46,7 @@ class OrganizerPage(QWidget):
         """
         super().__init__(parent)
         self._auto_scan_done = False
+        self._syncing_scan_path = False
         self._model = model if model is not None else PipelineTableModel()
         self._presenter = (
             presenter
@@ -105,7 +106,16 @@ class OrganizerPage(QWidget):
         Returns:
             None.
         """
+        if getattr(self, "_syncing_scan_path", False):
+            return
         save_all({"scan_build": {"source_path": path or ""}})
+
+    def _sync_scan_path_from_settings(self, path: str) -> None:
+        self._syncing_scan_path = True
+        try:
+            self._scan_bar.set_path(path)
+        finally:
+            self._syncing_scan_path = False
 
     def _update_stats(self) -> None:
         """모델에서 스캔·파싱·TMDB·계획 수를 집계해 StatsGrid에 넘긴다.
@@ -151,7 +161,7 @@ class OrganizerPage(QWidget):
         super().showEvent(event)
         settings = load_all()
         source_path = scan_source_path_from_loaded(settings)
-        self._scan_bar.set_path(source_path)
+        self._sync_scan_path_from_settings(source_path)
         auto_scan = auto_scan_on_first_show_from_loaded(settings)
         normalized_source_path = source_path.strip()
         if (

@@ -8,15 +8,11 @@ Author: Pom Kim
 from PySide6.QtCore import QEvent, Signal
 from PySide6.QtWidgets import QFrame, QGridLayout, QSizePolicy
 
-from anivault.constants.gui.components import (
-    FOLDER_SCAN_BAR_BUTTON_DRY_RUN,
-    FOLDER_SCAN_BAR_BUTTON_MATCH,
-    FOLDER_SCAN_BAR_BUTTON_SCAN,
-    FOLDER_SCAN_BAR_PATH_PLACEHOLDER,
-)
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Button
 from anivault.interfaces.gui.components.molecules import PathSelectField
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n import keys as K
 
 
 class FolderScanBar(QFrame):
@@ -35,22 +31,32 @@ class FolderScanBar(QFrame):
         layout.setHorizontalSpacing(theme.inline_control_gap_px())
         layout.setVerticalSpacing(theme.compact_gap_px())
         layout.setColumnStretch(0, 1)
-        self._path_field = PathSelectField(placeholder=FOLDER_SCAN_BAR_PATH_PLACEHOLDER)
+        self._path_field = PathSelectField(
+            parent=self,
+            placeholder_key=K.ORG_SCANBAR_PATH_PLACEHOLDER,
+        )
         self._path_field.path_changed.connect(lambda path: self.path_changed.emit(path))
         layout.addWidget(self._path_field, 0, 0, 1, 3)
-        self._scan_btn = Button(FOLDER_SCAN_BAR_BUTTON_SCAN, "primary")
+        self._scan_btn = Button(translate(K.ORG_SCANBAR_BTN_SCAN), "primary")
         self._scan_btn.clicked.connect(self._on_scan)
         layout.addWidget(self._scan_btn, 1, 0)
-        self._match_btn = Button(FOLDER_SCAN_BAR_BUTTON_MATCH)
+        self._match_btn = Button(translate(K.ORG_SCANBAR_BTN_MATCH))
         self._match_btn.clicked.connect(self.match_clicked.emit)
         layout.addWidget(self._match_btn, 1, 1)
-        self._dry_run_btn = Button(FOLDER_SCAN_BAR_BUTTON_DRY_RUN)
+        self._dry_run_btn = Button(translate(K.ORG_SCANBAR_BTN_DRY_RUN))
         self._dry_run_btn.setEnabled(False)
         self._dry_run_btn.clicked.connect(self.dry_run_clicked.emit)
         layout.addWidget(self._dry_run_btn, 1, 2)
         self.setStyleSheet(theme.card_panel())
         self.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed))
         self._sync_fixed_height()
+        get_i18n_service().language_changed.connect(self.retranslate_ui)
+
+    def retranslate_ui(self) -> None:
+        self._path_field.retranslate_ui()
+        self._scan_btn.setText(translate(K.ORG_SCANBAR_BTN_SCAN))
+        self._match_btn.setText(translate(K.ORG_SCANBAR_BTN_MATCH))
+        self._dry_run_btn.setText(translate(K.ORG_SCANBAR_BTN_DRY_RUN))
 
     def set_dry_run_enabled(self, enabled: bool) -> None:
         self._dry_run_btn.setEnabled(enabled)

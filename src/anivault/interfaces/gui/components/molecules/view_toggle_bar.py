@@ -3,10 +3,6 @@
 from PySide6.QtCore import QSignalBlocker, Signal
 from PySide6.QtWidgets import QHBoxLayout, QWidget
 
-from anivault.constants.gui.copy import (
-    VIEW_LABELS,
-    VIEW_TOGGLE_LABEL,
-)
 from anivault.constants.gui.navigation import (
     VIEW_CONTENT,
     VIEW_DETAILS,
@@ -19,8 +15,20 @@ from anivault.constants.gui.navigation import (
 from anivault.constants.gui.theme import VIEW_TOGGLE_SPACING_PX
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import ComboBox, Label
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n import keys as K
 
 _ICON_VIEWS: set[str] = {VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S}
+
+_VIEW_LABEL_KEYS: dict[str, str] = {
+    VIEW_DETAILS: K.ORG_VIEW_LABEL_DETAILS,
+    VIEW_CONTENT: K.ORG_VIEW_LABEL_CONTENT,
+    VIEW_ICON_GROUP: K.ORG_VIEW_LABEL_ICONS,
+    VIEW_ICON_XL: K.ORG_VIEW_LABEL_ICON_XL,
+    VIEW_ICON_L: K.ORG_VIEW_LABEL_ICON_L,
+    VIEW_ICON_M: K.ORG_VIEW_LABEL_ICON_M,
+    VIEW_ICON_S: K.ORG_VIEW_LABEL_ICON_S,
+}
 
 __all__ = [
     "VIEW_DETAILS",
@@ -35,7 +43,8 @@ __all__ = [
 
 
 def _view_label(key: str) -> str:
-    return VIEW_LABELS.get(key, key)
+    lk = _VIEW_LABEL_KEYS.get(key)
+    return translate(lk) if lk is not None else key
 
 
 class ViewToggleBar(QWidget):
@@ -62,7 +71,7 @@ class ViewToggleBar(QWidget):
         for key in (VIEW_ICON_XL, VIEW_ICON_L, VIEW_ICON_M, VIEW_ICON_S):
             self._icon_size_combo.addItem(_view_label(key), key)
 
-        self._label = Label(VIEW_TOGGLE_LABEL, "muted")
+        self._label = Label(translate(K.ORG_VIEW_TOGGLE_LABEL), "muted")
         self._label.setStyleSheet(theme.label_muted())
 
         layout.addWidget(self._label)
@@ -73,6 +82,19 @@ class ViewToggleBar(QWidget):
 
         self._layout_combo.currentIndexChanged.connect(self._on_layout_changed)
         self._icon_size_combo.currentIndexChanged.connect(self._on_icon_size_changed)
+        get_i18n_service().language_changed.connect(self.retranslate_ui)
+
+    def retranslate_ui(self) -> None:
+        self._label.setText(translate(K.ORG_VIEW_TOGGLE_LABEL))
+        with QSignalBlocker(self._layout_combo), QSignalBlocker(self._icon_size_combo):
+            for i in range(self._layout_combo.count()):
+                data = self._layout_combo.itemData(i)
+                if isinstance(data, str):
+                    self._layout_combo.setItemText(i, _view_label(data))
+            for i in range(self._icon_size_combo.count()):
+                data = self._icon_size_combo.itemData(i)
+                if isinstance(data, str):
+                    self._icon_size_combo.setItemText(i, _view_label(data))
 
     def _sync_icon_size_combo_visibility(self) -> None:
         show = self._layout_combo.currentData() == VIEW_ICON_GROUP

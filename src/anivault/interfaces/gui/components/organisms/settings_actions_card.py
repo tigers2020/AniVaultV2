@@ -9,6 +9,8 @@ from PySide6.QtWidgets import QFrame, QVBoxLayout
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import PanelHeader, SettingsActionBar
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n import keys as K
 
 
 class SettingsActionsCard(QFrame):
@@ -27,14 +29,13 @@ class SettingsActionsCard(QFrame):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(
-            PanelHeader(
-                "Settings",
-                "저장·로드·초기화",
-                pill_text="Actions",
-                pill_color="blue",
-            )
+        self._header = PanelHeader(
+            translate(K.SETTINGS_ACTIONS_CARD_TITLE),
+            translate(K.SETTINGS_ACTIONS_CARD_DESC),
+            pill_text=translate(K.SETTINGS_ACTIONS_CARD_PILL),
+            pill_color="blue",
         )
+        layout.addWidget(self._header)
         body = QVBoxLayout()
         body_padding = theme.settings_card_body_padding_px()
         body.setContentsMargins(body_padding, body_padding, body_padding, body_padding)
@@ -43,6 +44,15 @@ class SettingsActionsCard(QFrame):
         body.addWidget(self._action_bar)
         layout.addLayout(body)
         self.setStyleSheet(theme.card_panel())
+        get_i18n_service().language_changed.connect(self.retranslate_ui)
+
+    def retranslate_ui(self) -> None:
+        self._header.set_header_texts(
+            translate(K.SETTINGS_ACTIONS_CARD_TITLE),
+            translate(K.SETTINGS_ACTIONS_CARD_DESC),
+            pill_text=translate(K.SETTINGS_ACTIONS_CARD_PILL),
+        )
+        self._action_bar.retranslate_ui()
 
     def action_bar(self) -> SettingsActionBar:
         """시그널 연결용 SettingsActionBar를 반환한다.

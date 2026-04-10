@@ -42,6 +42,7 @@ class PanelHeader(QWidget):
         super().__init__(parent)
         self._description_text = description
         self._desc_lbl: Label | None = None
+        self._pill: Pill | None = None
         layout = QHBoxLayout(self)
         header_padding = theme.panel_header_padding_px()
         layout.setContentsMargins(
@@ -53,9 +54,9 @@ class PanelHeader(QWidget):
         left = QVBoxLayout()
         left.setSpacing(theme.panel_header_stack_gap_px())
         left.setContentsMargins(0, 0, 0, 0)
-        title_lbl = Label(title, "title")
-        title_lbl.setStyleSheet(theme.panel_header_title())
-        left.addWidget(title_lbl)
+        self._title_lbl = Label(title, "title")
+        self._title_lbl.setStyleSheet(theme.panel_header_title())
+        left.addWidget(self._title_lbl)
         if description:
             desc_lbl = Label(description, "muted")
             desc_lbl.setStyleSheet(theme.panel_header_desc())
@@ -72,7 +73,8 @@ class PanelHeader(QWidget):
         if right_widget is not None:
             layout.addWidget(right_widget)
         elif pill_text:
-            layout.addWidget(Pill(pill_text, pill_color))
+            self._pill = Pill(pill_text, pill_color)
+            layout.addWidget(self._pill)
 
     def resizeEvent(self, event) -> None:
         """크기 변경 시 설명 말줄임을 다시 적용한다.
@@ -86,6 +88,15 @@ class PanelHeader(QWidget):
         """
         super().resizeEvent(event)
         self._apply_description_elide()
+
+    def set_header_texts(self, title: str, description: str, pill_text: str = "") -> None:
+        """Update title, description source text, and optional pill label."""
+        self._title_lbl.setText(title)
+        self._description_text = description
+        if self._desc_lbl is not None:
+            self._apply_description_elide()
+        if self._pill is not None and pill_text:
+            self._pill.setText(pill_text)
 
     def _apply_description_elide(self) -> None:
         """설명 라벨이 있으면 가용 폭에 맞춰 오른쪽 말줄임을 적용한다.

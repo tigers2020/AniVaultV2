@@ -9,23 +9,18 @@ from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Badge, Label
+from anivault.interfaces.gui.i18n import keys as K
+from anivault.interfaces.gui.i18n import translate
 
 
 class Brand(QWidget):
     """로고 배지와 타이틀·서브타이틀 가로 배치."""
 
-    def __init__(
-        self,
-        title: str = "AniVault V2",
-        subtitle: str = "Parse → TMDB 한글 제목 → 구조화 이동",
-        parent=None,
-    ):
+    def __init__(self, parent=None):
         """브랜드 문구를 배치한다.
 
         Args:
             self: 이 위젯.
-            title: 메인 제목.
-            subtitle: 부제 설명.
             parent: 부모 위젯(선택).
 
         Returns:
@@ -40,10 +35,14 @@ class Brand(QWidget):
         right = QVBoxLayout()
         right.setSpacing(4)
         right.setContentsMargins(0, 0, 0, 0)
-        title_label = Label(title, "title")
-        title_label.setStyleSheet(theme.brand_title())
-        right.addWidget(title_label)
-        sub = Label(subtitle, "muted")
-        sub.setStyleSheet(theme.brand_subtitle())
-        right.addWidget(sub)
+        self._title_label = Label(translate(K.SHELL_BRAND_TITLE), "title")
+        self._title_label.setStyleSheet(theme.brand_title())
+        right.addWidget(self._title_label)
+        self._subtitle_label = Label(translate(K.SHELL_BRAND_SUBTITLE), "muted")
+        self._subtitle_label.setStyleSheet(theme.brand_subtitle())
+        right.addWidget(self._subtitle_label)
         layout.addLayout(right, 1)
+
+    def retranslate_ui(self) -> None:
+        self._title_label.setText(translate(K.SHELL_BRAND_TITLE))
+        self._subtitle_label.setText(translate(K.SHELL_BRAND_SUBTITLE))

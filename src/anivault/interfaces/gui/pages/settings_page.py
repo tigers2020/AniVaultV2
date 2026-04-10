@@ -1,12 +1,13 @@
-"""settings_page.py
+"""Settings page composition for the GUI settings surface."""
 
-설정 카드 그리드: 외형·스캔·경로·파서·저장 액션.
-
-Author: Pom Kim
-"""
-
-from PySide6.QtGui import QShowEvent
-from PySide6.QtWidgets import QFrame, QGridLayout, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QFrame,
+    QScrollArea,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import (
@@ -16,32 +17,27 @@ from anivault.interfaces.gui.components.organisms import (
     ScanBuildCard,
     SettingsActionsCard,
 )
+from anivault.interfaces.gui.i18n import keys as K
+from anivault.interfaces.gui.i18n import translate
 from anivault.interfaces.gui.presenters import SettingsPresenter
 
 
 class SettingsPage(QWidget):
-    """Appearance, ScanBuild, PathRules, ParseTmdb, Actions."""
+    """Appearance, ScanBuild, PathRules, ParseTmdb, and actions."""
 
     def __init__(self, parent=None, presenter: SettingsPresenter | None = None):
-        """Presenter와 폼·시그널을 연결한다.
-
-        Args:
-            self: 이 위젯.
-            parent: 부모 위젯(선택).
-            presenter: SettingsPresenter. None이면 자체 생성.
-
-        Returns:
-            None.
-        """
+        """Create the settings page and wire form widgets to the presenter."""
         super().__init__(parent)
         self._presenter = presenter if presenter is not None else SettingsPresenter(parent=self)
         if presenter is not None:
             self._presenter.setParent(self)
+
         scan_card = ScanBuildCard()
         scan_card.setObjectName("settings_scan_card")
         appearance_card = AppearanceCard()
         appearance_card.setObjectName("settings_appearance_card")
         appearance_card.theme_changed.connect(self._presenter.on_theme_changed)
+        appearance_card.language_changed.connect(self._presenter.on_language_changed)
         path_rules_form = PathRulesForm()
         path_rules_form.setObjectName("settings_path_rules_card")
         parse_tmdb_form = ParseTmdbForm()
@@ -50,41 +46,54 @@ class SettingsPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        scroll = QScrollArea()
-        scroll.setStyleSheet(theme.scroll_area_transparent())
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setWidgetResizable(True)
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        page_gap = theme.page_section_gap_px()
-        content_layout.setContentsMargins(0, 0, 0, page_gap)
-        content_layout.setSpacing(theme.settings_page_section_gap_px())
+        layout.setSpacing(theme.settings_page_section_gap_px())
+
+        self._tabs = QTabWidget()
+        self._tabs.setObjectName("settings_tabs")
+        self._tabs.addTab(
+            self._wrap_tab_content(scan_card, appearance_card),
+            translate(K.SETTINGS_TAB_GENERAL),
+        )
+        self._tabs.addTab(
+            self._wrap_tab_content(path_rules_form),
+            translate(K.SETTINGS_TAB_PATHS),
+        )
+        self._tabs.addTab(
+            self._wrap_tab_content(parse_tmdb_form),
+            translate(K.SETTINGS_TAB_PARSE_TMDB),
+        )
+        layout.addWidget(self._tabs, 1)
+
         actions_card = SettingsActionsCard()
         actions_card.setObjectName("settings_actions_card")
         bar = actions_card.action_bar()
         bar.save_clicked.connect(self._presenter.on_save_clicked)
         bar.reset_clicked.connect(self._presenter.on_reset_clicked)
         bar.load_clicked.connect(self._presenter.on_load_clicked)
-        settings_grid = QGridLayout()
-        settings_grid.setContentsMargins(0, 0, 0, 0)
-        grid_gap = theme.settings_page_grid_gap_px()
-        settings_grid.setHorizontalSpacing(grid_gap)
-        settings_grid.setVerticalSpacing(grid_gap)
-        settings_grid.setColumnStretch(0, 1)
-        settings_grid.setColumnStretch(1, 1)
-        settings_grid.setColumnMinimumWidth(0, theme.result_list_panel_min_width_px())
-        settings_grid.setColumnMinimumWidth(1, theme.result_list_panel_min_width_px())
-        settings_grid.setRowStretch(2, 1)
-        settings_grid.addWidget(actions_card, 0, 0, 1, 2)
-        settings_grid.addWidget(scan_card, 1, 0)
-        settings_grid.addWidget(appearance_card, 1, 1)
-        settings_grid.addWidget(path_rules_form, 2, 0)
-        settings_grid.addWidget(parse_tmdb_form, 2, 1)
-        content_layout.addLayout(settings_grid)
-        content_layout.addStretch(1)
-        scroll.setWidget(content)
-        layout.addWidget(scroll)
+        layout.addWidget(actions_card)
 
-    def showEvent(self, event: QShowEvent) -> None:
-        super().showEvent(event)
-        self._presenter.on_load_clicked()
+    def retranslate_ui(self) -> None:
+        """Refresh settings tab titles when UI language changes."""
+        self._tabs.setTabText(0, translate(K.SETTINGS_TAB_GENERAL))
+        self._tabs.setTabText(1, translate(K.SETTINGS_TAB_PATHS))
+        self._tabs.setTabText(2, translate(K.SETTINGS_TAB_PARSE_TMDB))
+
+    def _wrap_tab_content(self, *cards: QWidget) -> QScrollArea:
+        """Put stacked cards in a scroll area with uniform tab insets."""
+        inner = QWidget()
+        inner_layout = QVBoxLayout(inner)
+        m = theme.settings_tab_content_margins_px()
+        inner_layout.setContentsMargins(m, m, m, m)
+        inner_layout.setSpacing(theme.settings_page_section_gap_px())
+        for card in cards:
+            inner_layout.addWidget(card)
+
+        scroll = QScrollArea()
+        scroll.setObjectName("settings_tab_scroll")
+        scroll.setStyleSheet(theme.scroll_area_transparent())
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setWidget(inner)
+        return scroll

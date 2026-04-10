@@ -7,30 +7,6 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
 
-from anivault.constants.gui.components import (
-    PIPELINE_BUSY_MESSAGE,
-    PIPELINE_BUSY_TITLE,
-    PLAN_APPLY_COMPLETE_MESSAGE_TEMPLATE,
-    PLAN_APPLY_COMPLETE_TITLE,
-    PLAN_APPLY_DRY_RUN_EMPTY_MESSAGE,
-    PLAN_APPLY_DRY_RUN_TITLE,
-    PLAN_APPLY_EMPTY_MESSAGE,
-    PLAN_APPLY_EMPTY_TITLE,
-    PLAN_APPLY_EXECUTE_UNAVAILABLE_MESSAGE,
-    PLAN_APPLY_EXECUTE_UNAVAILABLE_TITLE,
-    PLAN_APPLY_LOG_ROOT_MESSAGE,
-    PLAN_APPLY_LOG_ROOT_TITLE,
-    PLAN_APPLY_MOVE_ERROR_TITLE,
-    PLAN_APPLY_MOVE_PROGRESS_MESSAGE,
-    PLAN_APPLY_MOVE_PROGRESS_TITLE,
-    PLAN_APPLY_NO_MATCHED_MESSAGE,
-    PLAN_APPLY_NO_MATCHED_TITLE,
-    PLAN_APPLY_PATH_RULES_MESSAGE,
-    PLAN_APPLY_PATH_RULES_TITLE,
-    PLAN_APPLY_PLAN_ERROR_TITLE,
-    PLAN_APPLY_PLAN_PROGRESS_MESSAGE,
-    PLAN_APPLY_PLAN_PROGRESS_TITLE,
-)
 from anivault.constants.gui.settings import (
     scan_source_path_from_loaded,
     target_root_from_loaded,
@@ -41,6 +17,31 @@ from anivault.contracts.progress import (
     progress_dialog_value_and_maximum,
 )
 from anivault.interfaces.gui.dialogs.dry_run_dialog import DryRunDialog
+from anivault.interfaces.gui.i18n import translate
+from anivault.interfaces.gui.i18n.keys import (
+    ORG_PIPELINE_BUSY_MESSAGE,
+    ORG_PIPELINE_BUSY_TITLE,
+    ORG_PLAN_COMPLETE_MESSAGE,
+    ORG_PLAN_COMPLETE_TITLE,
+    ORG_PLAN_DRY_RUN_EMPTY_MESSAGE,
+    ORG_PLAN_DRY_RUN_TITLE,
+    ORG_PLAN_EMPTY_MESSAGE,
+    ORG_PLAN_EMPTY_TITLE,
+    ORG_PLAN_EXECUTE_UNAVAILABLE_MESSAGE,
+    ORG_PLAN_EXECUTE_UNAVAILABLE_TITLE,
+    ORG_PLAN_LOG_ROOT_MESSAGE,
+    ORG_PLAN_LOG_ROOT_TITLE,
+    ORG_PLAN_MOVE_ERROR_TITLE,
+    ORG_PLAN_MOVE_PROGRESS_MESSAGE,
+    ORG_PLAN_MOVE_PROGRESS_TITLE,
+    ORG_PLAN_NO_MATCHED_MESSAGE,
+    ORG_PLAN_NO_MATCHED_TITLE,
+    ORG_PLAN_PATH_RULES_MESSAGE,
+    ORG_PLAN_PATH_RULES_TITLE,
+    ORG_PLAN_PLAN_ERROR_TITLE,
+    ORG_PLAN_PLAN_PROGRESS_MESSAGE,
+    ORG_PLAN_PLAN_PROGRESS_TITLE,
+)
 from anivault.interfaces.gui.presenters import organizer_runtime as presenter_runtime
 from anivault.interfaces.gui.presenters.plan_helpers import (
     merge_plan_into_pipeline_rows,
@@ -81,7 +82,11 @@ class PlanApplyCoordinator(QObject):
             return False
         parent = presenter_runtime.parent_widget(self._p)
         if isinstance(parent, QWidget):
-            QMessageBox.information(parent, PIPELINE_BUSY_TITLE, PIPELINE_BUSY_MESSAGE)
+            QMessageBox.information(
+                parent,
+                translate(ORG_PIPELINE_BUSY_TITLE),
+                translate(ORG_PIPELINE_BUSY_MESSAGE),
+            )
         return True
 
     def _dry_run_plan_input_error_guard(
@@ -91,24 +96,24 @@ class PlanApplyCoordinator(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.information(
                     parent,
-                    PLAN_APPLY_EMPTY_TITLE,
-                    PLAN_APPLY_EMPTY_MESSAGE,
+                    translate(ORG_PLAN_EMPTY_TITLE),
+                    translate(ORG_PLAN_EMPTY_MESSAGE),
                 )
             return True
         if err == "no_matched":
             if isinstance(parent, QWidget):
                 QMessageBox.information(
                     parent,
-                    PLAN_APPLY_NO_MATCHED_TITLE,
-                    PLAN_APPLY_NO_MATCHED_MESSAGE,
+                    translate(ORG_PLAN_NO_MATCHED_TITLE),
+                    translate(ORG_PLAN_NO_MATCHED_MESSAGE),
                 )
             return True
         if err == "path_rules" or plan_input is None:
             if isinstance(parent, QWidget):
                 QMessageBox.warning(
                     parent,
-                    PLAN_APPLY_PATH_RULES_TITLE,
-                    PLAN_APPLY_PATH_RULES_MESSAGE,
+                    translate(ORG_PLAN_PATH_RULES_TITLE),
+                    translate(ORG_PLAN_PATH_RULES_MESSAGE),
                 )
             return True
         return False
@@ -128,8 +133,8 @@ class PlanApplyCoordinator(QObject):
                 dialog=dialog,
                 worker=worker,
                 signals=signals,
-                title=PLAN_APPLY_PLAN_PROGRESS_TITLE,
-                message=PLAN_APPLY_PLAN_PROGRESS_MESSAGE,
+                title=translate(ORG_PLAN_PLAN_PROGRESS_TITLE),
+                message=translate(ORG_PLAN_PLAN_PROGRESS_MESSAGE),
                 indeterminate=False,
                 on_progress_with_token=self._on_progress,
                 on_finished=lambda: presenter_runtime.finish_worker_session(
@@ -169,7 +174,7 @@ class PlanApplyCoordinator(QObject):
         parent = presenter_runtime.parent_widget(self._p)
         if result.error:
             if isinstance(parent, QWidget):
-                QMessageBox.warning(parent, PLAN_APPLY_PLAN_ERROR_TITLE, result.error)
+                QMessageBox.warning(parent, translate(ORG_PLAN_PLAN_ERROR_TITLE), result.error)
             presenter_runtime.notify_dry_run(
                 self._p,
                 presenter_runtime.dry_run_should_enable(self._p),
@@ -179,8 +184,8 @@ class PlanApplyCoordinator(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.information(
                     parent,
-                    PLAN_APPLY_DRY_RUN_TITLE,
-                    PLAN_APPLY_DRY_RUN_EMPTY_MESSAGE,
+                    translate(ORG_PLAN_DRY_RUN_TITLE),
+                    translate(ORG_PLAN_DRY_RUN_EMPTY_MESSAGE),
                 )
             presenter_runtime.notify_dry_run(
                 self._p,
@@ -207,8 +212,8 @@ class PlanApplyCoordinator(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.warning(
                     parent,
-                    PLAN_APPLY_EXECUTE_UNAVAILABLE_TITLE,
-                    PLAN_APPLY_EXECUTE_UNAVAILABLE_MESSAGE,
+                    translate(ORG_PLAN_EXECUTE_UNAVAILABLE_TITLE),
+                    translate(ORG_PLAN_EXECUTE_UNAVAILABLE_MESSAGE),
                 )
             return
         QTimer.singleShot(0, lambda p=plan: self._start_apply_worker(p))
@@ -220,7 +225,11 @@ class PlanApplyCoordinator(QObject):
         if presenter_runtime.has_active_pipeline_work(self._p):
             parent = presenter_runtime.parent_widget(self._p)
             if isinstance(parent, QWidget):
-                QMessageBox.information(parent, PIPELINE_BUSY_TITLE, PIPELINE_BUSY_MESSAGE)
+                QMessageBox.information(
+                    parent,
+                    translate(ORG_PIPELINE_BUSY_TITLE),
+                    translate(ORG_PIPELINE_BUSY_MESSAGE),
+                )
             return
         settings = load_all()
         source_root = scan_source_path_from_loaded(settings).strip()
@@ -230,8 +239,8 @@ class PlanApplyCoordinator(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.warning(
                     parent,
-                    PLAN_APPLY_LOG_ROOT_TITLE,
-                    PLAN_APPLY_LOG_ROOT_MESSAGE,
+                    translate(ORG_PLAN_LOG_ROOT_TITLE),
+                    translate(ORG_PLAN_LOG_ROOT_MESSAGE),
                 )
             return
         apply_input = ApplyInput(
@@ -257,8 +266,8 @@ class PlanApplyCoordinator(QObject):
                 dialog=dialog,
                 worker=worker,
                 signals=signals,
-                title=PLAN_APPLY_MOVE_PROGRESS_TITLE,
-                message=PLAN_APPLY_MOVE_PROGRESS_MESSAGE,
+                title=translate(ORG_PLAN_MOVE_PROGRESS_TITLE),
+                message=translate(ORG_PLAN_MOVE_PROGRESS_MESSAGE),
                 indeterminate=False,
                 on_progress_with_token=self._on_progress,
                 on_finished=lambda: presenter_runtime.finish_worker_session(
@@ -278,7 +287,7 @@ class PlanApplyCoordinator(QObject):
         parent = presenter_runtime.parent_widget(self._p)
         if result.error:
             if isinstance(parent, QWidget):
-                QMessageBox.critical(parent, PLAN_APPLY_MOVE_ERROR_TITLE, result.error)
+                QMessageBox.critical(parent, translate(ORG_PLAN_MOVE_ERROR_TITLE), result.error)
             presenter_runtime.notify_dry_run(
                 self._p,
                 presenter_runtime.dry_run_should_enable(self._p),
@@ -286,14 +295,12 @@ class PlanApplyCoordinator(QObject):
             return
         settings = load_all()
         scan_source = scan_source_path_from_loaded(settings).strip()
-        completion_message = PLAN_APPLY_COMPLETE_MESSAGE_TEMPLATE.format(
-            moved_count=result.moved_count
-        )
+        completion_message = translate(ORG_PLAN_COMPLETE_MESSAGE, moved_count=result.moved_count)
         if scan_source and presenter_runtime.scan_execute(self._p) is not None:
             if isinstance(parent, QWidget):
                 QMessageBox.information(
                     parent,
-                    PLAN_APPLY_COMPLETE_TITLE,
+                    translate(ORG_PLAN_COMPLETE_TITLE),
                     completion_message,
                 )
             presenter_runtime.notify_dry_run(
@@ -309,7 +316,7 @@ class PlanApplyCoordinator(QObject):
         if isinstance(parent, QWidget):
             QMessageBox.information(
                 parent,
-                PLAN_APPLY_COMPLETE_TITLE,
+                translate(ORG_PLAN_COMPLETE_TITLE),
                 completion_message,
             )
         presenter_runtime.notify_dry_run(

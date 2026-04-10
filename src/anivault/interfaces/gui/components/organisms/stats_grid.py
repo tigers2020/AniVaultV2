@@ -10,6 +10,8 @@ from PySide6.QtWidgets import QGridLayout, QSizePolicy, QWidget
 
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import StatCard
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n import keys as K
 
 
 def _fmt(n: int) -> str:
@@ -27,6 +29,13 @@ def _fmt(n: int) -> str:
 class StatsGrid(QWidget):
     """한 줄에 네 개의 StatCard. set_stats로 값 갱신."""
 
+    _STAT_KEYS: tuple[str, str, str, str] = (
+        K.ORG_STAT_SCANNED_FILES,
+        K.ORG_STAT_PARSED_TITLES,
+        K.ORG_STAT_TMDB_MATCHES,
+        K.ORG_STAT_GROUPS,
+    )
+
     def __init__(self, parent=None):
         """그리드 레이아웃·카드 위젯·고정 높이 동기화를 초기화한다.
 
@@ -42,11 +51,12 @@ class StatsGrid(QWidget):
         layout.setHorizontalSpacing(theme.inline_control_gap_px())
         layout.setVerticalSpacing(theme.inline_control_gap_px())
         layout.setContentsMargins(0, 0, 0, theme.page_section_gap_px())
+        self._scanned = self._parsed = self._tmdb_matches = self._groups = 0
         self._cards = [
-            StatCard("Scanned Files", _fmt(0)),
-            StatCard("Parsed Titles", _fmt(0)),
-            StatCard("TMDB Korean Matches", _fmt(0)),
-            StatCard("그룹 수", _fmt(0)),
+            StatCard(translate(self._STAT_KEYS[0]), _fmt(0)),
+            StatCard(translate(self._STAT_KEYS[1]), _fmt(0)),
+            StatCard(translate(self._STAT_KEYS[2]), _fmt(0)),
+            StatCard(translate(self._STAT_KEYS[3]), _fmt(0)),
         ]
         for i, card in enumerate(self._cards):
             layout.addWidget(card, 0, i)
@@ -54,6 +64,22 @@ class StatsGrid(QWidget):
         # Prevent vertical stretching when embedded in a resizable scroll area.
         self.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed))
         self._sync_fixed_height()
+        get_i18n_service().language_changed.connect(self.retranslate_ui)
+
+    def retranslate_ui(self) -> None:
+        for card, sk in zip(self._cards, self._STAT_KEYS, strict=True):
+            card.set_title(translate(sk))
+        self._apply_stat_values()
+
+    def _apply_stat_values(self) -> None:
+        values = (
+            _fmt(self._scanned),
+            _fmt(self._parsed),
+            _fmt(self._tmdb_matches),
+            _fmt(self._groups),
+        )
+        for card, v in zip(self._cards, values, strict=True):
+            card.set_value(v)
 
     def set_stats(
         self,
@@ -74,10 +100,11 @@ class StatsGrid(QWidget):
         Returns:
             None.
         """
-        self._cards[0].set_value(_fmt(scanned))
-        self._cards[1].set_value(_fmt(parsed))
-        self._cards[2].set_value(_fmt(tmdb_matches))
-        self._cards[3].set_value(_fmt(groups))
+        self._scanned = scanned
+        self._parsed = parsed
+        self._tmdb_matches = tmdb_matches
+        self._groups = groups
+        self._apply_stat_values()
 
     def _sync_fixed_height(self) -> None:
         """폰트·스타일에 맞춰 그리드 행 고정 높이를 sizeHint로 맞춘다.

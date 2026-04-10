@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QLineEdit, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui.components.atoms import ComboBox, Label, LineEdit
 from anivault.interfaces.gui.components.molecules.path_select_field import PathSelectField
+from anivault.interfaces.gui.i18n import keys as K
 
 
 class FormField(QWidget):
@@ -46,6 +47,8 @@ class FormField(QWidget):
             None.
         """
         super().__init__(parent)
+        self._static_label = label_text
+        self._label_updater_fn = label_updater
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         effective_label = label_updater(initial) if label_updater and kind == "line" else label_text
@@ -60,7 +63,6 @@ class FormField(QWidget):
         self._input = self._build_line_input(
             layout=layout,
             initial=initial,
-            label_updater=label_updater,
             echo_password=echo_password,
         )
 
@@ -73,7 +75,7 @@ class FormField(QWidget):
         return combo
 
     def _build_path_input(self, layout: QVBoxLayout, initial: str) -> PathSelectField:
-        path_field = PathSelectField(placeholder=initial or "폴더 경로", parent=self)
+        path_field = PathSelectField(parent=self, placeholder_key=K.ORG_PATH_FIELD_PLACEHOLDER)
         if initial:
             path_field.set_path(initial)
         layout.addWidget(path_field)
@@ -84,7 +86,6 @@ class FormField(QWidget):
         self,
         layout: QVBoxLayout,
         initial: str,
-        label_updater: Callable[[str], str] | None,
         echo_password: bool,
     ) -> LineEdit:
         line = LineEdit(initial, self)
@@ -92,12 +93,37 @@ class FormField(QWidget):
             line.setEchoMode(QLineEdit.EchoMode.Password)
         if initial:
             line.setText(initial)
-        if label_updater:
-            line.textChanged.connect(lambda t: self._label.setText(label_updater(t)))
+        if self._label_updater_fn is not None:
+            line.textChanged.connect(self._on_line_text_for_label)
         layout.addWidget(line)
         line.textChanged.connect(lambda *_: self.value_changed.emit())
         line.editingFinished.connect(lambda *_: self.value_changed.emit())
         return line
+
+    def _on_line_text_for_label(self, text: str) -> None:
+        if self._label_updater_fn is not None:
+            self._label.setText(self._label_updater_fn(text))
+
+    def apply_static_label(self, text: str) -> None:
+        """라벨 업데이터가 없을 때 상단 라벨만 갱신한다."""
+        self._static_label = text
+        self._refresh_label_display()
+
+    def set_label_updater(self, label_updater: Callable[[str], str] | None) -> None:
+        """Path template 등 동적 라벨 함수를 교체하고 현재 값으로 다시 그린다."""
+        self._label_updater_fn = label_updater
+        self._refresh_label_display()
+
+    def _refresh_label_display(self) -> None:
+        if isinstance(self._input, LineEdit) and self._label_updater_fn is not None:
+            self._label.setText(self._label_updater_fn(self._input.text()))
+        else:
+            self._label.setText(self._static_label)
+
+    def retranslate_path_placeholder(self) -> None:
+        """kind가 path일 때 플레이스홀더·버튼·다이얼로그 제목을 현재 언어로 맞춘다."""
+        if isinstance(self._input, PathSelectField):
+            self._input.retranslate_ui()
 
     def value(self) -> str:
         """현재 입력 값을 문자열로 반환한다.

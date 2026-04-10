@@ -4,7 +4,7 @@ import os
 from dataclasses import replace
 from pathlib import Path
 from threading import Event
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,6 +12,7 @@ import pytest
 from anivault.application.use_cases.parse_titles import make_execute as make_parse_execute
 from anivault.application.use_cases.plan_moves import make_execute
 from anivault.bootstrap import container, env_file
+from anivault.constants.gui.copy import PAGE_META
 from anivault.contracts.library_index import IndexedMediaForParse
 from anivault.contracts.parse import ParseInput
 from anivault.contracts.parse_cache import (
@@ -23,7 +24,8 @@ from anivault.contracts.pipeline import PipelineRow
 from anivault.contracts.planning import PlanInput
 from anivault.contracts.progress import ProgressEvent
 from anivault.domain.models.parsed_info import ParsedInfo as DomainParsedInfo
-from anivault.interfaces.gui.app import PAGE_META
+from anivault.interfaces.gui.components.molecules import ProgressDialog
+from anivault.interfaces.gui.models import PipelineTableModel
 
 
 class _FakePage:
@@ -318,8 +320,8 @@ def test_create_organizer_page_delegates_to_shared_builder(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     builder = MagicMock(return_value="page")
-    model = object()
-    progress_dialog = object()
+    model = cast(PipelineTableModel | None, object())
+    progress_dialog = cast(ProgressDialog | None, object())
     monkeypatch.setattr(container, "_create_organizer_page", builder)
 
     assert container.create_organizer_page(model, progress_dialog) == "page"
@@ -335,8 +337,8 @@ def test_create_subtitle_organizer_page_delegates_to_shared_builder(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     builder = MagicMock(return_value="page")
-    model = object()
-    progress_dialog = object()
+    model = cast(PipelineTableModel | None, object())
+    progress_dialog = cast(ProgressDialog | None, object())
     monkeypatch.setattr(container, "_create_organizer_page", builder)
 
     assert container.create_subtitle_organizer_page(model, progress_dialog) == "page"
@@ -413,8 +415,8 @@ def test_plan_moves_subtitle_only_does_not_expand_companions(tmp_path: Path) -> 
 def test_plan_moves_subtitle_only_still_requires_match_data(tmp_path: Path) -> None:
     subtitle = tmp_path / "orphan.srt"
     subtitle.write_text("subtitle", encoding="utf-8")
-    row = _matched_row(subtitle)
-    row = replace(row, tmdb_korean_title_group="")
+    base_row = _matched_row(subtitle)
+    row = cast(PipelineRow, replace(base_row, tmdb_korean_title_group=""))
     execute = make_execute()
 
     result = execute(
@@ -467,7 +469,8 @@ def test_plan_moves_preview_uses_unknown_resolution_and_reuses_video_meta_for_su
     subtitle = source_dir / "show.srt"
     video.write_bytes(b"video")
     subtitle.write_text("subtitle", encoding="utf-8")
-    row = replace(_matched_row(video), resolution="")
+    base_row = _matched_row(video)
+    row = cast(PipelineRow, replace(base_row, resolution=""))
     execute = make_execute()
 
     result = execute(

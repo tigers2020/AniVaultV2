@@ -8,17 +8,11 @@ Author: Pom Kim
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QVBoxLayout
 
-from anivault.constants.gui.components import (
-    PARSE_TMDB_FORM_API_KEY_HELP,
-    PARSE_TMDB_FORM_HEADER_DESCRIPTION,
-    PARSE_TMDB_FORM_HEADER_TITLE,
-    PARSE_TMDB_FORM_LABEL_API_KEY,
-    PARSE_TMDB_FORM_LABEL_IGNORE_TOKENS,
-    PARSE_TMDB_FORM_LABEL_SEASON_FORMAT,
-)
 from anivault.constants.gui.settings import DEFAULT_PARSE_TMDB
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import FormField, PanelHeader
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n import keys as K
 
 
 class ParseTmdbForm(QFrame):
@@ -30,26 +24,28 @@ class ParseTmdbForm(QFrame):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(
-            PanelHeader(PARSE_TMDB_FORM_HEADER_TITLE, PARSE_TMDB_FORM_HEADER_DESCRIPTION)
+        self._header = PanelHeader(
+            translate(K.SETTINGS_PARSE_TITLE),
+            translate(K.SETTINGS_PARSE_DESC),
         )
+        layout.addWidget(self._header)
         body = QVBoxLayout()
         body_padding = theme.settings_card_body_padding_px()
         body.setContentsMargins(body_padding, body_padding, body_padding, body_padding)
         body.setSpacing(theme.settings_section_gap_px())
         self._tmdb_api_key = FormField(
-            PARSE_TMDB_FORM_LABEL_API_KEY,
+            translate(K.SETTINGS_PARSE_LBL_API),
             "line",
-            PARSE_TMDB_FORM_API_KEY_HELP,
+            translate(K.SETTINGS_PARSE_API_HELP),
             echo_password=True,
         )
         self._ignore_tokens = FormField(
-            PARSE_TMDB_FORM_LABEL_IGNORE_TOKENS,
+            translate(K.SETTINGS_PARSE_LBL_IGNORE),
             "line",
             str(DEFAULT_PARSE_TMDB["ignore_tokens"]),
         )
         self._season_format = FormField(
-            PARSE_TMDB_FORM_LABEL_SEASON_FORMAT,
+            translate(K.SETTINGS_PARSE_LBL_SEASON),
             "line",
             str(DEFAULT_PARSE_TMDB["season_folder_format"]),
         )
@@ -64,6 +60,16 @@ class ParseTmdbForm(QFrame):
             field.value_changed.connect(self.settings_changed.emit)
         layout.addLayout(body)
         self.setStyleSheet(theme.card_panel())
+        get_i18n_service().language_changed.connect(self.retranslate_ui)
+
+    def retranslate_ui(self) -> None:
+        self._header.set_header_texts(
+            translate(K.SETTINGS_PARSE_TITLE),
+            translate(K.SETTINGS_PARSE_DESC),
+        )
+        self._tmdb_api_key.apply_static_label(translate(K.SETTINGS_PARSE_LBL_API))
+        self._ignore_tokens.apply_static_label(translate(K.SETTINGS_PARSE_LBL_IGNORE))
+        self._season_format.apply_static_label(translate(K.SETTINGS_PARSE_LBL_SEASON))
 
     def get_values(self) -> dict[str, str]:
         return {

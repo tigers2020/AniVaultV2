@@ -9,6 +9,8 @@ from typing import Any, Final
 CONFIG_DIR: Final[Path] = Path.home() / ".anivault"
 CONFIG_FILE: Final[Path] = CONFIG_DIR / "config.json"
 DEFAULT_THEME_NAME: Final[str] = "dark"
+DEFAULT_UI_LANGUAGE: Final[str] = "ko"
+ALLOWED_UI_LANGUAGES: Final[frozenset[str]] = frozenset({"ko", "en"})
 
 PARSE_TMDB_SECRET_KEYS: Final[frozenset[str]] = frozenset({"tmdb_api_key"})
 PATH_RULES_KEYS: Final[tuple[str, ...]] = (
@@ -73,6 +75,14 @@ def default_ui_state() -> dict[str, object]:
     return {"pipeline_results": default_pipeline_results()}
 
 
+def normalize_ui_language(value: object) -> str:
+    """Return ko or en; unknown or empty values become DEFAULT_UI_LANGUAGE."""
+    if value is None:
+        return DEFAULT_UI_LANGUAGE
+    s = str(value).strip()
+    return s if s in ALLOWED_UI_LANGUAGES else DEFAULT_UI_LANGUAGE
+
+
 def default_settings_payload(*, include_theme: bool) -> dict[str, Any]:
     """Return the canonical default settings payload."""
     payload: dict[str, Any] = {
@@ -83,6 +93,7 @@ def default_settings_payload(*, include_theme: bool) -> dict[str, Any]:
     }
     if include_theme:
         payload["theme"] = DEFAULT_THEME_NAME
+        payload["language"] = DEFAULT_UI_LANGUAGE
     return payload
 
 

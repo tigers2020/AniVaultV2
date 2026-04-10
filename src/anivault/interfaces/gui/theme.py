@@ -98,6 +98,7 @@ __all__ = [
     "settings_section_gap_px",
     "settings_page_section_gap_px",
     "settings_page_grid_gap_px",
+    "settings_tab_content_margins_px",
 ]
 
 
@@ -435,3 +436,9 @@ def settings_page_section_gap_px() -> int:
 def settings_page_grid_gap_px() -> int:
     profile = _p()
     return scaled_int(16, profile.grid_spacing_scale, minimum=12, maximum=24)
+
+
+def settings_tab_content_margins_px() -> int:
+    """Inset inside each settings tab scroll viewport (below tab bar)."""
+    profile = _p()
+    return scaled_int(12, profile.scale, minimum=8, maximum=20)

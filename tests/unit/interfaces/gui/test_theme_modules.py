@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import math
 from types import SimpleNamespace
 
 from anivault.interfaces.gui import theme as theme_module
@@ -107,6 +108,7 @@ def test_theme_module_wrappers_and_metrics(monkeypatch) -> None:
     assert theme_module.settings_section_gap_px() > 0
     assert theme_module.settings_page_section_gap_px() > 0
     assert theme_module.settings_page_grid_gap_px() > 0
+    assert theme_module.settings_tab_content_margins_px() > 0
 
 
 def test_theme_registry_density_and_persistence(tmp_path, monkeypatch) -> None:
@@ -138,7 +140,7 @@ def test_theme_registry_density_and_persistence(tmp_path, monkeypatch) -> None:
     missing = themes_module.get_theme("missing")
     assert missing.__class__.__name__ in {"DarkTheme", "FakeTheme"}
     current = themes_module.get_current_theme()
-    assert current.scale == 1.25
+    assert math.isclose(current.scale, 1.25)
     assert themes_module.get_current_theme_name() == "dark"
 
     themes_module.set_current_theme("light")

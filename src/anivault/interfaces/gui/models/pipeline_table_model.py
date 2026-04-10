@@ -13,6 +13,8 @@ from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, QPersisten
 
 from anivault.constants.gui.tables import PIPELINE_TABLE_COLUMNS
 from anivault.contracts.pipeline import PipelineRow
+from anivault.interfaces.gui.i18n import PIPELINE_HEADER_KEYS, get_i18n_service, translate
+from anivault.interfaces.gui.i18n.pipeline_status import translate_pipeline_status
 from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow
 
 _INVALID_INDEX: QModelIndex = QModelIndex()
@@ -24,6 +26,21 @@ class PipelineTableModel(QAbstractTableModel):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._rows: list[PipelineGroupRow] = []
+        get_i18n_service().language_changed.connect(self._on_language_changed)
+
+    def _on_language_changed(self, _lang: str) -> None:
+        last = len(PIPELINE_HEADER_KEYS) - 1
+        if last >= 0:
+            self.headerDataChanged.emit(
+                Qt.Orientation.Horizontal,
+                0,
+                last,
+            )
+        if self._rows:
+            c = len(PIPELINE_TABLE_COLUMNS) - 1
+            top_left = self.index(0, 0)
+            bottom_right = self.index(len(self._rows) - 1, c)
+            self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DisplayRole])
 
     def rowCount(self, parent: QModelIndex | QPersistentModelIndex = _INVALID_INDEX) -> int:
         if parent.isValid():
@@ -45,6 +62,8 @@ class PipelineTableModel(QAbstractTableModel):
         row = self._rows[index.row()]
         _, key = PIPELINE_TABLE_COLUMNS[index.column()]
         value = getattr(row, key, "")
+        if key == "status":
+            return translate_pipeline_status(str(value))
         return value
 
     def headerData(
@@ -55,8 +74,8 @@ class PipelineTableModel(QAbstractTableModel):
     ) -> Any:
         if orientation != Qt.Orientation.Horizontal or role != Qt.ItemDataRole.DisplayRole:
             return None
-        if 0 <= section < len(PIPELINE_TABLE_COLUMNS):
-            return PIPELINE_TABLE_COLUMNS[section][0]
+        if 0 <= section < len(PIPELINE_HEADER_KEYS):
+            return translate(PIPELINE_HEADER_KEYS[section])
         return None
 
     def set_rows(self, rows: list[PipelineGroupRow]) -> None:

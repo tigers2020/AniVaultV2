@@ -5,13 +5,6 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, QSize, Qt
 from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QPushButton, QTreeWidget
 
-from anivault.constants.gui.components import (
-    DETAILS_PANE_MANUAL_MATCH_BUTTON,
-    DRY_RUN_DIALOG_BUTTON_APPLY,
-    FOLDER_SCAN_BAR_BUTTON_DRY_RUN,
-    FOLDER_SCAN_BAR_BUTTON_MATCH,
-    FOLDER_SCAN_BAR_BUTTON_SCAN,
-)
 from anivault.contracts.pipeline import PipelineRow
 from anivault.contracts.planning import PlanMovePreviewMeta
 from anivault.domain.models.file_operation import FileOperation, OperationType
@@ -36,6 +29,15 @@ from anivault.interfaces.gui.dialogs.dry_run_dialog import (
     _ellipsize_display,
     _format_folder_summary,
     _format_group_resolution_summary,
+)
+from anivault.interfaces.gui.i18n import translate
+from anivault.interfaces.gui.i18n.keys import (
+    DETAILS_MANUAL_BTN,
+    DRY_RUN_BTN_APPLY,
+    ORG_SCANBAR_BTN_DRY_RUN,
+    ORG_SCANBAR_BTN_MATCH,
+    ORG_SCANBAR_BTN_SCAN,
+    SETTINGS_ACTION_SAVE,
 )
 from anivault.interfaces.gui.models import PipelineGroupRow, group_pipeline_rows
 
@@ -179,7 +181,7 @@ def test_details_pane_parse_form_and_path_rules_public_round_trip() -> None:
     pane.set_row(group)
     pane.show()
 
-    _button_by_text(pane, DETAILS_PANE_MANUAL_MATCH_BUTTON).click()
+    _button_by_text(pane, translate(DETAILS_MANUAL_BTN)).click()
 
     pane_texts = [label.text() for label in pane.findChildren(QLabel)]
     assert clicks == ["manual"]
@@ -245,9 +247,9 @@ def test_scan_and_settings_widgets_public_signals(monkeypatch) -> None:
     folder.path_changed.connect(path_updates.append)
     folder.set_path("F:/Anime")
     folder.set_dry_run_enabled(True)
-    _button_by_text(folder, FOLDER_SCAN_BAR_BUTTON_SCAN).click()
-    _button_by_text(folder, FOLDER_SCAN_BAR_BUTTON_MATCH).click()
-    _button_by_text(folder, FOLDER_SCAN_BAR_BUTTON_DRY_RUN).click()
+    _button_by_text(folder, translate(ORG_SCANBAR_BTN_SCAN)).click()
+    _button_by_text(folder, translate(ORG_SCANBAR_BTN_MATCH)).click()
+    _button_by_text(folder, translate(ORG_SCANBAR_BTN_DRY_RUN)).click()
     folder.changeEvent(QEvent(QEvent.Type.FontChange))
     assert scans == ["F:/Anime"]
     assert matches == ["match"]
@@ -286,7 +288,7 @@ def test_scan_and_settings_widgets_public_signals(monkeypatch) -> None:
     standalone_bar = SettingsActionBar()
     standalone_emitted: list[str] = []
     standalone_bar.save_clicked.connect(lambda: standalone_emitted.append("save"))
-    _button_by_text(standalone_bar, "Save").click()
+    _button_by_text(standalone_bar, translate(SETTINGS_ACTION_SAVE)).click()
     assert standalone_emitted == ["save"]
 
     for widget in (appearance, folder, scan_card, stats, stat_card, actions, standalone_bar):
@@ -318,8 +320,11 @@ def test_dry_run_dialog_public_tree_and_apply_signal() -> None:
 
     tree = dialog.findChildren(QTreeWidget)[0]
     group_item = tree.topLevelItem(0)
+    assert group_item is not None
     first_resolution_item = group_item.child(0)
+    assert first_resolution_item is not None
     first_move_item = first_resolution_item.child(0)
+    assert first_move_item is not None
     assert tree.topLevelItemCount() == 1
     assert group_item.text(0) == "Frieren"
     assert group_item.text(1) == "1080p / 720p"
@@ -333,13 +338,15 @@ def test_dry_run_dialog_public_tree_and_apply_signal() -> None:
         str(Path("F:/Anime/Frieren - 01.mkv").parent)
     ]
     assert group_item.data(3, Qt.ItemDataRole.UserRole) is None
-    assert {group_item.child(i).text(1) for i in range(group_item.childCount())} == {
-        "1080p",
-        "720p",
-    }
+    res_labels: set[str] = set()
+    for i in range(group_item.childCount()):
+        child = group_item.child(i)
+        assert child is not None
+        res_labels.add(child.text(1))
+    assert res_labels == {"1080p", "720p"}
     assert first_move_item.text(2) == "F:/Anime/Frieren - 01.mkv"
 
-    _button_by_text(dialog, DRY_RUN_DIALOG_BUTTON_APPLY).click()
+    _button_by_text(dialog, translate(DRY_RUN_BTN_APPLY)).click()
     assert emitted == ["apply"]
     dialog.close()
 
@@ -359,6 +366,7 @@ def test_dry_run_dialog_group_label_truncated_with_tooltip() -> None:
     )
     tree = dialog.findChildren(QTreeWidget)[0]
     group_item = tree.topLevelItem(0)
+    assert group_item is not None
     assert len(group_item.text(0)) == 32
     assert group_item.text(0).endswith("...")
     assert group_item.toolTip(0) == full_title

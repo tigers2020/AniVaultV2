@@ -2,8 +2,9 @@
 
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from anivault.constants.gui.copy import TOPBAR_DEFAULT_DESCRIPTION, TOPBAR_DEFAULT_TITLE
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.i18n import translate
+from anivault.interfaces.gui.i18n.keys import PAGE_ORGANIZER_DESC, PAGE_ORGANIZER_TITLE
 
 
 class Topbar(QWidget):
@@ -15,10 +16,10 @@ class Topbar(QWidget):
         layout.setContentsMargins(0, 0, 0, theme.topbar_bottom_gap_px())
         left = QVBoxLayout()
         left.setSpacing(theme.panel_header_stack_gap_px())
-        self._title = QLabel(TOPBAR_DEFAULT_TITLE)
+        self._title = QLabel(translate(PAGE_ORGANIZER_TITLE))
         self._title.setStyleSheet(theme.topbar_title())
         left.addWidget(self._title)
-        self._desc = QLabel(TOPBAR_DEFAULT_DESCRIPTION)
+        self._desc = QLabel(translate(PAGE_ORGANIZER_DESC))
         self._desc.setStyleSheet(theme.topbar_desc())
         self._desc.setWordWrap(True)
         left.addWidget(self._desc)

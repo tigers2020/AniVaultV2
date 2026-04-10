@@ -343,6 +343,21 @@ class PosterCard(QFrame):
         self._title_text = title
         self._title_lbl.setText(title)
 
+    def set_meta(self, meta: str) -> None:
+        """컴팩트 카드의 메타 한 줄을 바꾼다.
+
+        Args:
+            self: 이 위젯.
+            meta: 새 메타 텍스트.
+
+        Returns:
+            None.
+        """
+        self._meta_text = meta
+        if self._meta_lbl is not None:
+            self._meta_lbl.setText(meta)
+            self._apply_compact_elide()
+
     def resizeEvent(self, event) -> None:
         """너비에 맞춰 이미지 높이·카드 전체 높이·컴팩트 말줄임을 갱신한다.
 

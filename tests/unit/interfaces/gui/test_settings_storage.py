@@ -41,6 +41,47 @@ def test_get_defaults_uses_canonical_settings_schema() -> None:
     assert defaults["parse_tmdb"] == DEFAULT_PARSE_TMDB
     assert defaults["scan_build"] == DEFAULT_SCAN_BUILD
     assert "theme" not in defaults
+    assert "language" not in defaults
+
+
+def test_load_all_includes_language_default(tmp_path: Path, monkeypatch) -> None:
+    config_dir = tmp_path / ".anivault"
+    config_file = config_dir / "config.json"
+    monkeypatch.setattr(settings_storage, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(settings_storage, "CONFIG_FILE", config_file)
+
+    loaded = settings_storage.load_all()
+    assert loaded["language"] == "ko"
+
+
+def test_load_all_merges_and_normalizes_language(tmp_path: Path, monkeypatch) -> None:
+    config_dir = tmp_path / ".anivault"
+    config_file = config_dir / "config.json"
+    config_dir.mkdir(parents=True)
+    config_file.write_text(
+        json.dumps({"language": "en", "theme": "dark"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(settings_storage, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(settings_storage, "CONFIG_FILE", config_file)
+
+    loaded = settings_storage.load_all()
+    assert loaded["language"] == "en"
+
+    config_file.write_text(json.dumps({"language": "fr"}), encoding="utf-8")
+    loaded_bad = settings_storage.load_all()
+    assert loaded_bad["language"] == "ko"
+
+
+def test_save_all_normalizes_language_scalar(tmp_path: Path, monkeypatch) -> None:
+    config_dir = tmp_path / ".anivault"
+    config_file = config_dir / "config.json"
+    monkeypatch.setattr(settings_storage, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(settings_storage, "CONFIG_FILE", config_file)
+
+    settings_storage.save_all({"language": "bad"})
+    data = json.loads(config_file.read_text(encoding="utf-8"))
+    assert data["language"] == "ko"
 
 
 def test_settings_helpers_merge_defaults_for_partial_loaded_payload() -> None:

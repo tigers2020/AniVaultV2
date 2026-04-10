@@ -19,25 +19,26 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from anivault.constants.gui.components import (
-    TMDB_MANUAL_DIALOG_BUTTON_CANCEL,
-    TMDB_MANUAL_DIALOG_BUTTON_OK,
-    TMDB_MANUAL_DIALOG_BUTTON_SEARCH,
-    TMDB_MANUAL_DIALOG_EMPTY_SELECTION_MESSAGE,
-    TMDB_MANUAL_DIALOG_EMPTY_SELECTION_TITLE,
-    TMDB_MANUAL_DIALOG_LABEL_QUERY,
-    TMDB_MANUAL_DIALOG_LABEL_YEAR,
-    TMDB_MANUAL_DIALOG_QUERY_PLACEHOLDER,
-    TMDB_MANUAL_DIALOG_RESULT_ITEM_TEMPLATE,
-    TMDB_MANUAL_DIALOG_RESULTS_TITLE,
-    TMDB_MANUAL_DIALOG_TITLE,
-    TMDB_MANUAL_DIALOG_UNKNOWN_TITLE,
-    TMDB_MANUAL_DIALOG_UNKNOWN_YEAR,
-    TMDB_MANUAL_DIALOG_YEAR_PLACEHOLDER,
-)
 from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Button, LineEdit
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n.keys import (
+    DLG_TMDB_BTN_CANCEL,
+    DLG_TMDB_BTN_OK,
+    DLG_TMDB_BTN_SEARCH,
+    DLG_TMDB_EMPTY_SEL_MESSAGE,
+    DLG_TMDB_EMPTY_SEL_TITLE,
+    DLG_TMDB_LABEL_QUERY,
+    DLG_TMDB_LABEL_YEAR,
+    DLG_TMDB_QUERY_PLACEHOLDER,
+    DLG_TMDB_RESULT_ITEM,
+    DLG_TMDB_RESULTS_TITLE,
+    DLG_TMDB_TITLE,
+    DLG_TMDB_UNKNOWN_TITLE,
+    DLG_TMDB_UNKNOWN_YEAR,
+    DLG_TMDB_YEAR_PLACEHOLDER,
+)
 
 
 class TmdbManualMatchDialog(QDialog):
@@ -47,7 +48,6 @@ class TmdbManualMatchDialog(QDialog):
 
     def __init__(self, parent=None, *, default_query: str = "") -> None:
         super().__init__(parent)
-        self.setWindowTitle(TMDB_MANUAL_DIALOG_TITLE)
         self.setMinimumSize(520, 420)
         self.setStyleSheet(theme.card_panel())
         self._candidates: list[TmdbSeriesCandidate] = []
@@ -56,23 +56,24 @@ class TmdbManualMatchDialog(QDialog):
         layout = QVBoxLayout(self)
         form = QFormLayout()
         self._query = LineEdit()
-        self._query.setPlaceholderText(TMDB_MANUAL_DIALOG_QUERY_PLACEHOLDER)
         dq = (default_query or "").strip()
         if dq:
             self._query.setText(dq)
-        form.addRow(TMDB_MANUAL_DIALOG_LABEL_QUERY, self._query)
+        self._lbl_query = QLabel()
+        form.addRow(self._lbl_query, self._query)
         self._year = LineEdit()
-        self._year.setPlaceholderText(TMDB_MANUAL_DIALOG_YEAR_PLACEHOLDER)
-        form.addRow(TMDB_MANUAL_DIALOG_LABEL_YEAR, self._year)
+        self._lbl_year = QLabel()
+        form.addRow(self._lbl_year, self._year)
         layout.addLayout(form)
 
-        layout.addWidget(QLabel(TMDB_MANUAL_DIALOG_RESULTS_TITLE))
+        self._results_title = QLabel()
+        layout.addWidget(self._results_title)
         self._list = QListWidget()
         self._list.setAlternatingRowColors(True)
         layout.addWidget(self._list, 1)
 
         search_row = QHBoxLayout()
-        self._search_btn = Button(TMDB_MANUAL_DIALOG_BUTTON_SEARCH, "primary")
+        self._search_btn = Button("", "primary")
         self._search_btn.clicked.connect(self._emit_search)
         search_row.addWidget(self._search_btn)
         search_row.addStretch(1)
@@ -80,13 +81,49 @@ class TmdbManualMatchDialog(QDialog):
 
         actions = QHBoxLayout()
         actions.addStretch(1)
-        ok_btn = Button(TMDB_MANUAL_DIALOG_BUTTON_OK, "primary")
-        ok_btn.clicked.connect(self._on_accept)
-        cancel_btn = Button(TMDB_MANUAL_DIALOG_BUTTON_CANCEL, "default")
-        cancel_btn.clicked.connect(self.reject)
-        actions.addWidget(ok_btn)
-        actions.addWidget(cancel_btn)
+        self._ok_btn = Button("", "primary")
+        self._ok_btn.clicked.connect(self._on_accept)
+        self._cancel_btn = Button("", "default")
+        self._cancel_btn.clicked.connect(self.reject)
+        actions.addWidget(self._ok_btn)
+        actions.addWidget(self._cancel_btn)
         layout.addLayout(actions)
+        self.retranslate_ui()
+        get_i18n_service().language_changed.connect(self.retranslate_ui)
+
+    def retranslate_ui(self) -> None:
+        self.setWindowTitle(translate(DLG_TMDB_TITLE))
+        self._lbl_query.setText(translate(DLG_TMDB_LABEL_QUERY))
+        self._query.setPlaceholderText(translate(DLG_TMDB_QUERY_PLACEHOLDER))
+        self._lbl_year.setText(translate(DLG_TMDB_LABEL_YEAR))
+        self._year.setPlaceholderText(translate(DLG_TMDB_YEAR_PLACEHOLDER))
+        self._results_title.setText(translate(DLG_TMDB_RESULTS_TITLE))
+        self._search_btn.setText(translate(DLG_TMDB_BTN_SEARCH))
+        self._ok_btn.setText(translate(DLG_TMDB_BTN_OK))
+        self._cancel_btn.setText(translate(DLG_TMDB_BTN_CANCEL))
+        self._refresh_list_labels()
+
+    def _refresh_list_labels(self) -> None:
+        if not self._candidates:
+            return
+        self._list.clear()
+        for candidate in self._candidates:
+            year = _year_label(candidate.first_air_date)
+            title = (candidate.name_ko or candidate.original_name or "").strip()
+            title = title or translate(DLG_TMDB_UNKNOWN_TITLE)
+            sub = (candidate.original_name or "").strip()
+            line = title if not sub or sub == title else f"{title} / {sub}"
+            item = QListWidgetItem(
+                translate(
+                    DLG_TMDB_RESULT_ITEM,
+                    line=line,
+                    tmdb_id=candidate.tmdb_id,
+                    year=year,
+                )
+            )
+            self._list.addItem(item)
+        if self._list.count():
+            self._list.setCurrentRow(0)
 
     def _parse_year(self) -> int | None:
         raw = (self._year.text() or "").strip()
@@ -107,23 +144,7 @@ class TmdbManualMatchDialog(QDialog):
 
     def set_candidates(self, candidates: list[TmdbSeriesCandidate]) -> None:
         self._candidates = list(candidates)
-        self._list.clear()
-        for candidate in self._candidates:
-            year = _year_label(candidate.first_air_date)
-            title = (candidate.name_ko or candidate.original_name or "").strip()
-            title = title or TMDB_MANUAL_DIALOG_UNKNOWN_TITLE
-            sub = (candidate.original_name or "").strip()
-            line = title if not sub or sub == title else f"{title} / {sub}"
-            item = QListWidgetItem(
-                TMDB_MANUAL_DIALOG_RESULT_ITEM_TEMPLATE.format(
-                    line=line,
-                    tmdb_id=candidate.tmdb_id,
-                    year=year,
-                )
-            )
-            self._list.addItem(item)
-        if self._list.count():
-            self._list.setCurrentRow(0)
+        self._refresh_list_labels()
 
     def selected_candidate(self) -> TmdbSeriesCandidate | None:
         return self._chosen
@@ -133,8 +154,8 @@ class TmdbManualMatchDialog(QDialog):
         if row < 0 or row >= len(self._candidates):
             QMessageBox.information(
                 self,
-                TMDB_MANUAL_DIALOG_EMPTY_SELECTION_TITLE,
-                TMDB_MANUAL_DIALOG_EMPTY_SELECTION_MESSAGE,
+                translate(DLG_TMDB_EMPTY_SEL_TITLE),
+                translate(DLG_TMDB_EMPTY_SEL_MESSAGE),
             )
             return
         self._chosen = self._candidates[row]
@@ -145,4 +166,4 @@ def _year_label(iso_date: str) -> str:
     date_text = (iso_date or "").strip()
     if len(date_text) >= 4:
         return date_text[:4]
-    return TMDB_MANUAL_DIALOG_UNKNOWN_YEAR
+    return translate(DLG_TMDB_UNKNOWN_YEAR)

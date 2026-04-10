@@ -10,32 +10,22 @@ import re
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFrame, QVBoxLayout
 
-from anivault.constants.gui.components import (
-    PATH_RULES_FORM_HEADER_DESCRIPTION,
-    PATH_RULES_FORM_HEADER_TITLE,
-    PATH_RULES_FORM_LABEL_TARGET_ROOT,
-    PATH_RULES_FORM_LABEL_TEMPLATE,
-    PATH_RULES_FORM_LABEL_UNKNOWN_GROUP,
-    PATH_RULES_FORM_LABEL_UNKNOWN_RESOLUTION,
-)
-from anivault.constants.gui.forms import PATH_TEMPLATE_EXAMPLES
 from anivault.constants.gui.settings import DEFAULT_PATH_RULES
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import FormField, PanelHeader
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n import keys as K
 
 
-def _template_to_example(template: str) -> str:
-    def repl(match: re.Match[str]) -> str:
-        key = match.group(1)
-        base = key.split(":")[0]
-        return PATH_TEMPLATE_EXAMPLES.get(base, f"{{{key}}}")
-
-    return re.sub(r"\{([^}]+)\}", repl, template)
-
-
-def _path_template_label(template: str) -> str:
-    example = _template_to_example(template)
-    return f"{PATH_RULES_FORM_LABEL_TEMPLATE} ({example})"
+def _path_template_examples() -> dict[str, str]:
+    return {
+        "target": translate(K.PATH_TMPL_EX_TARGET),
+        "resolution": translate(K.PATH_TMPL_EX_RESOLUTION),
+        "year": translate(K.PATH_TMPL_EX_YEAR),
+        "korean_title_group": translate(K.PATH_TMPL_EX_KOREAN_GROUP),
+        "season": translate(K.PATH_TMPL_EX_SEASON),
+        "original_filename": translate(K.PATH_TMPL_EX_FILENAME),
+    }
 
 
 class PathRulesForm(QFrame):
@@ -47,31 +37,33 @@ class PathRulesForm(QFrame):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(
-            PanelHeader(PATH_RULES_FORM_HEADER_TITLE, PATH_RULES_FORM_HEADER_DESCRIPTION)
+        self._header = PanelHeader(
+            translate(K.SETTINGS_PATH_RULES_TITLE),
+            translate(K.SETTINGS_PATH_RULES_DESC),
         )
+        layout.addWidget(self._header)
         body = QVBoxLayout()
         body_padding = theme.settings_card_body_padding_px()
         body.setContentsMargins(body_padding, body_padding, body_padding, body_padding)
         body.setSpacing(theme.settings_section_gap_px())
         self._target_root = FormField(
-            PATH_RULES_FORM_LABEL_TARGET_ROOT,
+            translate(K.SETTINGS_PATH_LABEL_TARGET),
             "path",
             str(DEFAULT_PATH_RULES["target_root"]),
         )
         self._path_template = FormField(
-            PATH_RULES_FORM_LABEL_TEMPLATE,
+            translate(K.SETTINGS_PATH_LABEL_TEMPLATE),
             "line",
             str(DEFAULT_PATH_RULES["path_template"]),
-            label_updater=_path_template_label,
+            label_updater=self._path_template_label,
         )
         self._unknown_resolution = FormField(
-            PATH_RULES_FORM_LABEL_UNKNOWN_RESOLUTION,
+            translate(K.SETTINGS_PATH_LABEL_UNKNOWN_RES),
             "line",
             str(DEFAULT_PATH_RULES["unknown_resolution"]),
         )
         self._unknown_group = FormField(
-            PATH_RULES_FORM_LABEL_UNKNOWN_GROUP,
+            translate(K.SETTINGS_PATH_LABEL_UNKNOWN_GRP),
             "line",
             str(DEFAULT_PATH_RULES["unknown_group_folder"]),
         )
@@ -85,6 +77,30 @@ class PathRulesForm(QFrame):
             field.value_changed.connect(self.settings_changed.emit)
         layout.addLayout(body)
         self.setStyleSheet(theme.card_panel())
+        get_i18n_service().language_changed.connect(self.retranslate_ui)
+
+    def _path_template_label(self, template: str) -> str:
+        examples = _path_template_examples()
+
+        def repl(match: re.Match[str]) -> str:
+            key = match.group(1)
+            base = key.split(":")[0]
+            return examples.get(base, f"{{{key}}}")
+
+        example = re.sub(r"\{([^}]+)\}", repl, template)
+        return f"{translate(K.SETTINGS_PATH_LABEL_TEMPLATE)} ({example})"
+
+    def retranslate_ui(self) -> None:
+        self._header.set_header_texts(
+            translate(K.SETTINGS_PATH_RULES_TITLE),
+            translate(K.SETTINGS_PATH_RULES_DESC),
+        )
+        self._target_root.apply_static_label(translate(K.SETTINGS_PATH_LABEL_TARGET))
+        self._target_root.retranslate_path_placeholder()
+        self._unknown_resolution.apply_static_label(translate(K.SETTINGS_PATH_LABEL_UNKNOWN_RES))
+        self._unknown_group.apply_static_label(translate(K.SETTINGS_PATH_LABEL_UNKNOWN_GRP))
+        self._path_template.apply_static_label(translate(K.SETTINGS_PATH_LABEL_TEMPLATE))
+        self._path_template.set_label_updater(self._path_template_label)
 
     def get_values(self) -> dict[str, str]:
         return {

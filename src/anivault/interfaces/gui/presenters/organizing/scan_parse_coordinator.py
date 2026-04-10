@@ -18,19 +18,8 @@ from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
 
 from anivault.constants.gui.components import (
-    PIPELINE_BUSY_MESSAGE,
-    PIPELINE_BUSY_TITLE,
     SCAN_PARSE_COORDINATOR_MID_SCAN_MODEL_MAX_GROUPS,
-    SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_MESSAGE,
-    SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_TITLE,
     SCAN_PARSE_COORDINATOR_RESULT_GROUP_CHUNK_SIZE,
-    SCAN_PARSE_COORDINATOR_SCAN_PATH_EMPTY_MESSAGE,
-    SCAN_PARSE_COORDINATOR_SCAN_PATH_ERROR_MESSAGE_TEMPLATE,
-    SCAN_PARSE_COORDINATOR_SCAN_PATH_ERROR_TITLE,
-    SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_MESSAGE_TEMPLATE,
-    SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_TITLE,
-    SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_MESSAGE,
-    SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_TITLE,
     SCAN_PARSE_COORDINATOR_STATUS_PARSED,
 )
 from anivault.contracts.parse import ParseInput, ParseResult
@@ -38,6 +27,20 @@ from anivault.contracts.pipeline import MatchInput, MatchResult, PipelineRow
 from anivault.contracts.progress import ProgressEvent, progress_dialog_value_and_maximum
 from anivault.contracts.scan import ScanInput, ScanResult
 from anivault.interfaces.gui.components.molecules import ProgressDialog
+from anivault.interfaces.gui.i18n import translate
+from anivault.interfaces.gui.i18n.keys import (
+    ORG_PARSE_PROGRESS_MESSAGE,
+    ORG_PARSE_PROGRESS_TITLE,
+    ORG_PIPELINE_BUSY_MESSAGE,
+    ORG_PIPELINE_BUSY_TITLE,
+    ORG_SCAN_PATH_EMPTY_MESSAGE,
+    ORG_SCAN_PATH_ERROR_MESSAGE,
+    ORG_SCAN_PATH_ERROR_TITLE,
+    ORG_SCAN_PATH_MISSING_MESSAGE,
+    ORG_SCAN_PATH_MISSING_TITLE,
+    ORG_SCAN_PROGRESS_MESSAGE,
+    ORG_SCAN_PROGRESS_TITLE,
+)
 from anivault.interfaces.gui.models import (
     PipelineGroupRow,
     PipelineTableModel,
@@ -164,16 +167,13 @@ class ScanParseCoordinator(QObject):
                 return True
         except OSError as e:
             self._warn_scan_path(
-                SCAN_PARSE_COORDINATOR_SCAN_PATH_ERROR_TITLE,
-                SCAN_PARSE_COORDINATOR_SCAN_PATH_ERROR_MESSAGE_TEMPLATE.format(
-                    path=path,
-                    error=e,
-                ),
+                translate(ORG_SCAN_PATH_ERROR_TITLE),
+                translate(ORG_SCAN_PATH_ERROR_MESSAGE, path=path, error=e),
             )
             return False
         self._warn_scan_path(
-            SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_TITLE,
-            SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_MESSAGE_TEMPLATE.format(path=path),
+            translate(ORG_SCAN_PATH_MISSING_TITLE),
+            translate(ORG_SCAN_PATH_MISSING_MESSAGE, path=path),
         )
         return False
 
@@ -190,8 +190,8 @@ class ScanParseCoordinator(QObject):
         if not path:
             self._clear_stale_progress_dialog()
             self._warn_scan_path(
-                SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_TITLE,
-                SCAN_PARSE_COORDINATOR_SCAN_PATH_EMPTY_MESSAGE,
+                translate(ORG_SCAN_PATH_MISSING_TITLE),
+                translate(ORG_SCAN_PATH_EMPTY_MESSAGE),
             )
             return
         if not self._scan_path_is_usable_directory(path):
@@ -200,7 +200,11 @@ class ScanParseCoordinator(QObject):
         if presenter_runtime.has_active_pipeline_work(self._p):
             parent = presenter_runtime.parent_widget(self._p)
             if isinstance(parent, QWidget):
-                QMessageBox.information(parent, PIPELINE_BUSY_TITLE, PIPELINE_BUSY_MESSAGE)
+                QMessageBox.information(
+                    parent,
+                    translate(ORG_PIPELINE_BUSY_TITLE),
+                    translate(ORG_PIPELINE_BUSY_MESSAGE),
+                )
             return
         self._start_scan_worker(path)
 
@@ -240,8 +244,8 @@ class ScanParseCoordinator(QObject):
                 dialog=dialog,
                 worker=worker,
                 signals=signals,
-                title=SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_TITLE,
-                message=SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_MESSAGE,
+                title=translate(ORG_SCAN_PROGRESS_TITLE),
+                message=translate(ORG_SCAN_PROGRESS_MESSAGE),
                 indeterminate=True,
                 on_progress_with_token=self._on_progress,
                 on_finished=lambda: self._on_scan_thread_finished(dialog),
@@ -388,8 +392,8 @@ class ScanParseCoordinator(QObject):
                 dialog=dialog,
                 worker=worker,
                 signals=signals,
-                title=SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_TITLE,
-                message=SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_MESSAGE,
+                title=translate(ORG_PARSE_PROGRESS_TITLE),
+                message=translate(ORG_PARSE_PROGRESS_MESSAGE),
                 indeterminate=False,
                 on_progress_with_token=self._on_progress,
                 on_finished=lambda: presenter_runtime.finish_worker_session(

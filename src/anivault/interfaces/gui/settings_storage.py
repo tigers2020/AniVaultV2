@@ -18,6 +18,7 @@ from anivault.constants.gui.settings import (
     SCAN_BUILD_BOOL_KEYS,
     SCAN_BUILD_KEYS,
     default_settings_payload,
+    normalize_ui_language,
 )
 
 
@@ -146,6 +147,8 @@ def _merge_loaded_data(result: dict[str, Any], data: dict[str, Any]) -> None:
     """
     if "theme" in data:
         result["theme"] = str(data["theme"])
+    if "language" in data:
+        result["language"] = normalize_ui_language(data["language"])
 
     _merge_string_key_group(
         target_group=_result_group(result, "path_rules"),
@@ -237,6 +240,8 @@ def save_all(data: dict[str, Any]) -> None:
     """
     _ensure_dir()
     to_merge = dict(data)
+    if "language" in to_merge:
+        to_merge["language"] = normalize_ui_language(to_merge["language"])
     parse_tmdb = to_merge.get("parse_tmdb")
     if isinstance(parse_tmdb, dict):
         to_merge["parse_tmdb"] = {

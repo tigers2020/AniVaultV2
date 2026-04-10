@@ -11,20 +11,6 @@ from anivault.application.use_cases.match_series import (
     apply_tmdb_candidate_to_file_rows,
     persist_manual_tmdb_selection,
 )
-from anivault.constants.gui.components import (
-    MATCH_COORDINATOR_EMPTY_QUERY_MESSAGE,
-    MATCH_COORDINATOR_EMPTY_QUERY_TITLE,
-    MATCH_COORDINATOR_MISSING_API_MESSAGE,
-    MATCH_COORDINATOR_MISSING_API_TITLE,
-    MATCH_COORDINATOR_NO_ROWS_MESSAGE,
-    MATCH_COORDINATOR_NO_ROWS_TITLE,
-    MATCH_COORDINATOR_NO_SELECTION_MESSAGE,
-    MATCH_COORDINATOR_NO_SELECTION_TITLE,
-    MATCH_COORDINATOR_PROGRESS_MESSAGE,
-    MATCH_COORDINATOR_PROGRESS_TITLE,
-    PIPELINE_BUSY_MESSAGE,
-    PIPELINE_BUSY_TITLE,
-)
 from anivault.contracts.pipeline import MatchInput, MatchResult, PipelineRow
 from anivault.contracts.progress import (
     ProgressEvent,
@@ -33,6 +19,21 @@ from anivault.contracts.progress import (
 from anivault.contracts.tmdb import TmdbSearchInput, TmdbSeriesCandidate
 from anivault.domain.path_norm import normalize_path_key
 from anivault.interfaces.gui.dialogs.tmdb_manual_match_dialog import TmdbManualMatchDialog
+from anivault.interfaces.gui.i18n import translate
+from anivault.interfaces.gui.i18n.keys import (
+    ORG_MATCH_EMPTY_QUERY_MESSAGE,
+    ORG_MATCH_EMPTY_QUERY_TITLE,
+    ORG_MATCH_MISSING_API_MESSAGE,
+    ORG_MATCH_MISSING_API_TITLE,
+    ORG_MATCH_NO_ROWS_MESSAGE,
+    ORG_MATCH_NO_ROWS_TITLE,
+    ORG_MATCH_NO_SELECTION_MESSAGE,
+    ORG_MATCH_NO_SELECTION_TITLE,
+    ORG_MATCH_PROGRESS_MESSAGE,
+    ORG_MATCH_PROGRESS_TITLE,
+    ORG_PIPELINE_BUSY_MESSAGE,
+    ORG_PIPELINE_BUSY_TITLE,
+)
 from anivault.interfaces.gui.models import PipelineGroupRow, group_pipeline_rows
 from anivault.interfaces.gui.presenters import organizer_runtime as presenter_runtime
 from anivault.interfaces.gui.presenters.organizing.manual_tmdb_relay import (
@@ -71,14 +72,18 @@ class MatchCoordinator(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.warning(
                     parent,
-                    MATCH_COORDINATOR_MISSING_API_TITLE,
-                    MATCH_COORDINATOR_MISSING_API_MESSAGE,
+                    translate(ORG_MATCH_MISSING_API_TITLE),
+                    translate(ORG_MATCH_MISSING_API_MESSAGE),
                 )
             return
         if presenter_runtime.has_active_pipeline_work(self._p):
             parent = presenter_runtime.parent_widget(self._p)
             if isinstance(parent, QWidget):
-                QMessageBox.information(parent, PIPELINE_BUSY_TITLE, PIPELINE_BUSY_MESSAGE)
+                QMessageBox.information(
+                    parent,
+                    translate(ORG_PIPELINE_BUSY_TITLE),
+                    translate(ORG_PIPELINE_BUSY_MESSAGE),
+                )
             return
 
         rows = presenter_runtime.flat_rows(self._p)
@@ -87,8 +92,8 @@ class MatchCoordinator(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.information(
                     parent,
-                    MATCH_COORDINATOR_NO_ROWS_TITLE,
-                    MATCH_COORDINATOR_NO_ROWS_MESSAGE,
+                    translate(ORG_MATCH_NO_ROWS_TITLE),
+                    translate(ORG_MATCH_NO_ROWS_MESSAGE),
                 )
             return
 
@@ -109,8 +114,8 @@ class MatchCoordinator(QObject):
                 dialog=dialog,
                 worker=worker,
                 signals=signals,
-                title=MATCH_COORDINATOR_PROGRESS_TITLE,
-                message=MATCH_COORDINATOR_PROGRESS_MESSAGE,
+                title=translate(ORG_MATCH_PROGRESS_TITLE),
+                message=translate(ORG_MATCH_PROGRESS_MESSAGE),
                 indeterminate=False,
                 on_progress_with_token=self._on_progress,
                 on_finished=lambda: presenter_runtime.finish_worker_session(
@@ -146,8 +151,8 @@ class MatchCoordinator(QObject):
             return
         QMessageBox.warning(
             parent,
-            MATCH_COORDINATOR_MISSING_API_TITLE,
-            MATCH_COORDINATOR_MISSING_API_MESSAGE,
+            translate(ORG_MATCH_MISSING_API_TITLE),
+            translate(ORG_MATCH_MISSING_API_MESSAGE),
         )
 
     def _selected_pipeline_group_index_or_warn(
@@ -162,8 +167,8 @@ class MatchCoordinator(QObject):
         if parent is not None:
             QMessageBox.information(
                 parent,
-                MATCH_COORDINATOR_NO_SELECTION_TITLE,
-                MATCH_COORDINATOR_NO_SELECTION_MESSAGE,
+                translate(ORG_MATCH_NO_SELECTION_TITLE),
+                translate(ORG_MATCH_NO_SELECTION_MESSAGE),
             )
         return None
 
@@ -257,7 +262,11 @@ class MatchCoordinator(QObject):
             dlg.set_search_busy(False)
             parent = presenter_runtime.parent_widget(self._p)
             if isinstance(parent, QWidget):
-                QMessageBox.information(parent, PIPELINE_BUSY_TITLE, PIPELINE_BUSY_MESSAGE)
+                QMessageBox.information(
+                    parent,
+                    translate(ORG_PIPELINE_BUSY_TITLE),
+                    translate(ORG_PIPELINE_BUSY_MESSAGE),
+                )
             return
         q = (query or "").strip()
         if not q:
@@ -266,8 +275,8 @@ class MatchCoordinator(QObject):
             if isinstance(parent, QWidget):
                 QMessageBox.warning(
                     parent,
-                    MATCH_COORDINATOR_EMPTY_QUERY_TITLE,
-                    MATCH_COORDINATOR_EMPTY_QUERY_MESSAGE,
+                    translate(ORG_MATCH_EMPTY_QUERY_TITLE),
+                    translate(ORG_MATCH_EMPTY_QUERY_MESSAGE),
                 )
             return
         y: int | None = year if year is None or isinstance(year, int) else None

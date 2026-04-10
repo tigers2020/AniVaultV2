@@ -22,19 +22,12 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from anivault.constants.gui.components import (
-    DRY_RUN_DIALOG_BUTTON_APPLY,
-    DRY_RUN_DIALOG_BUTTON_CLOSE,
-    DRY_RUN_DIALOG_HEADER_DESTINATION,
-    DRY_RUN_DIALOG_HEADER_GROUP,
-    DRY_RUN_DIALOG_HEADER_RESOLUTION,
-    DRY_RUN_DIALOG_HEADER_SOURCE,
-    DRY_RUN_DIALOG_TITLE,
-)
 from anivault.contracts.planning import PlanMovePreviewMeta
 from anivault.domain.models.file_operation import FileOperation
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Button
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n import keys as K
 
 _GROUP_LABEL_DISPLAY_MAX_CHARS: int = 32
 
@@ -179,7 +172,7 @@ class DryRunDialog(QDialog):
         if len(moves) != len(move_preview):
             raise ValueError("DryRunDialog requires preview metadata for every move")
 
-        self.setWindowTitle(DRY_RUN_DIALOG_TITLE)
+        self.setWindowTitle(translate(K.DRY_RUN_TITLE))
         self.setMinimumSize(900, 480)
         self.setStyleSheet(theme.card_panel())
 
@@ -188,10 +181,10 @@ class DryRunDialog(QDialog):
         self._tree.setColumnCount(4)
         self._tree.setHeaderLabels(
             [
-                DRY_RUN_DIALOG_HEADER_GROUP,
-                DRY_RUN_DIALOG_HEADER_RESOLUTION,
-                DRY_RUN_DIALOG_HEADER_SOURCE,
-                DRY_RUN_DIALOG_HEADER_DESTINATION,
+                translate(K.DRY_RUN_HDR_GROUP),
+                translate(K.DRY_RUN_HDR_RESOLUTION),
+                translate(K.DRY_RUN_HDR_SOURCE),
+                translate(K.DRY_RUN_HDR_DEST),
             ]
         )
         header = self._tree.header()
@@ -208,13 +201,27 @@ class DryRunDialog(QDialog):
 
         actions = QHBoxLayout()
         actions.addStretch(1)
-        apply_btn = Button(DRY_RUN_DIALOG_BUTTON_APPLY, "primary")
-        apply_btn.clicked.connect(self._on_apply_clicked)
-        close_btn = Button(DRY_RUN_DIALOG_BUTTON_CLOSE, "default")
-        close_btn.clicked.connect(self.reject)
-        actions.addWidget(apply_btn)
-        actions.addWidget(close_btn)
+        self._apply_btn = Button(translate(K.DRY_RUN_BTN_APPLY), "primary")
+        self._apply_btn.clicked.connect(self._on_apply_clicked)
+        self._close_btn = Button(translate(K.DRY_RUN_BTN_CLOSE), "default")
+        self._close_btn.clicked.connect(self.reject)
+        actions.addWidget(self._apply_btn)
+        actions.addWidget(self._close_btn)
         layout.addLayout(actions)
+        get_i18n_service().language_changed.connect(self.retranslate_ui)
+
+    def retranslate_ui(self) -> None:
+        self.setWindowTitle(translate(K.DRY_RUN_TITLE))
+        self._tree.setHeaderLabels(
+            [
+                translate(K.DRY_RUN_HDR_GROUP),
+                translate(K.DRY_RUN_HDR_RESOLUTION),
+                translate(K.DRY_RUN_HDR_SOURCE),
+                translate(K.DRY_RUN_HDR_DEST),
+            ]
+        )
+        self._apply_btn.setText(translate(K.DRY_RUN_BTN_APPLY))
+        self._close_btn.setText(translate(K.DRY_RUN_BTN_CLOSE))
 
     def _on_apply_clicked(self) -> None:
         self.apply_requested.emit()

@@ -5,6 +5,7 @@ from typing import Any
 from PySide6.QtCore import QObject
 
 from anivault.bootstrap.env_file import read_tmdb_api_key, write_tmdb_api_key
+from anivault.interfaces.gui.i18n import get_i18n_service
 from anivault.interfaces.gui.settings_storage import get_defaults, load_all, save_all
 from anivault.interfaces.gui.themes import save_theme, set_current_theme
 
@@ -80,3 +81,7 @@ class SettingsPresenter(QObject):
     def on_theme_changed(self, theme_name: str) -> None:
         set_current_theme(theme_name)
         save_theme(theme_name)
+
+    def on_language_changed(self, language_code: str) -> None:
+        normalized = get_i18n_service().set_current_language(language_code, emit_signal=True)
+        save_all({"language": normalized})

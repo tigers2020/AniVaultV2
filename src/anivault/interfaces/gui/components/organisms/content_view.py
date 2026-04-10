@@ -5,20 +5,11 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QScrollArea, QSplitter, QVBoxLayout, QWidget
 
-from anivault.constants.gui.components import (
-    CONTENT_VIEW_GROUP_FILES_LABEL,
-    CONTENT_VIEW_META_JOINER,
-    CONTENT_VIEW_MULTI_FILE_SUFFIX,
-    CONTENT_VIEW_ORIGINAL_FILE_LABEL,
-    CONTENT_VIEW_PARSED_LABEL,
-    CONTENT_VIEW_PATH_LABEL,
-    CONTENT_VIEW_RESOLUTION_LABEL,
-    CONTENT_VIEW_TMDB_LABEL,
-    CONTENT_VIEW_YEAR_SEASON_LABEL,
-)
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Label
 from anivault.interfaces.gui.components.molecules import PosterCard
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n import keys as K
 from anivault.interfaces.gui.models import PipelineGroupRow, pipeline_group_display_image_url
 
 
@@ -104,6 +95,17 @@ class ContentView(QFrame):
         self._groups: list[PipelineGroupRow] = []
         self._cards: list[PosterCard] = []
         self._selected_index = -1
+        get_i18n_service().language_changed.connect(self.retranslate_ui)
+
+    def retranslate_ui(self) -> None:
+        if self._groups:
+            for i, card in enumerate(self._cards):
+                if i < len(self._groups):
+                    card.set_meta(self._compact_meta_for_group(self._groups[i]))
+            if 0 <= self._selected_index < len(self._groups):
+                self._meta_label.setText(
+                    self._meta_html_for_group(self._groups[self._selected_index])
+                )
 
     def poster_cards(self) -> list[PosterCard]:
         return list(self._cards)
@@ -117,16 +119,17 @@ class ContentView(QFrame):
             if widget is not None:
                 widget.deleteLater()
 
-    @staticmethod
-    def _compact_meta_for_group(group: PipelineGroupRow) -> str:
+    def _compact_meta_for_group(self, group: PipelineGroupRow) -> str:
         meta_parts: list[str] = []
+        suffix = translate(K.CONTENT_MULTI_SUFFIX)
         if len(group.members) > 1:
-            meta_parts.append(f"{len(group.members)}{CONTENT_VIEW_MULTI_FILE_SUFFIX}")
+            meta_parts.append(f"{len(group.members)}{suffix}")
+        joiner = translate(K.CONTENT_META_JOINER)
         for part in (group.year, group.season, group.resolution):
             value = (part or "").strip()
             if value:
                 meta_parts.append(value)
-        return CONTENT_VIEW_META_JOINER.join(meta_parts)
+        return joiner.join(meta_parts)
 
     @staticmethod
     def _group_card_title(group: PipelineGroupRow) -> str:
@@ -158,26 +161,29 @@ class ContentView(QFrame):
         if self._groups:
             self._on_select(0)
 
-    @staticmethod
-    def _meta_html_for_group(group: PipelineGroupRow) -> str:
+    def _group_files_heading(self, n: int) -> str:
+        unit = translate(K.CONTENT_FILE_COUNT_INLINE).format(count=n)
+        return f"<b>{translate(K.CONTENT_LBL_GROUP_FILES)} {unit}</b>"
+
+    def _meta_html_for_group(self, group: PipelineGroupRow) -> str:
         if len(group.members) > 1:
             files_html = "<br>".join(Path(member.original_file).name for member in group.members)
             return (
-                f"<b>{CONTENT_VIEW_GROUP_FILES_LABEL} ({len(group.members)}개)</b><br>{files_html}<br><br>"
-                f"<b>{CONTENT_VIEW_PARSED_LABEL}:</b> {group.parsed_title}<br>"
-                f"<b>{CONTENT_VIEW_TMDB_LABEL}:</b> {group.tmdb_korean_title_group}<br>"
-                f"<b>{CONTENT_VIEW_YEAR_SEASON_LABEL}:</b> {group.year} / {group.season}<br>"
-                f"<b>{CONTENT_VIEW_RESOLUTION_LABEL}:</b> {group.resolution}<br>"
-                f"<b>{CONTENT_VIEW_PATH_LABEL}:</b> {group.target_path}"
+                f"{self._group_files_heading(len(group.members))}<br>{files_html}<br><br>"
+                f"<b>{translate(K.CONTENT_LBL_PARSED)}:</b> {group.parsed_title}<br>"
+                f"<b>{translate(K.CONTENT_LBL_TMDB)}:</b> {group.tmdb_korean_title_group}<br>"
+                f"<b>{translate(K.CONTENT_LBL_YEAR_SEASON)}:</b> {group.year} / {group.season}<br>"
+                f"<b>{translate(K.CONTENT_LBL_RESOLUTION)}:</b> {group.resolution}<br>"
+                f"<b>{translate(K.CONTENT_LBL_PATH)}:</b> {group.target_path}"
             )
         row = group.representative()
         return (
-            f"<b>{CONTENT_VIEW_ORIGINAL_FILE_LABEL}:</b> {row.original_file}<br>"
-            f"<b>{CONTENT_VIEW_PARSED_LABEL}:</b> {row.parsed_title}<br>"
-            f"<b>{CONTENT_VIEW_TMDB_LABEL}:</b> {row.tmdb_korean_title_group}<br>"
-            f"<b>{CONTENT_VIEW_YEAR_SEASON_LABEL}:</b> {row.year} / {row.season}<br>"
-            f"<b>{CONTENT_VIEW_RESOLUTION_LABEL}:</b> {row.resolution}<br>"
-            f"<b>{CONTENT_VIEW_PATH_LABEL}:</b> {row.target_path}"
+            f"<b>{translate(K.CONTENT_LBL_ORIGINAL)}:</b> {row.original_file}<br>"
+            f"<b>{translate(K.CONTENT_LBL_PARSED)}:</b> {row.parsed_title}<br>"
+            f"<b>{translate(K.CONTENT_LBL_TMDB)}:</b> {row.tmdb_korean_title_group}<br>"
+            f"<b>{translate(K.CONTENT_LBL_YEAR_SEASON)}:</b> {row.year} / {row.season}<br>"
+            f"<b>{translate(K.CONTENT_LBL_RESOLUTION)}:</b> {row.resolution}<br>"
+            f"<b>{translate(K.CONTENT_LBL_PATH)}:</b> {row.target_path}"
         )
 
     def _on_select(self, index: int) -> None:

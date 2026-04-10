@@ -8,9 +8,10 @@ Author: Pom Kim
 from PySide6.QtCore import QObject, Slot
 from PySide6.QtWidgets import QMessageBox
 
-from anivault.constants.gui.components import MANUAL_TMDB_RELAY_ERROR_TITLE
 from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.interfaces.gui.dialogs.tmdb_manual_match_dialog import TmdbManualMatchDialog
+from anivault.interfaces.gui.i18n import translate
+from anivault.interfaces.gui.i18n.keys import ORG_MANUAL_TMDB_ERROR_TITLE
 
 
 class ManualTmdbSearchRelay(QObject):
@@ -67,4 +68,4 @@ class ManualTmdbSearchRelay(QObject):
             None.
         """
         self._dlg.set_search_busy(False)
-        QMessageBox.warning(self._dlg, MANUAL_TMDB_RELAY_ERROR_TITLE, str(exc))
+        QMessageBox.warning(self._dlg, translate(ORG_MANUAL_TMDB_ERROR_TITLE), str(exc))

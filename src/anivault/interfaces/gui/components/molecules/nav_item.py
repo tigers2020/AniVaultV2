@@ -56,3 +56,7 @@ class NavItem(QPushButton):
             tab_id 문자열.
         """
         return self._tab_id
+
+    def set_label_text(self, text: str) -> None:
+        """Update visible button label (e.g. after language change)."""
+        self.setText(text)

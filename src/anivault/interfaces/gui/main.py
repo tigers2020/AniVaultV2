@@ -24,6 +24,9 @@ def run() -> None:
     load_into_os_environ()
     load_saved_theme()
     app = QApplication(sys.argv)
+    from anivault.interfaces.gui.i18n import init_i18n_from_settings
+
+    init_i18n_from_settings(emit_signal=False)
     window = MainWindow()
     coordinator = _ThemeReapplyCoordinator(app=app, window=window)
 

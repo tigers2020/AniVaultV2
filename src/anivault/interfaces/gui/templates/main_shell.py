@@ -116,3 +116,7 @@ class MainShell(QWidget):
             Sidebar.
         """
         return self._sidebar
+
+    def retranslate_ui(self) -> None:
+        """Refresh translated strings on shell chrome."""
+        self._sidebar.retranslate_ui()

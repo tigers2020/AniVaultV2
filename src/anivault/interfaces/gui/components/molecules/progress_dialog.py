@@ -3,11 +3,9 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QProgressDialog, QWidget
 
-from anivault.constants.gui.components import (
-    PROGRESS_DIALOG_DEFAULT_MESSAGE,
-    PROGRESS_DIALOG_DEFAULT_TITLE,
-)
 from anivault.interfaces.gui import theme
+from anivault.interfaces.gui.i18n import translate
+from anivault.interfaces.gui.i18n.keys import PROGRESS_DEFAULT_MESSAGE, PROGRESS_DEFAULT_TITLE
 
 
 class ProgressDialog(QProgressDialog):
@@ -20,7 +18,7 @@ class ProgressDialog(QProgressDialog):
         self.setStyleSheet(theme.progress_dialog())
         self.setMinimumDuration(0)
         self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle(PROGRESS_DIALOG_DEFAULT_TITLE)
+        self.setWindowTitle(translate(PROGRESS_DEFAULT_TITLE))
         self.canceled.connect(self._on_canceled)
         self.setAutoClose(False)
         self.setAutoReset(False)
@@ -42,14 +40,20 @@ class ProgressDialog(QProgressDialog):
     def _on_canceled(self) -> None:
         self.finished.emit()
 
+    def retranslate_ui(self) -> None:
+        self.setWindowTitle(translate(PROGRESS_DEFAULT_TITLE))
+        if not self.isVisible():
+            self.setLabelText(translate(PROGRESS_DEFAULT_MESSAGE))
+
     def show_progress(
         self,
-        title: str = PROGRESS_DIALOG_DEFAULT_TITLE,
+        title: str | None = None,
         message: str = "",
         indeterminate: bool = True,
     ) -> None:
-        self.setWindowTitle(title)
-        self.setLabelText(message or PROGRESS_DIALOG_DEFAULT_MESSAGE)
+        resolved_title = translate(PROGRESS_DEFAULT_TITLE) if title is None else title
+        self.setWindowTitle(resolved_title)
+        self.setLabelText(message or translate(PROGRESS_DEFAULT_MESSAGE))
         self.setRange(0, 0 if indeterminate else 100)
         if indeterminate:
             self.setValue(0)

@@ -32,12 +32,24 @@ class StatCard(QFrame):
         body_padding = theme.card_body_padding_px()
         layout.setContentsMargins(body_padding, body_padding, body_padding, body_padding)
         layout.setSpacing(theme.panel_header_stack_gap_px())
-        lbl = Label(label_text, "stat")
-        layout.addWidget(lbl)
+        self._title_lbl = Label(label_text, "stat")
+        layout.addWidget(self._title_lbl)
         value_lbl = Label(value, "default")
         value_lbl.setStyleSheet(theme.stat_card_value())
         layout.addWidget(value_lbl)
         self.setStyleSheet(theme.stat_card())
+
+    def set_title(self, label_text: str) -> None:
+        """상단 지표 이름 라벨을 바꾼다.
+
+        Args:
+            self: 이 위젯.
+            label_text: 새 제목.
+
+        Returns:
+            None.
+        """
+        self._title_lbl.setText(label_text)
 
     def set_value(self, value: str) -> None:
         """두 번째 라벨(값) 텍스트를 바꾼다.

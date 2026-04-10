@@ -7,11 +7,14 @@ from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import QObject, Signal
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QScrollArea, QTabWidget, QWidget
 
 from anivault.interfaces.gui import app as app_module
+from anivault.interfaces.gui import i18n as i18n_module
 from anivault.interfaces.gui import main as main_module
 from anivault.interfaces.gui.app import MainWindow
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n import keys as K
 from anivault.interfaces.gui.pages import organizer_page as organizer_page_module
 from anivault.interfaces.gui.pages.organizer_page import OrganizerPage
 from anivault.interfaces.gui.pages.settings_page import SettingsPage
@@ -37,7 +40,14 @@ def test_main_window_helper_methods_delegate_to_shell_and_theme(monkeypatch) -> 
     timer = MagicMock()
     window._responsive_timer = timer  # type: ignore[attr-defined]
     window.size = lambda: SimpleNamespace(width=lambda: 1280, height=lambda: 720)  # type: ignore[attr-defined]
-    monkeypatch.setattr(app_module, "PAGE_META", {"organizer": ("Organizer", "Desc")})
+    monkeypatch.setattr(
+        app_module,
+        "translate",
+        lambda key, **kw: {
+            app_module.PAGE_ORGANIZER_TITLE: "Organizer",
+            app_module.PAGE_ORGANIZER_DESC: "Desc",
+        }.get(key, key),
+    )
     density_calls: list[tuple[int, int]] = []
     monkeypatch.setattr(
         app_module,
@@ -86,6 +96,7 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
 
     class FakeAppearanceCard(QWidget):
         theme_changed = Signal(str)
+        language_changed = Signal(str)
 
     class FakePathRulesForm(QWidget):
         pass
@@ -118,6 +129,9 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
         def on_theme_changed(self, *_args):
             pass  # test stub: signals not exercised in this case
 
+        def on_language_changed(self, *_args):
+            pass  # test stub: signals not exercised in this case
+
         def on_save_clicked(self):
             pass  # test stub: signals not exercised in this case
 
@@ -138,12 +152,7 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
     monkeypatch.setattr(settings_page_module.theme, "scroll_area_transparent", lambda: "scroll")
     monkeypatch.setattr(settings_page_module.theme, "page_section_gap_px", lambda: 19)
     monkeypatch.setattr(settings_page_module.theme, "settings_page_section_gap_px", lambda: 21)
-    monkeypatch.setattr(settings_page_module.theme, "settings_page_grid_gap_px", lambda: 17)
-    monkeypatch.setattr(settings_page_module.theme, "result_list_panel_min_width_px", lambda: 280)
-    super_calls: list[object] = []
-    monkeypatch.setattr(
-        settings_page_module.QWidget, "showEvent", lambda self, event: super_calls.append(event)
-    )
+    monkeypatch.setattr(settings_page_module.theme, "settings_tab_content_margins_px", lambda: 11)
 
     page = SettingsPage()
     assert isinstance(page, QWidget)
@@ -151,27 +160,67 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
     assert page._presenter.forms is not None  # type: ignore[attr-defined]
     page_layout = page.layout()
     assert page_layout is not None
-    scroll = page_layout.itemAt(0).widget()
-    assert scroll is not None
-    content = scroll.widget()
-    assert content is not None
-    content_layout = content.layout()
-    assert content_layout is not None
-    assert content_layout.spacing() == 21
-    assert content_layout.contentsMargins().bottom() == 19
-    settings_grid = content_layout.itemAt(0).layout()
-    assert settings_grid is not None
-    assert settings_grid.horizontalSpacing() == 17
-    assert settings_grid.verticalSpacing() == 17
-    assert settings_grid.columnMinimumWidth(0) == 280
-    assert settings_grid.columnMinimumWidth(1) == 280
-    actions_item = settings_grid.itemAtPosition(0, 0)
+    assert page_layout.spacing() == 21
+    tabs_item = page_layout.itemAt(0)
+    assert tabs_item is not None
+    tabs = tabs_item.widget()
+    assert isinstance(tabs, QTabWidget)
+    assert tabs.count() == 3
+    assert tabs.tabText(0) == translate(K.SETTINGS_TAB_GENERAL)
+    assert tabs.tabText(1) == translate(K.SETTINGS_TAB_PATHS)
+    assert tabs.tabText(2) == translate(K.SETTINGS_TAB_PARSE_TMDB)
+
+    actions_item = page_layout.itemAt(1)
     assert actions_item is not None
     assert actions_item.widget() is not None
     assert actions_item.widget().objectName() == "settings_actions_card"
-    page.showEvent("event")  # type: ignore[arg-type]
-    assert super_calls == ["event"]
-    assert page._presenter.load_calls == 1  # type: ignore[attr-defined]
+
+    general_scroll = tabs.widget(0)
+    assert isinstance(general_scroll, QScrollArea)
+    general_inner = general_scroll.widget()
+    assert general_inner is not None
+    general_layout = general_inner.layout()
+    assert general_layout is not None
+    assert general_layout.spacing() == 21
+    assert general_layout.contentsMargins().left() == 11
+    general_scan = general_layout.itemAt(0)
+    general_appearance = general_layout.itemAt(1)
+    assert general_scan is not None
+    assert general_appearance is not None
+    assert general_scan.widget() is not None
+    assert general_appearance.widget() is not None
+    assert general_scan.widget().objectName() == "settings_scan_card"
+    assert general_appearance.widget().objectName() == "settings_appearance_card"
+
+    paths_scroll = tabs.widget(1)
+    assert isinstance(paths_scroll, QScrollArea)
+    paths_inner = paths_scroll.widget()
+    assert paths_inner is not None
+    paths_layout = paths_inner.layout()
+    assert paths_layout is not None
+    paths_item = paths_layout.itemAt(0)
+    assert paths_item is not None
+    assert paths_item.widget() is not None
+    assert paths_item.widget().objectName() == "settings_path_rules_card"
+
+    parse_scroll = tabs.widget(2)
+    assert isinstance(parse_scroll, QScrollArea)
+    parse_inner = parse_scroll.widget()
+    assert parse_inner is not None
+    parse_layout = parse_inner.layout()
+    assert parse_layout is not None
+    parse_item = parse_layout.itemAt(0)
+    assert parse_item is not None
+    assert parse_item.widget() is not None
+    assert parse_item.widget().objectName() == "settings_parse_tmdb_card"
+
+    get_i18n_service().set_current_language("en", emit_signal=False)
+    page.retranslate_ui()
+    assert tabs.tabText(0) == "General"
+    assert tabs.tabText(1) == "Paths"
+    assert tabs.tabText(2) == "Parse & TMDB"
+
+    assert page._presenter.load_calls == 0  # type: ignore[attr-defined]
 
     presenter = FakePresenter()
     page_with_presenter = SettingsPage(presenter=cast(SettingsPresenter, presenter))
@@ -197,9 +246,17 @@ def test_main_window_constructor_wires_pages_and_timer(monkeypatch) -> None:
         def set_current_page(self, *_args) -> None:
             pass  # test stub: MainWindow only records add_page
 
+        def retranslate_ui(self) -> None:
+            # i18n refresh not exercised in this constructor wiring test.
+            pass
+
     class FakeProgressDialog(QObject):
         def __init__(self, parent=None):
             super().__init__(parent)
+
+        def retranslate_ui(self) -> None:
+            # Progress dialog strings not retranslated in this stub.
+            pass
 
     class FakePipelineTableModel(QObject):
         def __init__(self):
@@ -227,7 +284,8 @@ def test_main_window_constructor_wires_pages_and_timer(monkeypatch) -> None:
         def create_settings_page(self):
             return QWidget()
 
-        def close(self):
+        def close(self) -> None:
+            # Fake container: no resources to release in this test.
             pass
 
     fake_container.AniVaultAppContainer = FakeAppContainer
@@ -332,6 +390,7 @@ def test_main_run_initializes_app_and_registers_theme_callbacks(monkeypatch) -> 
 
     monkeypatch.setattr(main_module, "load_into_os_environ", lambda: events.append("env"))
     monkeypatch.setattr(main_module, "load_saved_theme", lambda: events.append("theme"))
+    monkeypatch.setattr(i18n_module, "init_i18n_from_settings", lambda **kwargs: None)
     monkeypatch.setattr(main_module, "QApplication", FakeApp)
     monkeypatch.setattr(main_module, "MainWindow", FakeWindow)
     monkeypatch.setattr(main_module, "_ThemeReapplyCoordinator", FakeCoordinator)
@@ -541,6 +600,33 @@ def test_organizer_page_show_event_skips_autoscan_for_blank_or_missing_path(monk
     assert page._auto_scan_done is False  # type: ignore[attr-defined]
 
 
+def test_organizer_page_show_event_does_not_persist_reloaded_path(monkeypatch) -> None:
+    page = OrganizerPage.__new__(OrganizerPage)
+    page._scan_bar = MagicMock()  # type: ignore[attr-defined]
+    page._presenter = cast(Any, SimpleNamespace(on_scan_clicked=MagicMock()))
+    page._auto_scan_done = True  # type: ignore[attr-defined]
+    page._syncing_scan_path = False  # type: ignore[attr-defined]
+
+    save_calls: list[dict[str, object]] = []
+    monkeypatch.setattr(organizer_page_module, "save_all", lambda data: save_calls.append(data))
+    monkeypatch.setattr(
+        organizer_page_module,
+        "load_all",
+        lambda: {"scan_build": {"source_path": "F:/Anime", "auto_scan_on_first_show": True}},
+    )
+    monkeypatch.setattr(organizer_page_module.QWidget, "showEvent", lambda self, event: None)
+
+    def _set_path(path: str) -> None:
+        page._on_scan_path_changed(path)  # type: ignore[attr-defined]
+
+    page._scan_bar.set_path.side_effect = _set_path  # type: ignore[attr-defined]
+
+    page.showEvent("event")  # type: ignore[arg-type]
+
+    assert save_calls == []
+    page._scan_bar.set_path.assert_called_once_with("F:/Anime")  # type: ignore[attr-defined]
+
+
 def test_organizer_page_constructor_wires_components(monkeypatch) -> None:
     _ensure_app()
 
@@ -586,6 +672,7 @@ def test_organizer_page_constructor_wires_components(monkeypatch) -> None:
             self.pipeline_busy_handler = handler
 
         def refresh_pipeline_action_bar_state(self) -> None:
+            # Organizer page stub: action bar state not asserted in this test.
             pass
 
         def set_pipeline_result_panel(self, panel):

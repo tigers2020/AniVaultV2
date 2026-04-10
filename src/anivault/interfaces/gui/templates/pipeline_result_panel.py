@@ -21,12 +21,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from anivault.constants.gui.components import (
-    PIPELINE_RESULT_PANEL_HEADER_DESCRIPTION,
-    PIPELINE_RESULT_PANEL_HEADER_TITLE,
-    PIPELINE_RESULT_PANEL_MATCHED_LABEL,
-    PIPELINE_RESULT_PANEL_UNMATCHED_LABEL,
-)
 from anivault.constants.gui.navigation import ICON_SIZES, VIEW_TO_INDEX
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import (
@@ -48,6 +42,8 @@ from anivault.interfaces.gui.components.organisms.content_view import ContentVie
 from anivault.interfaces.gui.components.organisms.details_pane import DetailsPane
 from anivault.interfaces.gui.components.organisms.pipeline_table import PipelineTable
 from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
+from anivault.interfaces.gui.i18n import get_i18n_service, translate
+from anivault.interfaces.gui.i18n import keys as K
 from anivault.interfaces.gui.models import (
     PipelineGroupRow,
     PipelineTableModel,
@@ -129,8 +125,8 @@ class PipelineResultPanel(QFrame):
 
         self._view_bar = ViewToggleBar()
         self._header = PanelHeader(
-            PIPELINE_RESULT_PANEL_HEADER_TITLE,
-            PIPELINE_RESULT_PANEL_HEADER_DESCRIPTION,
+            translate(K.ORG_PIPELINE_HEADER_TITLE),
+            translate(K.ORG_PIPELINE_HEADER_DESC),
             right_widget=self._view_bar,
         )
         layout.addWidget(self._header)
@@ -166,15 +162,15 @@ class PipelineResultPanel(QFrame):
         top_l = QVBoxLayout(top_wrap)
         top_l.setContentsMargins(0, 0, 0, 0)
         top_l.setSpacing(theme.compact_gap_px())
-        _lbl_m = QLabel(PIPELINE_RESULT_PANEL_MATCHED_LABEL)
-        top_l.addWidget(_lbl_m)
+        self._lbl_m = QLabel(translate(K.ORG_PIPELINE_ZONE_MATCHED))
+        top_l.addWidget(self._lbl_m)
         top_l.addWidget(self._matched_table, 1)
         bottom_wrap = QWidget()
         bottom_l = QVBoxLayout(bottom_wrap)
         bottom_l.setContentsMargins(0, 0, 0, 0)
         bottom_l.setSpacing(theme.compact_gap_px())
-        _lbl_u = QLabel(PIPELINE_RESULT_PANEL_UNMATCHED_LABEL)
-        bottom_l.addWidget(_lbl_u)
+        self._lbl_u = QLabel(translate(K.ORG_PIPELINE_ZONE_UNMATCHED))
+        bottom_l.addWidget(self._lbl_u)
         bottom_l.addWidget(self._unmatched_table, 1)
         details_splitter.addWidget(top_wrap)
         details_splitter.addWidget(bottom_wrap)
@@ -239,6 +235,18 @@ class PipelineResultPanel(QFrame):
         self._model.modelReset.connect(self._sync_views_from_model)
         self._model.dataChanged.connect(self._sync_views_from_model)
         self._restore_ui_state()
+        get_i18n_service().language_changed.connect(self.retranslate_ui)
+
+    def retranslate_ui(self) -> None:
+        self._header.set_header_texts(
+            translate(K.ORG_PIPELINE_HEADER_TITLE),
+            translate(K.ORG_PIPELINE_HEADER_DESC),
+        )
+        self._lbl_m.setText(translate(K.ORG_PIPELINE_ZONE_MATCHED))
+        self._lbl_u.setText(translate(K.ORG_PIPELINE_ZONE_UNMATCHED))
+        self._view_bar.retranslate_ui()
+        self._details_pane.retranslate_ui()
+        self._content_view.retranslate_ui()
 
     def _apply_list_content_for_view_key(self, key: str, rows: list[PipelineGroupRow]) -> None:
         """보기 키에 맞게만 콘텐츠 뷰를 채운다.
