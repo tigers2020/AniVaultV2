@@ -10,8 +10,8 @@ from anivault.adapters.persistence.sqlite.sqlite_library_index_repository import
 from anivault.adapters.persistence.sqlite.sqlite_title_group_repository import (
     SqliteTitleGroupRepository,
 )
-from anivault.application.dto.library_index import BulkMediaUpsertItem
-from anivault.application.dto.title_groups import TitleGroupMemberSync, TitleGroupSyncBundle
+from anivault.contracts.library_index import BulkMediaUpsertItem
+from anivault.contracts.title_groups import TitleGroupBundle, TitleGroupMember
 from anivault.domain.media.extensions import classify_media_kind
 
 
@@ -83,14 +83,14 @@ def test_sqlite_title_group_repository_replace_and_lookup(tmp_path: Path) -> Non
         repo.replace_root_title_groups(
             root_id,
             [
-                TitleGroupSyncBundle(
+                TitleGroupBundle(
                     group_key="Show",
                     group_type="parsed_title_norm",
                     canonical_title="Show",
                     canonical_title_normalized="show",
                     tmdb_series_id=None,
                     group_confidence=0.9,
-                    members=(TitleGroupMemberSync(resolved[0].id, "primary_video", 0.9),),
+                    members=(TitleGroupMember(resolved[0].id, "primary_video", 0.9),),
                 )
             ],
         )
@@ -113,14 +113,14 @@ def test_sqlite_title_group_repository_replace_members_and_bulk_lookup(tmp_path:
         repo.replace_root_title_groups(
             root_id,
             [
-                TitleGroupSyncBundle(
+                TitleGroupBundle(
                     group_key="Show",
                     group_type="parsed_title_norm",
                     canonical_title="Show",
                     canonical_title_normalized="show",
                     tmdb_series_id=None,
                     group_confidence=None,
-                    members=(TitleGroupMemberSync(resolved[0].id, "primary_video", 0.9),),
+                    members=(TitleGroupMember(resolved[0].id, "primary_video", 0.9),),
                 )
             ],
         )
@@ -130,8 +130,8 @@ def test_sqlite_title_group_repository_replace_members_and_bulk_lookup(tmp_path:
         repo.replace_group_members(
             group_id,
             [
-                TitleGroupMemberSync(resolved[0].id, "primary_video", 0.8),
-                TitleGroupMemberSync(resolved[1].id, "other", 0.6),
+                TitleGroupMember(resolved[0].id, "primary_video", 0.8),
+                TitleGroupMember(resolved[1].id, "other", 0.6),
             ],
         )
 

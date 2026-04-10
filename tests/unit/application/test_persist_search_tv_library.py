@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from anivault.application.dto.search_tv_library import SearchTvLibraryRecord
 from anivault.application.use_cases.persist_search_tv_library import make_execute
+from anivault.contracts.tmdb import SearchTvLibraryRecord
 
 
 def _sample_record(*, tmdb_id: int = 1) -> SearchTvLibraryRecord:

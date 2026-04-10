@@ -191,9 +191,21 @@ def test_main_window_constructor_wires_pages_and_timer(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "anivault.interfaces.gui.models", fake_models)
 
     fake_container: Any = types.ModuleType("anivault.bootstrap.container")
-    fake_container.create_organizer_page = lambda **_kwargs: QWidget()
-    fake_container.create_subtitle_organizer_page = lambda **_kwargs: QWidget()
-    fake_container.create_settings_page = lambda: QWidget()
+
+    class FakeAppContainer:
+        def create_organizer_page(self, **_kwargs):
+            return QWidget()
+
+        def create_subtitle_organizer_page(self, **_kwargs):
+            return QWidget()
+
+        def create_settings_page(self):
+            return QWidget()
+
+        def close(self):
+            pass
+
+    fake_container.AniVaultAppContainer = FakeAppContainer
     monkeypatch.setitem(sys.modules, "anivault.bootstrap.container", fake_container)
 
     window = MainWindow()

@@ -5,7 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from anivault.adapters.metadata.tmdb.provider import TmdbMetadataProvider
-from anivault.application.dto.search_tv_library import SearchTvLibraryRecord
+from anivault.contracts.tmdb import SearchTvLibraryRecord
 
 
 def test_search_series_invokes_persist_with_mapped_records() -> None:

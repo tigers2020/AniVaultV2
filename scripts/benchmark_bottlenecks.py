@@ -30,14 +30,14 @@ from anivault.adapters.persistence.sqlite import (
     SqliteTitleMatchRepository,
     create_connection,
 )
-from anivault.application.dto.match_result import MatchFileRow, MatchInput
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.use_cases.match_series import make_execute as make_match_execute
 from anivault.application.use_cases.scan_library import (
     _collect_resolutions_after_scan,
     _try_persist_library_index,
 )
+from anivault.contracts.pipeline import MatchInput, PipelineRow
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.domain.media.extensions import VIDEO_SCAN_EXTENSIONS
 
 
@@ -76,7 +76,7 @@ class _SlowStubMetadataProvider:
 
     def search_series(
         self, query: str, *, year: int | None = None
-    ) -> Sequence[TmdbSeriesCandidateDTO]:
+    ) -> Sequence[TmdbSeriesCandidate]:
         """짧은 지연 뒤 빈 결과를 반환한다.
 
         Args:
@@ -160,7 +160,7 @@ def _run_scan_segments(count: int) -> int:
     return 0
 
 
-def _match_rows_stub(groups: int, files_per_group: int) -> list[MatchFileRow]:
+def _match_rows_stub(groups: int, files_per_group: int) -> list[PipelineRow]:
     """그룹 수에 맞춰 MatchFileRow 목록을 생성한다.
 
     Args:
@@ -170,11 +170,11 @@ def _match_rows_stub(groups: int, files_per_group: int) -> list[MatchFileRow]:
     Returns:
         평탄화된 파일 행 목록.
     """
-    rows: list[MatchFileRow] = []
+    rows: list[PipelineRow] = []
     for g in range(groups):
         for j in range(files_per_group):
             rows.append(
-                MatchFileRow(
+                PipelineRow(
                     original_file=f"C:/dummy/show_{g:04d}_e{j + 1}.mkv",
                     parsed_title=f"Title{g}",
                     parse_group=f"group-{g}",
@@ -289,7 +289,6 @@ def _run_gui_sync(flat_count: int) -> int:
 
     from anivault.interfaces.gui.models import (
         PipelineGroupRow,
-        PipelineRow,
         PipelineTableModel,
         group_pipeline_rows,
     )

@@ -14,9 +14,8 @@ from anivault.adapters.metadata.tmdb.mapper import (
     tv_show_to_candidate,
     tv_show_to_search_tv_library_record,
 )
-from anivault.application.dto.search_tv_library import SearchTvLibraryRecord
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.constants.domain.matching import TMDB_MAX_CANDIDATES
+from anivault.contracts.tmdb import SearchTvLibraryRecord, TmdbSeriesCandidate
 
 
 class TmdbMetadataProvider:
@@ -43,7 +42,7 @@ class TmdbMetadataProvider:
 
     def search_series(
         self, query: str, *, year: int | None = None
-    ) -> Sequence[TmdbSeriesCandidateDTO]:
+    ) -> Sequence[TmdbSeriesCandidate]:
         """제목·연도로 TV 시리즈 후보를 검색한다.
 
         Args:

@@ -16,7 +16,7 @@ from anivault.interfaces.gui.models import (
     PipelineTableModel,
     group_pipeline_rows,
 )
-from anivault.interfaces.gui.templates import pipeline_result_panel as panel_module
+from anivault.interfaces.gui.templates import pipeline_result_state as panel_state_module
 from anivault.interfaces.gui.templates.pipeline_result_panel import PipelineResultPanel
 
 
@@ -135,7 +135,7 @@ def test_persist_and_restore_ui_state_round_trip(monkeypatch) -> None:
         current_view=lambda: VIEW_ICON_M,
     )
     saved: list[dict[str, object]] = []
-    monkeypatch.setattr(panel_module, "save_all", lambda payload: saved.append(payload))
+    monkeypatch.setattr(panel_state_module, "save_all", lambda payload: saved.append(payload))
 
     panel._persist_ui_state()  # type: ignore[attr-defined]
 
@@ -151,7 +151,7 @@ def test_persist_and_restore_ui_state_round_trip(monkeypatch) -> None:
     ]
 
     monkeypatch.setattr(
-        panel_module,
+        panel_state_module,
         "load_all",
         lambda: {
             "ui_state": {
@@ -240,8 +240,8 @@ def _ensure_qapp() -> QApplication:
 def test_panel_syncs_on_model_data_changed_without_reset(monkeypatch) -> None:
     """TMDB 증분 갱신(update_rows_if_compatible)은 dataChanged만 쏘므로 패널도 구독해야 한다."""
     _ensure_qapp()
-    monkeypatch.setattr(panel_module, "load_all", lambda: {})
-    monkeypatch.setattr(panel_module, "save_all", lambda _payload: None)
+    monkeypatch.setattr(panel_state_module, "load_all", lambda: {})
+    monkeypatch.setattr(panel_state_module, "save_all", lambda _payload: None)
 
     model = PipelineTableModel()
     panel = PipelineResultPanel(model=model)

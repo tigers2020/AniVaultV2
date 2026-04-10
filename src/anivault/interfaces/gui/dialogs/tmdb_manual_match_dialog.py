@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.constants.gui.components import (
     TMDB_MANUAL_DIALOG_BUTTON_CANCEL,
     TMDB_MANUAL_DIALOG_BUTTON_OK,
@@ -36,6 +35,7 @@ from anivault.constants.gui.components import (
     TMDB_MANUAL_DIALOG_UNKNOWN_YEAR,
     TMDB_MANUAL_DIALOG_YEAR_PLACEHOLDER,
 )
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Button, LineEdit
 
@@ -50,8 +50,8 @@ class TmdbManualMatchDialog(QDialog):
         self.setWindowTitle(TMDB_MANUAL_DIALOG_TITLE)
         self.setMinimumSize(520, 420)
         self.setStyleSheet(theme.card_panel())
-        self._candidates: list[TmdbSeriesCandidateDTO] = []
-        self._chosen: TmdbSeriesCandidateDTO | None = None
+        self._candidates: list[TmdbSeriesCandidate] = []
+        self._chosen: TmdbSeriesCandidate | None = None
 
         layout = QVBoxLayout(self)
         form = QFormLayout()
@@ -105,7 +105,7 @@ class TmdbManualMatchDialog(QDialog):
         self._query.setEnabled(not busy)
         self._year.setEnabled(not busy)
 
-    def set_candidates(self, candidates: list[TmdbSeriesCandidateDTO]) -> None:
+    def set_candidates(self, candidates: list[TmdbSeriesCandidate]) -> None:
         self._candidates = list(candidates)
         self._list.clear()
         for candidate in self._candidates:
@@ -125,7 +125,7 @@ class TmdbManualMatchDialog(QDialog):
         if self._list.count():
             self._list.setCurrentRow(0)
 
-    def selected_candidate(self) -> TmdbSeriesCandidateDTO | None:
+    def selected_candidate(self) -> TmdbSeriesCandidate | None:
         return self._chosen
 
     def _on_accept(self) -> None:

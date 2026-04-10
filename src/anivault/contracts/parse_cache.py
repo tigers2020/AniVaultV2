@@ -1,10 +1,10 @@
-"""DTOs for parse cache bulk read/write operations."""
+"""Parse cache contracts."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from anivault.application.dto.parse import ParsedInfo
+from anivault.domain.models import ParsedInfo
 
 
 @dataclass(frozen=True, slots=True)

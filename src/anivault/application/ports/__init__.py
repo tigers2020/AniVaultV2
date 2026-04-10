@@ -14,7 +14,13 @@ from anivault.application.ports.operation_log_port import OperationLogRepository
 from anivault.application.ports.organize_plan_port import OrganizePlanRepository
 from anivault.application.ports.parse_cache_port import ParseCacheRepository
 from anivault.application.ports.poster_sync_port import PosterAssetSyncPort
-from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.application.ports.title_match_port import (
+    GroupMatchRepository,
+    PosterAssetRepository,
+    SearchCacheRepository,
+    TitleMatchRepository,
+    TmdbSeriesRepository,
+)
 from anivault.application.ports.tmdb_search_tv_library_port import TmdbSearchTvLibraryRepository
 from anivault.application.ports.video_stream_resolution_port import VideoStreamResolutionPort
 
@@ -28,6 +34,10 @@ __all__ = [
     "OrganizePlanRepository",
     "ParseCacheRepository",
     "PosterAssetSyncPort",
+    "SearchCacheRepository",
+    "TmdbSeriesRepository",
+    "GroupMatchRepository",
+    "PosterAssetRepository",
     "TitleMatchRepository",
     "TmdbSearchTvLibraryRepository",
     "VideoStreamResolutionPort",

@@ -6,8 +6,8 @@ from pathlib import Path
 from threading import Event
 from typing import Any
 
-from anivault.application.dto.scan import ScanInput
 from anivault.application.use_cases.scan_library import make_execute
+from anivault.contracts.scan import ScanInput
 
 
 class _FileRepo:

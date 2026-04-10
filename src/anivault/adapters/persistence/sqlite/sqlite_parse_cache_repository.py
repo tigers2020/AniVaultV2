@@ -10,18 +10,18 @@ from threading import Lock
 from typing import Any
 
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
-from anivault.application.dto.parse import ParsedInfo
-from anivault.application.dto.parse_cache import (
-    ParseCacheErrorWrite,
-    ParseCacheLookup,
-    ParseCacheOkWrite,
-)
-from anivault.application.dto.parse_serde import parsed_info_from_compact_json
 from anivault.constants.adapters.sqlite import SQLITE_ERROR_DTO_JSON, SQLITE_LOOKUP_CHUNK
 from anivault.constants.application.statuses import (
     PARSE_CACHE_STATUS_ERROR,
     PARSE_CACHE_STATUS_OK,
 )
+from anivault.contracts.parse_cache import (
+    ParseCacheErrorWrite,
+    ParseCacheLookup,
+    ParseCacheOkWrite,
+)
+from anivault.domain.models import ParsedInfo
+from anivault.domain.models.parsed_info_serde import parsed_info_from_compact_json
 from anivault.domain.parsing.parser_version import PARSER_VERSION
 
 logger = logging.getLogger(__name__)
@@ -122,10 +122,17 @@ class SqliteParseCacheRepository:
         Returns:
             None.
         """
+        started_transaction = False
+        savepoint_name: str | None = None
         with self._lock:
             self._resolution_write_depth += 1
             if self._resolution_write_depth == 1:
-                self._conn.execute("BEGIN IMMEDIATE")
+                if self._conn.in_transaction:
+                    savepoint_name = "__parse_cache_resolution_batch__"
+                    self._conn.execute(f"SAVEPOINT {savepoint_name}")
+                else:
+                    self._conn.execute("BEGIN IMMEDIATE")
+                    started_transaction = True
         ok = False
         try:
             yield
@@ -134,10 +141,17 @@ class SqliteParseCacheRepository:
             with self._lock:
                 self._resolution_write_depth -= 1
                 if self._resolution_write_depth == 0:
-                    if ok:
-                        self._conn.commit()
-                    else:
-                        self._conn.rollback()
+                    if savepoint_name is not None:
+                        if ok:
+                            self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+                        else:
+                            self._conn.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
+                            self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+                    elif started_transaction:
+                        if ok:
+                            self._conn.commit()
+                        else:
+                            self._conn.rollback()
 
     def get_valid_parse(self, media_file_id: int, signature: str) -> ParsedInfo | None:
         """Return one valid cache hit, or None."""

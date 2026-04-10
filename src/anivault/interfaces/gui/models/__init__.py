@@ -5,11 +5,11 @@ GUI 모델: 파이프라인 테이블 행 DTO·프록시 모델.
 Author: Pom Kim
 """
 
+from anivault.contracts.pipeline import PipelineRow
 from anivault.interfaces.gui.models.pipeline_proxy_model import PipelineProxyModel
 from anivault.interfaces.gui.models.pipeline_table_model import PipelineTableModel
 from anivault.interfaces.gui.models.ui_rows import (
     PipelineGroupRow,
-    PipelineRow,
     group_pipeline_rows,
     pipeline_group_display_image_url,
     pipeline_row_ready_for_plan,

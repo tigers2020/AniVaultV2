@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from anivault.application.dto.search_tv_library import SearchTvLibraryRecord
 from anivault.application.ports.tmdb_search_tv_library_port import TmdbSearchTvLibraryRepository
+from anivault.contracts.tmdb import SearchTvLibraryRecord
 
 
 def make_execute(

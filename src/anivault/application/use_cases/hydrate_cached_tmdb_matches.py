@@ -5,56 +5,71 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
+from typing import Protocol
 
-from anivault.application.dto.match_result import MatchFileRow, MatchInput, MatchResult
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.ports.title_group_port import TitleGroupRepository
-from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.application.ports.title_match_port import (
+    GroupMatchRepository,
+    PosterAssetRepository,
+    TmdbSeriesRepository,
+)
 from anivault.constants.application.statuses import (
     MATCH_STATUS_AUTO_MATCHED,
     MATCH_STATUS_CONFIRMED,
     POSTER_ASSET_KIND_POSTER,
 )
 from anivault.constants.gui.components import PIPELINE_ROW_STATUS_TMDB_CACHED
+from anivault.contracts.pipeline import MatchInput, MatchResult, PipelineRow
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.poster_display import resolve_final_poster_display_source
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
 from anivault.domain.rules.tmdb_image_url import tmdb_backdrop_cdn_url, tmdb_poster_cdn_url
 
 
-def _group_key(row: MatchFileRow) -> str:
-    pg = (row.parse_group or "").strip()
-    if pg:
-        return pg
-    pt = (row.parsed_title or "").strip()
-    if pt:
-        return pt
+class _HydrateTitleMatchRepository(
+    GroupMatchRepository,
+    TmdbSeriesRepository,
+    PosterAssetRepository,
+    Protocol,
+):
+    """Capabilities required for cache-only TMDB hydration."""
+
+
+def _group_key(row: PipelineRow) -> str:
+    parse_group = (row.parse_group or "").strip()
+    if parse_group:
+        return parse_group
+    parsed_title = (row.parsed_title or "").strip()
+    if parsed_title:
+        return parsed_title
     return row.original_file
 
 
 def _year_prefix(iso_date: str) -> str:
-    d = (iso_date or "").strip()
-    return d[:4] if len(d) >= 4 else ""
+    date_value = (iso_date or "").strip()
+    return date_value[:4] if len(date_value) >= 4 else ""
 
 
 def _lexical_path_key(path: str) -> str:
-    p = Path(path).expanduser()
-    s = p.as_posix()
-    if len(s) > 1 and s.endswith("/"):
-        s = s.rstrip("/")
-        if s.endswith(":"):
-            s = s + "/"
+    path_obj = Path(path).expanduser()
+    path_text = path_obj.as_posix()
+    if len(path_text) > 1 and path_text.endswith("/"):
+        path_text = path_text.rstrip("/")
+        if path_text.endswith(":"):
+            path_text += "/"
     if os.name == "nt" or sys.platform.startswith("win"):
-        return os.path.normcase(s)
-    return s
+        return os.path.normcase(path_text)
+    return path_text
 
 
 def _apply_cached_candidate(
-    row: MatchFileRow,
-    candidate: TmdbSeriesCandidateDTO,
+    row: PipelineRow,
+    candidate: TmdbSeriesCandidate,
     poster_local_path_for: Callable[[int, str, str], str | None],
-) -> MatchFileRow:
+) -> PipelineRow:
     poster_remote = normalize_tmdb_remote_image_path(candidate.poster_path)
     backdrop_remote = normalize_tmdb_remote_image_path(candidate.backdrop_path)
     poster_cdn = tmdb_poster_cdn_url(poster_remote)
@@ -68,26 +83,20 @@ def _apply_cached_candidate(
         )
     poster_display = resolve_final_poster_display_source(local_poster, poster_cdn)
     year = _year_prefix(candidate.first_air_date)
-    return MatchFileRow(
-        original_file=row.original_file,
-        parsed_title=row.parsed_title,
-        parse_group=row.parse_group,
+    return replace(
+        row,
         tmdb_korean_title_group=(candidate.name_ko or "").strip() or row.tmdb_korean_title_group,
         tmdb_series_id=str(candidate.tmdb_id),
         tmdb_poster_path=poster_remote or row.tmdb_poster_path,
         tmdb_backdrop_path=backdrop_remote or row.tmdb_backdrop_path,
         year=year or row.year,
-        season=row.season,
-        resolution=row.resolution,
         status=PIPELINE_ROW_STATUS_TMDB_CACHED if (candidate.name_ko or "").strip() else row.status,
         poster_url=poster_display or row.poster_url,
         backdrop_url=backdrop_cdn or row.backdrop_url,
-        target_path=row.target_path,
-        episode=row.episode,
     )
 
 
-def _collect_group_paths(files: list[MatchFileRow]) -> tuple[
+def _collect_group_paths(files: list[PipelineRow]) -> tuple[
     dict[str, list[str]],
     dict[str, list[str]],
     list[str],
@@ -157,19 +166,17 @@ def _apply_fallback_group_ids(
 
 def _candidate_by_current_group(
     *,
-    title_match: TitleMatchRepository,
+    title_match: _HydrateTitleMatchRepository,
     group_id_by_current_group: dict[str, int],
-) -> dict[str, TmdbSeriesCandidateDTO]:
-    matches_by_group_id = title_match.get_group_matches(
-        list(group_id_by_current_group.values()),
-    )
+) -> dict[str, TmdbSeriesCandidate]:
+    matches_by_group_id = title_match.get_group_matches(list(group_id_by_current_group.values()))
     tmdb_ids = [
         match.tmdb_id
         for match in matches_by_group_id.values()
         if match.match_status in (MATCH_STATUS_AUTO_MATCHED, MATCH_STATUS_CONFIRMED)
     ]
     candidates_by_tmdb_id = title_match.get_series_candidates(tmdb_ids)
-    result: dict[str, TmdbSeriesCandidateDTO] = {}
+    result: dict[str, TmdbSeriesCandidate] = {}
     for current_group_key, group_id in group_id_by_current_group.items():
         match = matches_by_group_id.get(group_id)
         if match is None or match.match_status not in (
@@ -185,7 +192,7 @@ def _candidate_by_current_group(
 
 
 def _build_poster_local_path_getter(
-    title_match: TitleMatchRepository,
+    title_match: PosterAssetRepository,
 ) -> Callable[[int, str, str], str | None]:
     poster_local_path_cache: dict[tuple[int, str, str], str | None] = {}
 
@@ -207,31 +214,27 @@ def _build_poster_local_path_getter(
 
 
 def _hydrate_rows(
-    files: list[MatchFileRow],
-    candidate_by_current_group: dict[str, TmdbSeriesCandidateDTO],
+    files: list[PipelineRow],
+    candidate_by_current_group: dict[str, TmdbSeriesCandidate],
     poster_local_path_for: Callable[[int, str, str], str | None],
-) -> list[MatchFileRow]:
-    hydrated: list[MatchFileRow] = []
+) -> list[PipelineRow]:
+    hydrated: list[PipelineRow] = []
     for row in files:
-        current_group_key = _group_key(row)
-        candidate = candidate_by_current_group.get(current_group_key)
-        if candidate is None:
-            hydrated.append(row)
-            continue
-        hydrated.append(_apply_cached_candidate(row, candidate, poster_local_path_for))
+        candidate = candidate_by_current_group.get(_group_key(row))
+        hydrated.append(
+            row
+            if candidate is None
+            else _apply_cached_candidate(row, candidate, poster_local_path_for)
+        )
     return hydrated
 
 
 def make_execute(
     *,
-    title_match: TitleMatchRepository,
+    title_match: _HydrateTitleMatchRepository,
     title_groups: TitleGroupRepository,
 ) -> Callable[[MatchInput], MatchResult]:
-    """Create a cache-only TMDB hydration function.
-
-    This function never calls a metadata provider or the network. It only reads
-    title_groups, group_tmdb_matches, tmdb_series, and poster_assets.
-    """
+    """Create a cache-only TMDB hydration function."""
 
     def execute(input_dto: MatchInput) -> MatchResult:
         root_id = input_dto.index_root_id
@@ -246,8 +249,7 @@ def make_execute(
         ) = _collect_group_paths(files)
 
         group_id_by_path_norm = title_groups.get_group_ids_for_path_norms(
-            root_id,
-            all_lexical_norms,
+            root_id, all_lexical_norms
         )
         group_id_by_current_group, missing_current_groups = _resolve_group_ids_from_norms(
             lexical_norms_by_current_group,
@@ -266,11 +268,7 @@ def make_execute(
             group_id_by_current_group=group_id_by_current_group,
         )
         poster_local_path_for = _build_poster_local_path_getter(title_match)
-        hydrated = _hydrate_rows(
-            files,
-            candidate_by_current_group,
-            poster_local_path_for,
-        )
+        hydrated = _hydrate_rows(files, candidate_by_current_group, poster_local_path_for)
         return MatchResult(files=tuple(hydrated), groups=())
 
     return execute

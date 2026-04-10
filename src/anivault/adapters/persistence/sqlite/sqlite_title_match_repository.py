@@ -19,8 +19,7 @@ from anivault.adapters.persistence.sqlite.sqlite_time import (
     is_utc_sqlite_text_expired,
     utc_now_sqlite_text,
 )
-from anivault.application.dto.title_match import GroupTmdbMatchRecord, MatchStatusDto
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
+from anivault.adapters.persistence.sqlite.sqlite_transaction import sqlite_transaction
 from anivault.constants.adapters.sqlite import (
     SQLITE_LOOKUP_CHUNK,
     SQLITE_TITLE_MATCH_FIND_SERIES_DEFAULT_LIMIT,
@@ -37,6 +36,8 @@ from anivault.constants.application.statuses import (
     POSTER_ASSET_STATUS_READY,
     POSTER_ASSET_STATUS_STALE,
 )
+from anivault.contracts.title_match import GroupTmdbMatchRecord, MatchStatus
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
 from anivault.domain.rules.tmdb_search_query import (
     compact_compare_key,
@@ -198,7 +199,7 @@ class SqliteTitleMatchRepository:
 
     def upsert_series(
         self,
-        candidate: TmdbSeriesCandidateDTO,
+        candidate: TmdbSeriesCandidate,
         *,
         raw_json: str,
         expires_at: str,
@@ -273,7 +274,7 @@ class SqliteTitleMatchRepository:
                 self._conn.rollback()
                 raise
 
-    def get_series_candidate(self, tmdb_id: int) -> TmdbSeriesCandidateDTO | None:
+    def get_series_candidate(self, tmdb_id: int) -> TmdbSeriesCandidate | None:
         """미만료 시리즈 후보를 읽는다.
 
         Args:
@@ -303,7 +304,7 @@ class SqliteTitleMatchRepository:
     def get_series_candidates(
         self,
         tmdb_ids: list[int],
-    ) -> dict[int, TmdbSeriesCandidateDTO]:
+    ) -> dict[int, TmdbSeriesCandidate]:
         """Return non-expired TMDB candidates for multiple ids."""
         cleaned: list[int] = []
         seen: set[int] = set()
@@ -314,7 +315,7 @@ class SqliteTitleMatchRepository:
                 cleaned.append(tid)
         if not cleaned:
             return {}
-        out: dict[int, TmdbSeriesCandidateDTO] = {}
+        out: dict[int, TmdbSeriesCandidate] = {}
         with self._lock:
             for start in range(0, len(cleaned), SQLITE_LOOKUP_CHUNK):
                 chunk = cleaned[start : start + SQLITE_LOOKUP_CHUNK]
@@ -346,7 +347,7 @@ class SqliteTitleMatchRepository:
         query: str,
         *,
         limit: int = SQLITE_TITLE_MATCH_FIND_SERIES_DEFAULT_LIMIT,
-    ) -> list[TmdbSeriesCandidateDTO]:
+    ) -> list[TmdbSeriesCandidate]:
         """미만료 `tmdb_series`에서 제목 유사 후보를 찾는다.
 
         Args:
@@ -446,7 +447,7 @@ class SqliteTitleMatchRepository:
         self,
         group_id: int,
         tmdb_id: int,
-        match_status: MatchStatusDto,
+        match_status: MatchStatus,
         match_score: float | None,
     ) -> None:
         """그룹 매칭과 title_groups.tmdb_series_id를 갱신한다.
@@ -464,35 +465,29 @@ class SqliteTitleMatchRepository:
         now = utc_now_sqlite_text()
         gid = int(group_id)
         tid = int(tmdb_id)
-        with self._lock:
-            self._conn.execute("BEGIN")
-            try:
+        with self._lock, sqlite_transaction(self._conn):
+            self._conn.execute(
+                GROUP_TMDB_MATCH_UPSERT_SQL,
+                (gid, tid, match_status, match_score, now, now),
+            )
+            if match_status == MATCH_STATUS_REJECTED:
                 self._conn.execute(
-                    GROUP_TMDB_MATCH_UPSERT_SQL,
-                    (gid, tid, match_status, match_score, now, now),
-                )
-                if match_status == MATCH_STATUS_REJECTED:
-                    self._conn.execute(
-                        """
+                    """
                         UPDATE title_groups
                         SET tmdb_series_id = NULL, updated_at = ?
                         WHERE id = ?
                         """,
-                        (now, gid),
-                    )
-                else:
-                    self._conn.execute(
-                        """
+                    (now, gid),
+                )
+            else:
+                self._conn.execute(
+                    """
                         UPDATE title_groups
                         SET tmdb_series_id = ?, updated_at = ?
                         WHERE id = ?
                         """,
-                        (tid, now, gid),
-                    )
-                self._conn.commit()
-            except Exception:
-                self._conn.rollback()
-                raise
+                    (tid, now, gid),
+                )
 
     def invalidate_group_match(self, group_id: int) -> None:
         """그룹 매칭을 지우고 title_groups TMDB id를 비운다.
@@ -506,25 +501,19 @@ class SqliteTitleMatchRepository:
         """
         now = utc_now_sqlite_text()
         gid = int(group_id)
-        with self._lock:
-            self._conn.execute("BEGIN")
-            try:
-                self._conn.execute(
-                    "DELETE FROM group_tmdb_matches WHERE group_id = ?",
-                    (gid,),
-                )
-                self._conn.execute(
-                    """
+        with self._lock, sqlite_transaction(self._conn):
+            self._conn.execute(
+                "DELETE FROM group_tmdb_matches WHERE group_id = ?",
+                (gid,),
+            )
+            self._conn.execute(
+                """
                     UPDATE title_groups
                     SET tmdb_series_id = NULL, updated_at = ?
                     WHERE id = ?
                     """,
-                    (now, gid),
-                )
-                self._conn.commit()
-            except Exception:
-                self._conn.rollback()
-                raise
+                (now, gid),
+            )
 
     def get_poster_local_path(
         self,
@@ -655,17 +644,17 @@ def _group_match_from_row(row: sqlite3.Row | tuple[Any, ...]) -> GroupTmdbMatchR
     )
 
 
-def _match_status_from_string(value: str) -> MatchStatusDto | None:
+def _match_status_from_string(value: str) -> MatchStatus | None:
     if value == MATCH_STATUS_AUTO_MATCHED:
-        return cast(MatchStatusDto, MATCH_STATUS_AUTO_MATCHED)
+        return cast(MatchStatus, MATCH_STATUS_AUTO_MATCHED)
     if value == MATCH_STATUS_CONFIRMED:
-        return cast(MatchStatusDto, MATCH_STATUS_CONFIRMED)
+        return cast(MatchStatus, MATCH_STATUS_CONFIRMED)
     if value == MATCH_STATUS_REJECTED:
-        return cast(MatchStatusDto, MATCH_STATUS_REJECTED)
+        return cast(MatchStatus, MATCH_STATUS_REJECTED)
     return None
 
 
-def _candidate_from_raw_json(raw: str) -> TmdbSeriesCandidateDTO:
+def _candidate_from_raw_json(raw: str) -> TmdbSeriesCandidate:
     """raw_json에서 TmdbSeriesCandidateDTO를 만든다.
 
     Args:
@@ -681,7 +670,7 @@ def _candidate_from_raw_json(raw: str) -> TmdbSeriesCandidateDTO:
     if not isinstance(data, dict):
         msg = "raw_json은 객체여야 한다"
         raise TypeError(msg)
-    return TmdbSeriesCandidateDTO(
+    return TmdbSeriesCandidate(
         tmdb_id=int(data["tmdb_id"]),
         name_ko=str(data.get("name_ko", "") or ""),
         original_name=str(data.get("original_name", "") or ""),
@@ -697,7 +686,7 @@ def _candidate_from_raw_json(raw: str) -> TmdbSeriesCandidateDTO:
 def _rank_local_title_hits(
     rows: list[tuple[object, object]],
     needle: str,
-) -> list[tuple[int, float, TmdbSeriesCandidateDTO]]:
+) -> list[tuple[int, float, TmdbSeriesCandidate]]:
     """로컬 조회 raw 행을 매칭 점수와 함께 정렬 후보로 바꾼다.
 
     Args:
@@ -707,7 +696,7 @@ def _rank_local_title_hits(
     Returns:
         (rank, -popularity, candidate) 튜플 목록.
     """
-    scored: list[tuple[int, float, TmdbSeriesCandidateDTO]] = []
+    scored: list[tuple[int, float, TmdbSeriesCandidate]] = []
     seen_ids: set[int] = set()
     for raw, exp in rows:
         cand = _decode_unexpired_candidate(raw, exp)
@@ -724,7 +713,7 @@ def _rank_local_title_hits(
     return scored
 
 
-def _decode_unexpired_candidate(raw: object, exp: object) -> TmdbSeriesCandidateDTO | None:
+def _decode_unexpired_candidate(raw: object, exp: object) -> TmdbSeriesCandidate | None:
     """만료 검사 후 후보 DTO를 복원한다.
 
     Args:
@@ -742,7 +731,7 @@ def _decode_unexpired_candidate(raw: object, exp: object) -> TmdbSeriesCandidate
         return None
 
 
-def _rank_title_match(cand: TmdbSeriesCandidateDTO, needle: str) -> int | None:
+def _rank_title_match(cand: TmdbSeriesCandidate, needle: str) -> int | None:
     """후보 제목과 검색 키의 매칭 랭크를 계산한다.
 
     Args:

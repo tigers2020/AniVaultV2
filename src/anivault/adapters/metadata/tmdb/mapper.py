@@ -11,8 +11,7 @@ import json
 from datetime import date, datetime
 from typing import Any
 
-from anivault.application.dto.search_tv_library import SearchTvLibraryRecord
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
+from anivault.contracts.tmdb import SearchTvLibraryRecord, TmdbSeriesCandidate
 
 
 def _as_str(value: Any) -> str:
@@ -49,7 +48,7 @@ def _first_air_date_str(tv: Any) -> str:
     return str(raw)
 
 
-def tv_show_to_candidate(tv: Any) -> TmdbSeriesCandidateDTO:
+def tv_show_to_candidate(tv: Any) -> TmdbSeriesCandidate:
     """tmdbapis TVShow(검색 결과 포함)에서 DTO를 만든다.
 
     Args:
@@ -76,7 +75,7 @@ def tv_show_to_candidate(tv: Any) -> TmdbSeriesCandidateDTO:
     backdrop = getattr(tv, "backdrop_path", None)
     backdrop_path = str(backdrop) if backdrop else ""
 
-    return TmdbSeriesCandidateDTO(
+    return TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko=_as_str(getattr(tv, "name", None) or getattr(tv, "title", None)),
         original_name=_as_str(getattr(tv, "original_name", None)),

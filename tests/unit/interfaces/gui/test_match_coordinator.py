@@ -5,10 +5,11 @@ from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock
 
-from anivault.application.dto.match_result import MatchFileRow, MatchResult
-from anivault.application.dto.progress import ProgressEvent
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
-from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow, PipelineRow
+from anivault.contracts.pipeline import MatchResult, PipelineRow
+from anivault.contracts.progress import ProgressEvent
+from anivault.contracts.tmdb import TmdbSeriesCandidate
+from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow
+from anivault.interfaces.gui.presenters import row_mapper as row_mapper_module
 from anivault.interfaces.gui.presenters.organizing import match_coordinator as module
 from anivault.interfaces.gui.templates.pipeline_result_panel import PipelineResultPanel
 
@@ -79,8 +80,8 @@ def _row(original: str, *, parsed: str = "Parsed", title: str = "") -> PipelineR
 
 def _file_row(
     original: str, *, series_id: str = "", poster_path: str = "", poster_url: str = ""
-) -> MatchFileRow:
-    return MatchFileRow(
+) -> PipelineRow:
+    return PipelineRow(
         original_file=original,
         parsed_title="Parsed",
         parse_group="Parsed",
@@ -99,8 +100,8 @@ def _file_row(
     )
 
 
-def _candidate(tmdb_id: int = 7) -> TmdbSeriesCandidateDTO:
-    return TmdbSeriesCandidateDTO(
+def _candidate(tmdb_id: int = 7) -> TmdbSeriesCandidate:
+    return TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko="Frieren",
         original_name="Sousou no Frieren",
@@ -176,9 +177,6 @@ def test_on_match_clicked_starts_worker_without_progress_dialog(monkeypatch) -> 
     monkeypatch.setattr(module, "WorkerSignals", _WorkerSignals)
     monkeypatch.setattr(module, "UseCaseWorker", _Worker)
     monkeypatch.setattr(module, "run_worker", lambda worker: thread)
-    monkeypatch.setattr(
-        module, "pipeline_row_to_match_file", lambda row: _file_row(row.original_file)
-    )
     presenter = SimpleNamespace(
         _match_execute=lambda *args: None,
         _notify_dry_run=MagicMock(),
@@ -204,7 +202,9 @@ def test_match_file_to_pipeline_row_prefers_local_poster_path(monkeypatch) -> No
     presenter = SimpleNamespace(_title_match=title_match)
     coord = _coordinator(presenter)
     monkeypatch.setattr(
-        module, "resolve_final_poster_display_source", lambda local, remote: local or remote
+        row_mapper_module,
+        "resolve_final_poster_display_source",
+        lambda local, remote: local or remote,
     )
 
     row = coord._match_file_to_pipeline_row(
@@ -222,7 +222,9 @@ def test_match_file_to_pipeline_row_falls_back_when_poster_lookup_errors(monkeyp
     presenter = SimpleNamespace(_title_match=title_match)
     coord = _coordinator(presenter)
     monkeypatch.setattr(
-        module, "resolve_final_poster_display_source", lambda local, remote: local or remote
+        row_mapper_module,
+        "resolve_final_poster_display_source",
+        lambda local, remote: local or remote,
     )
 
     row = coord._match_file_to_pipeline_row(
@@ -291,7 +293,6 @@ def test_apply_manual_tmdb_candidate_to_model_updates_rows_and_panel(monkeypatch
     stub_panel = _Panel()
     panel = cast(PipelineResultPanel, stub_panel)
     original_group = PipelineGroupRow((_row("a.mkv"),))
-    files = [_file_row("a.mkv")]
     merged_groups = [PipelineGroupRow((_row("a.mkv", title="Frieren"),))]
     model = SimpleNamespace(
         flat_rows=lambda: [_row("a.mkv")],
@@ -309,7 +310,6 @@ def test_apply_manual_tmdb_candidate_to_model_updates_rows_and_panel(monkeypatch
         _dry_run_should_enable=lambda: True,
     )
     coord = _coordinator(presenter)
-    monkeypatch.setattr(module, "pipeline_row_to_match_file", lambda row: files[0])
     monkeypatch.setattr(
         module,
         "apply_tmdb_candidate_to_file_rows",
@@ -359,7 +359,7 @@ def test_on_manual_tmdb_match_clicked_control_flow(monkeypatch) -> None:
     monkeypatch.setattr(
         coord, "_selected_pipeline_group_index_or_warn", lambda panel_arg, rows_arg: 0
     )
-    applied: list[tuple[PipelineGroupRow, TmdbSeriesCandidateDTO, _Panel]] = []
+    applied: list[tuple[PipelineGroupRow, TmdbSeriesCandidate, _Panel]] = []
     monkeypatch.setattr(
         coord,
         "_apply_manual_tmdb_candidate_to_model",

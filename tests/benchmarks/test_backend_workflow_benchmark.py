@@ -25,21 +25,21 @@ from anivault.adapters.persistence.sqlite.sqlite_title_group_repository import (
 from anivault.adapters.persistence.sqlite.sqlite_title_match_repository import (
     SqliteTitleMatchRepository,
 )
-from anivault.application.dto.library_index import BulkMediaUpsertItem
-from anivault.application.dto.match_result import MatchFileRow, MatchInput
-from anivault.application.dto.parse import ParseInput
-from anivault.application.dto.parse_serde import parsed_info_to_compact_json
-from anivault.application.dto.plan import ApplyInput, PlanInput
-from anivault.application.dto.scan import ScanInput
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.use_cases.apply_plan import make_apply_execute
 from anivault.application.use_cases.match_series import make_execute as make_match_execute
 from anivault.application.use_cases.parse_titles import make_execute as make_parse_execute
 from anivault.application.use_cases.plan_moves import make_execute as make_plan_execute
 from anivault.application.use_cases.scan_library import make_execute as make_scan_execute
 from anivault.application.use_cases.sync_title_groups import make_execute as make_sync_execute
+from anivault.contracts.library_index import BulkMediaUpsertItem
+from anivault.contracts.parse import ParseInput
+from anivault.contracts.pipeline import MatchInput, PipelineRow
+from anivault.contracts.planning import ApplyInput, PlanInput
+from anivault.contracts.scan import ScanInput
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.domain.media.extensions import classify_media_kind
 from anivault.domain.models import ParsedInfo
+from anivault.domain.models.parsed_info_serde import parsed_info_to_compact_json
 from anivault.domain.parsing.normalize_cache_title import normalize_title_for_parse_cache
 from anivault.domain.parsing.parse_signature import compute_parse_input_signature
 from anivault.domain.parsing.parser_version import PARSER_VERSION
@@ -293,11 +293,11 @@ class _FakeMetadataProvider:
         query: str,
         *,
         year: int | None = None,
-    ) -> Sequence[TmdbSeriesCandidateDTO]:
+    ) -> Sequence[TmdbSeriesCandidate]:
         del year
         tmdb_id = abs(hash(query)) % 1_000_000 + 1
         return (
-            TmdbSeriesCandidateDTO(
+            TmdbSeriesCandidate(
                 tmdb_id=tmdb_id,
                 name_ko=f"{query} KO",
                 original_name=query,
@@ -311,9 +311,9 @@ class _FakeMetadataProvider:
         )
 
 
-def _match_rows(paths: Sequence[str]) -> tuple[MatchFileRow, ...]:
+def _match_rows(paths: Sequence[str]) -> tuple[PipelineRow, ...]:
     return tuple(
-        MatchFileRow(
+        PipelineRow(
             original_file=path,
             parsed_title=f"Series {index // 12:04d}",
             parse_group=f"Series {index // 12:04d}",
@@ -349,9 +349,9 @@ def test_match_series_use_case_timing(
     assert result.groups
 
 
-def _matched_rows(paths: Sequence[str]) -> tuple[MatchFileRow, ...]:
+def _matched_rows(paths: Sequence[str]) -> tuple[PipelineRow, ...]:
     return tuple(
-        MatchFileRow(
+        PipelineRow(
             original_file=path,
             parsed_title=f"Series {index // 12:04d}",
             parse_group=f"Series {index // 12:04d}",
@@ -456,7 +456,7 @@ def test_cached_hydrate_with_sqlite_timing(
     make_sync_execute(title_groups)(root_id)
     groups = title_groups.list_title_groups_for_root(root_id)
     for group in groups:
-        candidate = TmdbSeriesCandidateDTO(
+        candidate = TmdbSeriesCandidate(
             tmdb_id=group.id + 10_000,
             name_ko=f"{group.canonical_title} KO",
             original_name=group.canonical_title or group.group_key,

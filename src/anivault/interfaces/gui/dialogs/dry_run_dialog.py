@@ -22,7 +22,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from anivault.application.dto.plan import PlanMovePreviewMeta
 from anivault.constants.gui.components import (
     DRY_RUN_DIALOG_BUTTON_APPLY,
     DRY_RUN_DIALOG_BUTTON_CLOSE,
@@ -32,6 +31,7 @@ from anivault.constants.gui.components import (
     DRY_RUN_DIALOG_HEADER_SOURCE,
     DRY_RUN_DIALOG_TITLE,
 )
+from anivault.contracts.planning import PlanMovePreviewMeta
 from anivault.domain.models.file_operation import FileOperation
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Button

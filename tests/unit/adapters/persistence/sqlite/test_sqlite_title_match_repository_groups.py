@@ -15,19 +15,18 @@ from anivault.adapters.persistence.sqlite.sqlite_title_group_repository import (
 from anivault.adapters.persistence.sqlite.sqlite_title_match_repository import (
     SqliteTitleMatchRepository,
 )
-from anivault.application.dto.library_index import BulkMediaUpsertItem
-from anivault.application.dto.title_groups import TitleGroupMemberSync, TitleGroupSyncBundle
 from anivault.constants.application.statuses import (
     MATCH_STATUS_CONFIRMED,
     MATCH_STATUS_REJECTED,
 )
+from anivault.contracts.library_index import BulkMediaUpsertItem
+from anivault.contracts.title_groups import TitleGroupBundle, TitleGroupMember
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.domain.media.extensions import classify_media_kind
 
 
 def _candidate(tmdb_id: int, name_ko: str = "Frieren"):
-    from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
-
-    return TmdbSeriesCandidateDTO(
+    return TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko=name_ko,
         original_name="Sousou no Frieren",
@@ -75,14 +74,14 @@ def _seed_title_match_repo(tmp_path: Path) -> tuple[object, SqliteTitleMatchRepo
     title_groups.replace_root_title_groups(
         root_id,
         [
-            TitleGroupSyncBundle(
+            TitleGroupBundle(
                 group_key="Show",
                 group_type="parsed_title_norm",
                 canonical_title="Show",
                 canonical_title_normalized="show",
                 tmdb_series_id=None,
                 group_confidence=0.9,
-                members=(TitleGroupMemberSync(media.id, "primary_video", 0.9),),
+                members=(TitleGroupMember(media.id, "primary_video", 0.9),),
             )
         ],
     )

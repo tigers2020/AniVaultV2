@@ -15,9 +15,9 @@ from anivault.adapters.persistence.sqlite.sqlite_title_group_repository import (
 from anivault.adapters.persistence.sqlite.sqlite_title_match_repository import (
     SqliteTitleMatchRepository,
 )
-from anivault.application.dto.library_index import BulkMediaUpsertItem
-from anivault.application.dto.title_match import GroupTmdbMatchRecord
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
+from anivault.contracts.library_index import BulkMediaUpsertItem
+from anivault.contracts.title_match import GroupTmdbMatchRecord
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.domain.media.extensions import classify_media_kind
 
 
@@ -110,7 +110,7 @@ def test_sqlite_title_match_bulk_lookup_filters_expired_and_invalid_candidates(
         tmp_path
     )
     del library_index, resolved
-    valid = TmdbSeriesCandidateDTO(
+    valid = TmdbSeriesCandidate(
         tmdb_id=1001,
         name_ko="Valid",
         original_name="Valid Original",
@@ -121,7 +121,7 @@ def test_sqlite_title_match_bulk_lookup_filters_expired_and_invalid_candidates(
         backdrop_path="",
         popularity=1.0,
     )
-    expired = TmdbSeriesCandidateDTO(
+    expired = TmdbSeriesCandidate(
         tmdb_id=1002,
         name_ko="Expired",
         original_name="Expired Original",
@@ -132,7 +132,7 @@ def test_sqlite_title_match_bulk_lookup_filters_expired_and_invalid_candidates(
         backdrop_path="",
         popularity=1.0,
     )
-    invalid = TmdbSeriesCandidateDTO(
+    invalid = TmdbSeriesCandidate(
         tmdb_id=1003,
         name_ko="Invalid",
         original_name="Invalid Original",

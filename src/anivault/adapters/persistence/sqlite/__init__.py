@@ -7,7 +7,6 @@ Author: Pom Kim
 
 from anivault.adapters.persistence.sqlite.connection import create_connection
 from anivault.adapters.persistence.sqlite.db_path import default_anivault_db_path
-from anivault.adapters.persistence.sqlite.sqlite_cache_repository import SqliteCacheRepository
 from anivault.adapters.persistence.sqlite.sqlite_library_index_repository import (
     SqliteLibraryIndexRepository,
 )
@@ -28,7 +27,6 @@ from anivault.adapters.persistence.sqlite.sqlite_tmdb_search_tv_library_reposito
 )
 
 __all__ = [
-    "SqliteCacheRepository",
     "SqliteLibraryIndexRepository",
     "SqliteOrganizePlanRepository",
     "SqliteParseCacheRepository",

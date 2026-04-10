@@ -11,7 +11,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, QThread, Slot
 
-from anivault.application.dto.progress import ProgressEvent
+from anivault.contracts.progress import ProgressEvent
 from anivault.interfaces.gui.workers.worker_signals import WorkerSignals
 
 

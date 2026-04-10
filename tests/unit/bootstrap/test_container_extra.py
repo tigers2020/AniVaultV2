@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 from anivault.bootstrap import container as container_module
 from anivault.bootstrap.container import (
+    AniVaultAppContainer,
     _create_metadata_provider,
     _create_organizer_page,
     _create_parse_execute,
@@ -236,3 +237,33 @@ def test_create_organizer_page_wires_scan_resolution_fallback_for_default_scan(m
     assert scan_execute[2]["parse_cache"] == "parse-cache"
     assert scan_execute[2]["resolution_probe"] == "ffprobe-probe"
     assert "extensions" not in scan_execute[2]
+
+
+def test_app_container_reuses_shared_dependencies_and_closes_connection(monkeypatch) -> None:
+    dependencies = SimpleNamespace(
+        repos=SimpleNamespace(
+            connection=SimpleNamespace(close=lambda: close_calls.append("closed"))
+        )
+    )
+    close_calls: list[str] = []
+    build_calls: list[tuple[object, object]] = []
+    monkeypatch.setattr(container_module, "_create_organizer_dependencies", lambda: dependencies)
+    monkeypatch.setattr(container_module, "_create_tmdb_runtime", lambda repos: "tmdb-runtime")
+    monkeypatch.setattr(
+        container_module,
+        "_build_organizer_page",
+        lambda **kwargs: build_calls.append((kwargs["dependencies"], kwargs["tmdb_runtime"]))
+        or "page",
+    )
+
+    container = AniVaultAppContainer()
+
+    assert container.create_organizer_page() == "page"
+    assert container.create_subtitle_organizer_page() == "page"
+    assert build_calls == [
+        (dependencies, "tmdb-runtime"),
+        (dependencies, "tmdb-runtime"),
+    ]
+
+    container.close()
+    assert close_calls == ["closed"]

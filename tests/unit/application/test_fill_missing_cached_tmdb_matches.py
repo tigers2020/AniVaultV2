@@ -4,20 +4,20 @@ from collections.abc import Sequence
 from threading import Event
 from typing import cast
 
-from anivault.application.dto.match_result import MatchFileRow, MatchInput, MatchResult
-from anivault.application.dto.title_groups import (
-    TitleGroupListRecord,
-    TitleGroupMemberSync,
-    TitleGroupSyncBundle,
-)
-from anivault.application.dto.title_match import GroupTmdbMatchRecord, MatchStatusDto
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.use_cases.fill_missing_cached_tmdb_matches import make_execute
 from anivault.constants.gui.components import (
     PIPELINE_ROW_STATUS_TMDB_CACHED,
     PIPELINE_ROW_STATUS_TMDB_MATCHED,
 )
-from anivault.domain.services.title_grouping import TitleGroupingInputRow
+from anivault.contracts.pipeline import MatchInput, MatchResult, PipelineRow
+from anivault.contracts.title_groups import (
+    TitleGroupBundle,
+    TitleGroupingRow,
+    TitleGroupListRecord,
+    TitleGroupMember,
+)
+from anivault.contracts.title_match import GroupTmdbMatchRecord, MatchStatus
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 
 
 def _row(
@@ -29,8 +29,8 @@ def _row(
     ko_title: str = "",
     poster_path: str = "",
     poster_url: str = "",
-) -> MatchFileRow:
-    return MatchFileRow(
+) -> PipelineRow:
+    return PipelineRow(
         original_file=path,
         parsed_title=parsed,
         parse_group=group,
@@ -49,8 +49,8 @@ def _row(
     )
 
 
-def _candidate(tmdb_id: int = 101) -> TmdbSeriesCandidateDTO:
-    return TmdbSeriesCandidateDTO(
+def _candidate(tmdb_id: int = 101) -> TmdbSeriesCandidate:
+    return TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko="Korean",
         original_name="Original",
@@ -64,13 +64,13 @@ def _candidate(tmdb_id: int = 101) -> TmdbSeriesCandidateDTO:
 
 
 class _Provider:
-    def __init__(self, candidate: TmdbSeriesCandidateDTO | None) -> None:
+    def __init__(self, candidate: TmdbSeriesCandidate | None) -> None:
         self.candidate = candidate
         self.calls: list[str] = []
 
     def search_series(
         self, query: str, *, year: int | None = None
-    ) -> Sequence[TmdbSeriesCandidateDTO]:
+    ) -> Sequence[TmdbSeriesCandidate]:
         del year
         self.calls.append(query)
         return [self.candidate] if self.candidate is not None else []
@@ -80,18 +80,18 @@ class _TitleGroups:
     def __init__(self, group_id: int = 7) -> None:
         self.group_id = group_id
 
-    def load_rows_for_grouping(self, root_id: int) -> list[TitleGroupingInputRow]:
+    def load_rows_for_grouping(self, root_id: int) -> list[TitleGroupingRow]:
         del root_id
-        return cast(list[TitleGroupingInputRow], [])
+        return cast(list[TitleGroupingRow], [])
 
     def get_group_ids_for_path_norms(self, root_id: int, path_norms: list[str]) -> dict[str, int]:
         del root_id, path_norms
         return {}
 
-    def replace_root_title_groups(self, root_id: int, bundles: list[TitleGroupSyncBundle]) -> None:
+    def replace_root_title_groups(self, root_id: int, bundles: list[TitleGroupBundle]) -> None:
         del root_id, bundles
 
-    def replace_group_members(self, group_id: int, members: list[TitleGroupMemberSync]) -> None:
+    def replace_group_members(self, group_id: int, members: list[TitleGroupMember]) -> None:
         del group_id, members
 
     def list_title_groups_for_root(self, root_id: int) -> list[TitleGroupListRecord]:
@@ -112,7 +112,7 @@ class _TitleMatch:
         self.upserts: list[int] = []
         self.poster_lookup: list[tuple[int, str, str]] = []
         self._group_match = group_match
-        self._series_by_id: dict[int, TmdbSeriesCandidateDTO] = {}
+        self._series_by_id: dict[int, TmdbSeriesCandidate] = {}
 
     def get_group_match(self, group_id: int) -> GroupTmdbMatchRecord | None:
         del group_id
@@ -146,13 +146,13 @@ class _TitleMatch:
     def invalidate_search(self, cache_key: str) -> None:
         del cache_key
 
-    def get_series_candidates(self, tmdb_ids: list[int]) -> dict[int, TmdbSeriesCandidateDTO]:
+    def get_series_candidates(self, tmdb_ids: list[int]) -> dict[int, TmdbSeriesCandidate]:
         del tmdb_ids
         return {}
 
     def find_series_candidates_by_title(
         self, query: str, *, limit: int = 10
-    ) -> list[TmdbSeriesCandidateDTO]:
+    ) -> list[TmdbSeriesCandidate]:
         del query, limit
         return []
 
@@ -160,24 +160,22 @@ class _TitleMatch:
         del group_ids
         return {}
 
-    def set_series_for_group_db_test(self, tmdb_id: int, candidate: TmdbSeriesCandidateDTO) -> None:
+    def set_series_for_group_db_test(self, tmdb_id: int, candidate: TmdbSeriesCandidate) -> None:
         self._series_by_id[tmdb_id] = candidate
 
     def set_group_match(
         self,
         group_id: int,
         tmdb_id: int,
-        match_status: MatchStatusDto,
+        match_status: MatchStatus,
         match_score: float | None,
     ) -> None:
         del group_id, tmdb_id, match_status, match_score
 
-    def get_series_candidate(self, tmdb_id: int) -> TmdbSeriesCandidateDTO | None:
+    def get_series_candidate(self, tmdb_id: int) -> TmdbSeriesCandidate | None:
         return self._series_by_id.get(tmdb_id)
 
-    def upsert_series(
-        self, chosen: TmdbSeriesCandidateDTO, *, raw_json: str, expires_at: str
-    ) -> None:
+    def upsert_series(self, chosen: TmdbSeriesCandidate, *, raw_json: str, expires_at: str) -> None:
         del raw_json, expires_at
         self.upserts.append(chosen.tmdb_id)
 

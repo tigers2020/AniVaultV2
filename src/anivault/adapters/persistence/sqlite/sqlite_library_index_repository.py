@@ -18,12 +18,7 @@ from pathlib import Path
 from threading import Lock
 
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
-from anivault.application.dto.library_index import (
-    BulkMediaUpsertItem,
-    BulkMediaUpsertResult,
-    IndexedMediaForParse,
-    MediaFileRecord,
-)
+from anivault.adapters.persistence.sqlite.sqlite_transaction import sqlite_transaction
 from anivault.application.ports.library_index_port import (
     LibraryIndexRepository,
     ScanSessionStatus,
@@ -33,6 +28,12 @@ from anivault.constants.adapters.sqlite import (
     SQLITE_LIBRARY_INDEX_MARK_MISSING_INLINE_LIMIT,
 )
 from anivault.constants.application.statuses import SCAN_SESSION_STATUS_SUCCESS
+from anivault.contracts.library_index import (
+    BulkMediaUpsertItem,
+    BulkMediaUpsertResult,
+    IndexedMediaForParse,
+    MediaFileRecord,
+)
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.services.sidecar_group_key import compute_sidecar_group_key
 
@@ -425,11 +426,11 @@ class SqliteLibraryIndexRepository(LibraryIndexRepository):
                 for row in rows
                 if row.path_norm not in existing
             ]
-            self._conn.execute("BEGIN")
             try:
-                if update_params:
-                    self._conn.executemany(
-                        """
+                with sqlite_transaction(self._conn):
+                    if update_params:
+                        self._conn.executemany(
+                            """
                         UPDATE media_files SET
                             relative_path = ?,
                             dir_norm = ?,
@@ -448,8 +449,8 @@ class SqliteLibraryIndexRepository(LibraryIndexRepository):
                             updated_at = ?
                         WHERE root_id = ? AND path_norm = ?
                         """,
-                        update_params,
-                    )
+                            update_params,
+                        )
                 if insert_params:
                     self._conn.executemany(
                         """
@@ -471,9 +472,7 @@ class SqliteLibraryIndexRepository(LibraryIndexRepository):
                         """,
                         insert_params,
                     )
-                self._conn.commit()
             except Exception:
-                self._conn.rollback()
                 raise
         return BulkMediaUpsertResult(
             files_added=len(insert_params),

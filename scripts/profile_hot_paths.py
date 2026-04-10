@@ -31,12 +31,12 @@ from anivault.adapters.persistence.sqlite import (
     SqliteTitleMatchRepository,
     create_connection,
 )
-from anivault.application.dto.match_result import MatchFileRow, MatchInput, MatchResult
-from anivault.application.dto.scan import ScanInput
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.application.use_cases.match_series import make_execute as make_match_execute
 from anivault.application.use_cases.scan_library import make_execute as make_scan_execute
+from anivault.contracts.pipeline import MatchInput, MatchResult, PipelineRow
+from anivault.contracts.scan import ScanInput
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 
 
 def _write_dummy_tree(root: Path, count: int) -> None:
@@ -74,7 +74,7 @@ class _SlowStubMetadataProvider:
 
     def search_series(
         self, query: str, *, year: int | None = None
-    ) -> Sequence[TmdbSeriesCandidateDTO]:
+    ) -> Sequence[TmdbSeriesCandidate]:
         """짧은 지연 뒤 빈 결과를 반환한다.
 
         Args:
@@ -158,7 +158,7 @@ def main() -> int:
             print(f"    files: {len(scan_result.paths)}, index_root_id={scan_result.index_root_id}")
 
             rows_for_match = [
-                MatchFileRow(
+                PipelineRow(
                     original_file=p,
                     parsed_title=f"Title{i % 50}",
                     parse_group=f"g{i % 25}",

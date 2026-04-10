@@ -17,10 +17,6 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
 
-from anivault.application.dto.match_result import MatchInput, MatchResult
-from anivault.application.dto.parse import ParseInput, ParseResult
-from anivault.application.dto.progress import ProgressEvent, progress_dialog_value_and_maximum
-from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.constants.gui.components import (
     SCAN_PARSE_COORDINATOR_MID_SCAN_MODEL_MAX_GROUPS,
     SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_MESSAGE,
@@ -34,16 +30,22 @@ from anivault.constants.gui.components import (
     SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_MESSAGE,
     SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_TITLE,
     SCAN_PARSE_COORDINATOR_STATUS_PARSED,
-    SCAN_PARSE_COORDINATOR_STATUS_SCANNED,
 )
+from anivault.contracts.parse import ParseInput, ParseResult
+from anivault.contracts.pipeline import MatchInput, MatchResult, PipelineRow
+from anivault.contracts.progress import ProgressEvent, progress_dialog_value_and_maximum
+from anivault.contracts.scan import ScanInput, ScanResult
 from anivault.interfaces.gui.components.molecules import ProgressDialog
 from anivault.interfaces.gui.models import (
     PipelineGroupRow,
-    PipelineRow,
     PipelineTableModel,
     group_pipeline_rows,
 )
-from anivault.interfaces.gui.presenters.plan_helpers import pipeline_row_to_match_file
+from anivault.interfaces.gui.presenters import organizer_runtime as presenter_runtime
+from anivault.interfaces.gui.presenters.row_mapper import (
+    copy_pipeline_row,
+    scan_path_to_pipeline_row,
+)
 from anivault.interfaces.gui.presenters.worker_session import (
     run_use_case_worker_with_progress_dialog,
 )
@@ -135,7 +137,7 @@ class ScanParseCoordinator(QObject):
         Returns:
             None.
         """
-        parent = self._p.parent()
+        parent = presenter_runtime.parent_widget(self._p)
         if isinstance(parent, QWidget):
             QMessageBox.warning(parent, title, message)
 
@@ -185,24 +187,27 @@ class ScanParseCoordinator(QObject):
             return
         if not self._scan_path_is_usable_directory(path):
             return
-        self._p._current_library_root_id = None  # noqa: SLF001
-        self._p._notify_dry_run(False)  # noqa: SLF001
-        if self._p._scan_execute is None:  # noqa: SLF001
+        presenter_runtime.set_current_library_root_id(self._p, None)
+        presenter_runtime.notify_dry_run(self._p, False)
+        execute = presenter_runtime.scan_execute(self._p)
+        if execute is None:
             return
-        self._p._scan_progress_handoff_done = False  # noqa: SLF001
+        presenter_runtime.set_scan_progress_handoff_done(self._p, False)
         signals = WorkerSignals()
         worker = UseCaseWorker(
-            execute_fn=self._p._scan_execute,  # noqa: SLF001
+            execute_fn=execute,
             input_dto=ScanInput(
                 path=path,
                 recursive=True,
-                exclude_subtitles_with_paired_video=self._p._exclude_subtitles_with_paired_video,  # noqa: SLF001
+                exclude_subtitles_with_paired_video=presenter_runtime.exclude_subtitles_with_paired_video(
+                    self._p
+                ),
             ),
             signals=signals,
         )
         signals.result.connect(self._on_scan_result)
-        signals.error.connect(self._p._on_scan_error)  # noqa: SLF001
-        dialog = self._p._progress_dialog  # noqa: SLF001
+        signals.error.connect(lambda exc: presenter_runtime.on_scan_error(self._p, exc))
+        dialog = presenter_runtime.progress_dialog(self._p)
         if dialog is not None:
             thread = run_use_case_worker_with_progress_dialog(
                 dialog=dialog,
@@ -216,7 +221,7 @@ class ScanParseCoordinator(QObject):
             )
         else:
             thread = run_worker(worker)
-        self._p.register_worker_thread(thread)  # noqa: SLF001
+        presenter_runtime.register_worker_thread(self._p, thread)
 
     def _on_scan_thread_finished(self, dialog: ProgressDialog) -> None:
         """스캔 워커 스레드 finished: 이미 파싱으로 넘겼으면 mark 생략.
@@ -227,9 +232,9 @@ class ScanParseCoordinator(QObject):
         Returns:
             None.
         """
-        if self._p._scan_progress_handoff_done:  # noqa: SLF001
+        if presenter_runtime.scan_progress_handoff_done(self._p):
             return
-        self._p._finish_worker_session(dialog, hide=False)  # noqa: SLF001
+        presenter_runtime.finish_worker_session(self._p, dialog, hide=False)
 
     def _on_progress(self, event: ProgressEvent, token: int) -> None:
         """ProgressEvent로 진행 다이얼로그를 갱신한다.
@@ -241,7 +246,7 @@ class ScanParseCoordinator(QObject):
         Returns:
             None.
         """
-        dialog = self._p._progress_dialog  # noqa: SLF001
+        dialog = presenter_runtime.progress_dialog(self._p)
         if dialog is not None and not dialog.is_progress_token_valid(token):
             return
         if dialog is not None:
@@ -261,14 +266,15 @@ class ScanParseCoordinator(QObject):
         Returns:
             None.
         """
-        self._p._current_library_root_id = result.index_root_id  # noqa: SLF001
+        presenter_runtime.set_current_library_root_id(self._p, result.index_root_id)
         rows = self._scan_result_to_rows(result)
         merged = group_pipeline_rows(rows)
-        if not rows or self._p._parse_execute is None:  # noqa: SLF001
-            self._p._model.set_rows(merged)  # noqa: SLF001
-            self._p._scan_progress_handoff_done = True  # noqa: SLF001
-            if self._p._progress_dialog is not None:  # noqa: SLF001
-                self._p._finish_worker_session(self._p._progress_dialog, True)  # noqa: SLF001
+        if not rows or presenter_runtime.parse_execute(self._p) is None:
+            presenter_runtime.model(self._p).set_rows(merged)
+            presenter_runtime.set_scan_progress_handoff_done(self._p, True)
+            dialog = presenter_runtime.progress_dialog(self._p)
+            if dialog is not None:
+                presenter_runtime.finish_worker_session(self._p, dialog, hide=True)
             return
         self._start_parse_worker(rows, merged, result.index_root_id)
 
@@ -281,7 +287,7 @@ class ScanParseCoordinator(QObject):
         Returns:
             None.
         """
-        self._p._model.set_rows(merged)  # noqa: SLF001
+        presenter_runtime.model(self._p).set_rows(merged)
 
     def _scan_result_to_rows(self, result: ScanResult) -> list[PipelineRow]:
         """ScanResult를 PipelineRow 목록으로 변환한다.
@@ -296,24 +302,7 @@ class ScanParseCoordinator(QObject):
         rows: list[PipelineRow] = []
         for i, p in enumerate(result.paths):
             res = resolutions[i] if i < len(resolutions) else ""
-            rows.append(
-                PipelineRow(
-                    original_file=p,
-                    parsed_title="",
-                    parse_group="",
-                    tmdb_korean_title_group="",
-                    tmdb_series_id="",
-                    tmdb_poster_path="",
-                    tmdb_backdrop_path="",
-                    year="",
-                    season="",
-                    resolution=res,
-                    status=SCAN_PARSE_COORDINATOR_STATUS_SCANNED,
-                    poster_url="",
-                    backdrop_url="",
-                    target_path="",
-                )
-            )
+            rows.append(scan_path_to_pipeline_row(p, res))
         return rows
 
     def _start_parse_worker(
@@ -332,10 +321,10 @@ class ScanParseCoordinator(QObject):
         Returns:
             None.
         """
-        parse_execute = self._p._parse_execute  # noqa: SLF001
+        parse_execute = presenter_runtime.parse_execute(self._p)
         if parse_execute is None:
             return
-        self._p._parse_index_root_id = index_root_id  # noqa: SLF001
+        presenter_runtime.set_parse_index_root_id(self._p, index_root_id)
         paths = [r.original_file for r in scan_rows]
         self._parse_apply_generation += 1
         session_gen = self._parse_apply_generation
@@ -347,8 +336,8 @@ class ScanParseCoordinator(QObject):
             signals=signals,
         )
         signals.result.connect(lambda res, g=session_gen: self._on_parse_result(res, g))
-        signals.error.connect(self._p._on_scan_error)  # noqa: SLF001
-        dialog = self._p._progress_dialog  # noqa: SLF001
+        signals.error.connect(lambda exc: presenter_runtime.on_scan_error(self._p, exc))
+        dialog = presenter_runtime.progress_dialog(self._p)
 
         def _on_parse_worker_started() -> None:
             """워커 run 진입 후 진행 UI를 먼저 띄우고, 다음 틱에 모델을 반영한다."""
@@ -366,7 +355,7 @@ class ScanParseCoordinator(QObject):
                 )
 
         if dialog is not None:
-            self._p._scan_progress_handoff_done = True  # noqa: SLF001
+            presenter_runtime.set_scan_progress_handoff_done(self._p, True)
             dialog.mark_work_finished()
             thread = run_use_case_worker_with_progress_dialog(
                 dialog=dialog,
@@ -376,13 +365,17 @@ class ScanParseCoordinator(QObject):
                 message=SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_MESSAGE,
                 indeterminate=False,
                 on_progress_with_token=self._on_progress,
-                on_finished=lambda: self._p._finish_worker_session(dialog, True),  # noqa: SLF001
+                on_finished=lambda: presenter_runtime.finish_worker_session(
+                    self._p,
+                    dialog,
+                    hide=True,
+                ),
                 on_started=_on_parse_worker_started,
                 hide_progress_on_cancelled=False,
             )
         else:
             thread = run_worker(worker)
-        self._p.register_worker_thread(thread)  # noqa: SLF001
+        presenter_runtime.register_worker_thread(self._p, thread)
 
     def _on_parse_result(self, result: ParseResult, session_gen: int) -> None:
         """인덱스 기준으로 현재 행에 파싱 정보를 병합하고 모델을 갱신한다.
@@ -396,7 +389,7 @@ class ScanParseCoordinator(QObject):
         """
         if session_gen != self._parse_apply_generation:
             return
-        model: PipelineTableModel = self._p._model  # noqa: SLF001
+        model: PipelineTableModel = presenter_runtime.model(self._p)
         if self._parse_snapshot is not None and self._parse_snapshot[0] == session_gen:
             rows = self._parse_snapshot[1]
             self._parse_snapshot = None
@@ -407,49 +400,24 @@ class ScanParseCoordinator(QObject):
         for i, row in enumerate(rows):
             p = parsed_list[i] if i < len(parsed_list) else None
             if p is None:
-                merged.append(
-                    PipelineRow(
-                        original_file=row.original_file,
-                        parsed_title=row.parsed_title,
-                        parse_group=row.parse_group,
-                        tmdb_korean_title_group=row.tmdb_korean_title_group,
-                        tmdb_series_id=row.tmdb_series_id,
-                        tmdb_poster_path=row.tmdb_poster_path,
-                        tmdb_backdrop_path=row.tmdb_backdrop_path,
-                        year=row.year,
-                        season=row.season,
-                        resolution=row.resolution,
-                        status=row.status,
-                        poster_url=row.poster_url,
-                        backdrop_url=row.backdrop_url,
-                        target_path=row.target_path,
-                        episode=row.episode,
-                    )
-                )
+                merged.append(copy_pipeline_row(row))
             else:
                 merged_res = (p.resolution or "").strip() or row.resolution
                 merged.append(
-                    PipelineRow(
-                        original_file=row.original_file,
+                    copy_pipeline_row(
+                        row,
                         parsed_title=p.title,
                         parse_group=p.parse_group,
-                        tmdb_korean_title_group=row.tmdb_korean_title_group,
-                        tmdb_series_id=row.tmdb_series_id,
-                        tmdb_poster_path=row.tmdb_poster_path,
-                        tmdb_backdrop_path=row.tmdb_backdrop_path,
                         year=p.year,
                         season=p.season,
                         resolution=merged_res,
                         status=SCAN_PARSE_COORDINATOR_STATUS_PARSED,
-                        poster_url=row.poster_url,
-                        backdrop_url=row.backdrop_url,
-                        target_path=row.target_path,
                         episode=p.episode,
                     )
                 )
-        root_for_sync = self._p._parse_index_root_id  # noqa: SLF001
-        sync_fn = self._p._sync_title_groups_execute  # noqa: SLF001
-        self._p._parse_index_root_id = None  # noqa: SLF001
+        root_for_sync = presenter_runtime.parse_index_root_id(self._p)
+        sync_fn = presenter_runtime.sync_title_groups_execute(self._p)
+        presenter_runtime.set_parse_index_root_id(self._p, None)
         self._apply_parse_result_rows_after_optional_hydrate(
             model,
             merged,
@@ -468,13 +436,13 @@ class ScanParseCoordinator(QObject):
         sync_fn: Callable[[int], None] | None,
     ) -> None:
         """Hydrate cached TMDB data off the UI thread, then apply rows in chunks."""
-        hydrate_fn = self._p._cached_tmdb_hydrate_execute  # noqa: SLF001
-        missing_fill_fn = self._p._cached_tmdb_missing_fill_execute  # noqa: SLF001
+        hydrate_fn = presenter_runtime.cached_tmdb_hydrate_execute(self._p)
+        missing_fill_fn = presenter_runtime.cached_tmdb_missing_fill_execute(self._p)
         if root_for_sync is not None and hydrate_fn is not None:
             self._pending_cached_hydrate[session_gen] = (
                 model,
                 MatchInput(
-                    files=tuple(pipeline_row_to_match_file(row) for row in merged),
+                    files=tuple(merged),
                     index_root_id=root_for_sync,
                 ),
             )
@@ -482,7 +450,7 @@ class ScanParseCoordinator(QObject):
             self._pending_cached_missing_fill[session_gen] = (
                 model,
                 MatchInput(
-                    files=tuple(pipeline_row_to_match_file(row) for row in merged),
+                    files=tuple(merged),
                     index_root_id=root_for_sync,
                 ),
             )
@@ -500,7 +468,7 @@ class ScanParseCoordinator(QObject):
         Returns:
             True if a background worker was started, False otherwise.
         """
-        hydrate_fn = self._p._cached_tmdb_hydrate_execute  # noqa: SLF001
+        hydrate_fn = presenter_runtime.cached_tmdb_hydrate_execute(self._p)
         pending = self._pending_cached_hydrate.pop(session_gen, None)
         if pending is None or hydrate_fn is None or session_gen != self._parse_apply_generation:
             return False
@@ -523,7 +491,7 @@ class ScanParseCoordinator(QObject):
             lambda exc, lg=logger: lg.exception("cached TMDB hydrate failed", exc_info=exc)
         )
         thread = run_worker(worker)
-        self._p.register_worker_thread(thread)  # noqa: SLF001
+        presenter_runtime.register_worker_thread(self._p, thread)
         return True
 
     def _on_cached_tmdb_hydrate_result(
@@ -536,13 +504,17 @@ class ScanParseCoordinator(QObject):
         if session_gen != self._parse_apply_generation:
             return
         grouped = group_pipeline_rows(
-            [self._p._match_file_to_pipeline_row(file) for file in result.files]  # noqa: SLF001
+            [
+                presenter_runtime.map_match_file_to_pipeline_row(self._p, file)
+                for file in result.files
+            ]
         )
         self._pending_cached_missing_fill[session_gen] = (
             model,
             MatchInput(
-                files=tuple(result.files), index_root_id=self._p._current_library_root_id
-            ),  # noqa: SLF001
+                files=tuple(result.files),
+                index_root_id=presenter_runtime.current_library_root_id(self._p),
+            ),
         )
         self._apply_parse_result_groups_chunked(
             model,
@@ -558,7 +530,7 @@ class ScanParseCoordinator(QObject):
         Returns:
             True if a background worker was started, False otherwise.
         """
-        missing_fill_fn = self._p._cached_tmdb_missing_fill_execute  # noqa: SLF001
+        missing_fill_fn = presenter_runtime.cached_tmdb_missing_fill_execute(self._p)
         pending = self._pending_cached_missing_fill.pop(session_gen, None)
         if (
             pending is None
@@ -588,7 +560,7 @@ class ScanParseCoordinator(QObject):
             lambda exc, lg=logger: lg.exception("cached TMDB missing fill failed", exc_info=exc)
         )
         thread = run_worker(worker)
-        self._p.register_worker_thread(thread)  # noqa: SLF001
+        presenter_runtime.register_worker_thread(self._p, thread)
         return True
 
     def _on_cached_tmdb_missing_fill_result(
@@ -601,7 +573,10 @@ class ScanParseCoordinator(QObject):
         if session_gen != self._parse_apply_generation:
             return
         grouped = group_pipeline_rows(
-            [self._p._match_file_to_pipeline_row(file) for file in result.files]  # noqa: SLF001
+            [
+                presenter_runtime.map_match_file_to_pipeline_row(self._p, file)
+                for file in result.files
+            ]
         )
         self._apply_parse_result_groups_chunked(
             model,
@@ -628,17 +603,20 @@ class ScanParseCoordinator(QObject):
             None.
         """
         # append_row_groups는 rowsInserted만 발생 → 패널은 modelReset에서만 분할 뷰 동기화.
-        panel = self._p._pipeline_panel  # noqa: SLF001
+        panel = presenter_runtime.pipeline_panel(self._p)
         if panel is not None:
             panel.sync_views_from_model()
-        self._p._notify_dry_run(False)  # noqa: SLF001
+        presenter_runtime.notify_dry_run(self._p, False)
         has_pending_hydrate = session_gen in self._pending_cached_hydrate
         started_hydrate = self._run_pending_cached_tmdb_hydrate(session_gen)
         started_missing = False
         if not has_pending_hydrate:
             started_missing = self._run_pending_cached_tmdb_missing_fill(session_gen)
         if not started_hydrate and not started_missing:
-            self._p._notify_dry_run(self._p._dry_run_should_enable())  # noqa: SLF001
+            presenter_runtime.notify_dry_run(
+                self._p,
+                presenter_runtime.dry_run_should_enable(self._p),
+            )
         if root_for_sync is None or sync_fn is None:
             return
         self._run_title_groups_sync_worker(root_for_sync, sync_fn)
@@ -669,7 +647,7 @@ class ScanParseCoordinator(QObject):
             ),
         )
         thread = run_worker(worker)
-        self._p.register_worker_thread(thread)  # noqa: SLF001
+        presenter_runtime.register_worker_thread(self._p, thread)
 
     def _schedule_parse_result_chunk_work(
         self,

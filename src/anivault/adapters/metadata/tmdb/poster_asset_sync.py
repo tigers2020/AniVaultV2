@@ -17,11 +17,14 @@ import urllib.request
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Protocol
 
 from anivault.adapters.persistence.sqlite.db_path import ensure_poster_cache_dir
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
-from anivault.application.dto.match_result import MatchFileRow, MatchResult
-from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.application.ports.title_match_port import (
+    PosterAssetRepository,
+    TmdbSeriesRepository,
+)
 from anivault.constants.adapters.tmdb import (
     TMDB_POSTER_DOWNLOAD_RETRIES_DEFAULT,
     TMDB_POSTER_DOWNLOAD_RETRIES_ENV,
@@ -40,11 +43,16 @@ from anivault.constants.application.statuses import (
     POSTER_ASSET_STATUS_FAILED,
     POSTER_ASSET_STATUS_READY,
 )
+from anivault.contracts.pipeline import MatchResult, PipelineRow
 from anivault.domain.rules.poster_cache_filename import poster_cache_file_path
 from anivault.domain.rules.poster_remote_path import normalize_tmdb_remote_image_path
 from anivault.domain.rules.tmdb_image_url import tmdb_poster_cdn_url
 
 logger = logging.getLogger(__name__)
+
+
+class _PosterAssetSyncRepository(TmdbSeriesRepository, PosterAssetRepository, Protocol):
+    """Combined protocol for poster download coordination."""
 
 
 def _poster_max_workers() -> int:
@@ -85,7 +93,7 @@ def _poster_download_retries() -> int:
 
 
 def iter_unique_poster_jobs(
-    files: Sequence[MatchFileRow],
+    files: Sequence[PipelineRow],
 ) -> list[tuple[int, str]]:
     """파일 행에서 (tmdb_id, 정규화 remote_path) 유일 목록을 만든다.
 
@@ -172,7 +180,7 @@ class TmdbPosterAssetSync:
 
     def __init__(
         self,
-        title_match: TitleMatchRepository,
+        title_match: _PosterAssetSyncRepository,
         cache_dir: Path | None = None,
     ) -> None:
         """저장소와 선택적 캐시 루트를 받는다.
@@ -214,7 +222,7 @@ class TmdbPosterAssetSync:
         """
         self.sync_from_files(result.files)
 
-    def sync_from_files(self, files: Sequence[MatchFileRow]) -> None:
+    def sync_from_files(self, files: Sequence[PipelineRow]) -> None:
         """파일 행 목록에서 유일 포스터 작업만 수행한다.
 
         Args:

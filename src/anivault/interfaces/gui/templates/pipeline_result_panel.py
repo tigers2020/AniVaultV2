@@ -7,7 +7,7 @@ Author: Pom Kim
 
 from __future__ import annotations
 
-from typing import Protocol, TypedDict, cast
+from typing import Protocol
 
 from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QPixmap
@@ -27,11 +27,7 @@ from anivault.constants.gui.components import (
     PIPELINE_RESULT_PANEL_MATCHED_LABEL,
     PIPELINE_RESULT_PANEL_UNMATCHED_LABEL,
 )
-from anivault.constants.gui.navigation import ICON_SIZES, LEGACY_VIEW_KEY_MAP, VIEW_TO_INDEX
-from anivault.constants.gui.settings import (
-    default_pipeline_results,
-    pipeline_results_from_loaded,
-)
+from anivault.constants.gui.navigation import ICON_SIZES, VIEW_TO_INDEX
 from anivault.interfaces.gui.components.molecules import (
     PanelHeader,
     PosterCard,
@@ -58,7 +54,13 @@ from anivault.interfaces.gui.models import (
     pipeline_row_ready_for_plan,
 )
 from anivault.interfaces.gui.services.image_loader import ImageLoader
-from anivault.interfaces.gui.settings_storage import load_all, save_all
+from anivault.interfaces.gui.templates.pipeline_result_state import (
+    PipelineResultUiState,
+    load_ui_state,
+    normalize_ui_state,
+    persist_ui_state,
+    resolve_selected_index,
+)
 
 
 class _ImageRowTarget(Protocol):
@@ -87,16 +89,6 @@ class _ImageRowTarget(Protocol):
             None.
         """
         ...
-
-
-class PipelineResultUiState(TypedDict):
-    """Persisted UI state payload for PipelineResultPanel."""
-
-    view_key: str
-    selected_index: int
-
-
-DEFAULT_UI_STATE: PipelineResultUiState = cast(PipelineResultUiState, default_pipeline_results())
 
 
 class PipelineResultPanel(QFrame):
@@ -573,15 +565,13 @@ class PipelineResultPanel(QFrame):
         Returns:
             선택 인덱스. 없으면 -1.
         """
-        if length <= 0:
-            return -1
-        if 0 <= self._pending_selected_index < length:
-            idx = self._pending_selected_index
-            self._pending_selected_index = -1
-            return idx
-        if 0 <= self._selected_index < length:
-            return self._selected_index
-        return 0
+        index, next_pending = resolve_selected_index(
+            length=length,
+            pending_selected_index=self._pending_selected_index,
+            selected_index=self._selected_index,
+        )
+        self._pending_selected_index = next_pending
+        return index
 
     def _restore_ui_state(self) -> None:
         """설정 저장소에서 Pipeline Result UI 상태를 읽어 위젯에 적용한다.
@@ -592,11 +582,7 @@ class PipelineResultPanel(QFrame):
         Returns:
             None.
         """
-        ui_state = load_all().get("ui_state", {})
-        pipeline_state = {}
-        if isinstance(ui_state, dict):
-            pipeline_state = {"ui_state": ui_state}
-        normalized = self._normalize_ui_state(pipeline_results_from_loaded(pipeline_state))
+        normalized = load_ui_state()
         self._restoring_state = True
         self._pending_selected_index = normalized["selected_index"]
         self._on_view_changed(normalized["view_key"])
@@ -612,19 +598,7 @@ class PipelineResultPanel(QFrame):
         Returns:
             정규화된 UI 상태.
         """
-        view_key = data.get("view_key")
-        selected_index = data.get("selected_index")
-        normalized: PipelineResultUiState = {
-            "view_key": DEFAULT_UI_STATE["view_key"],
-            "selected_index": DEFAULT_UI_STATE["selected_index"],
-        }
-        if isinstance(view_key, str):
-            view_key = LEGACY_VIEW_KEY_MAP.get(view_key, view_key)
-            if view_key in VIEW_TO_INDEX:
-                normalized["view_key"] = view_key
-        if isinstance(selected_index, int):
-            normalized["selected_index"] = selected_index
-        return normalized
+        return normalize_ui_state(data)
 
     def _persist_ui_state(self) -> None:
         """현재 Pipeline Result UI 상태를 설정 저장소에 기록한다.
@@ -637,15 +611,9 @@ class PipelineResultPanel(QFrame):
         """
         if self._restoring_state:
             return
-        save_all(
-            {
-                "ui_state": {
-                    "pipeline_results": {
-                        "view_key": self._view_bar.current_view(),
-                        "selected_index": self._selected_index,
-                    }
-                }
-            }
+        persist_ui_state(
+            view_key=self._view_bar.current_view(),
+            selected_index=self._selected_index,
         )
 
     def model(self) -> PipelineTableModel:

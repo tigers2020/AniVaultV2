@@ -1,9 +1,9 @@
 from pathlib import Path
 from threading import Event
 
-from anivault.application.dto.match_result import MatchFileRow
-from anivault.application.dto.plan import PlanInput
 from anivault.application.use_cases.plan_moves import make_execute
+from anivault.contracts.pipeline import PipelineRow
+from anivault.contracts.planning import PlanInput
 from anivault.domain.models.path_template_input import PathTemplateInput
 from anivault.domain.services.path_template import (
     effective_resolution_segment,
@@ -83,7 +83,7 @@ def test_effective_resolution_segment_matches_render_fallback() -> None:
 
 def test_plan_moves_accepts_original_file_alias_for_large_batch() -> None:
     rows = tuple(
-        MatchFileRow(
+        PipelineRow(
             original_file=f"F:/Library/Series/Episode {index:05d}.mkv",
             parsed_title=f"Series {index // 12:04d}",
             parse_group=f"Series {index // 12:04d}",

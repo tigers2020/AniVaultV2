@@ -5,7 +5,6 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, QSize, Qt
 from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QPushButton, QTreeWidget
 
-from anivault.application.dto.plan import PlanMovePreviewMeta
 from anivault.constants.gui.components import (
     DETAILS_PANE_MANUAL_MATCH_BUTTON,
     DRY_RUN_DIALOG_BUTTON_APPLY,
@@ -13,6 +12,8 @@ from anivault.constants.gui.components import (
     FOLDER_SCAN_BAR_BUTTON_MATCH,
     FOLDER_SCAN_BAR_BUTTON_SCAN,
 )
+from anivault.contracts.pipeline import PipelineRow
+from anivault.contracts.planning import PlanMovePreviewMeta
 from anivault.domain.models.file_operation import FileOperation, OperationType
 from anivault.interfaces.gui.components.molecules.panel_header import PanelHeader
 from anivault.interfaces.gui.components.molecules.poster_card import PosterCard
@@ -36,7 +37,7 @@ from anivault.interfaces.gui.dialogs.dry_run_dialog import (
     _format_folder_summary,
     _format_group_resolution_summary,
 )
-from anivault.interfaces.gui.models import PipelineGroupRow, PipelineRow, group_pipeline_rows
+from anivault.interfaces.gui.models import PipelineGroupRow, group_pipeline_rows
 
 
 def _ensure_app() -> QApplication:

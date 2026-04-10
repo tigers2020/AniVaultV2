@@ -11,8 +11,8 @@ from typing import cast
 from PySide6.QtCore import QObject, Slot
 from PySide6.QtWidgets import QMessageBox
 
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.constants.gui.components import MANUAL_TMDB_RELAY_ERROR_TITLE
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.interfaces.gui.dialogs.tmdb_manual_match_dialog import TmdbManualMatchDialog
 
 
@@ -42,7 +42,7 @@ class ManualTmdbSearchRelay(QObject):
         Returns:
             None.
         """
-        self._dlg.set_candidates(list(cast(Sequence[TmdbSeriesCandidateDTO], result)))
+        self._dlg.set_candidates(list(cast(Sequence[TmdbSeriesCandidate], result)))
 
     @Slot()
     def on_finished(self) -> None:

@@ -69,6 +69,23 @@ def test_anitopy_title_parser_uses_anitopy_fields_when_available(monkeypatch) ->
     assert parsed.resolution == "FHD"
 
 
+def test_anitopy_title_parser_strips_ignore_tokens_from_anime_title(monkeypatch) -> None:
+    monkeypatch.setattr(
+        title_parser.anitopy,
+        "parse",
+        lambda stem: {
+            "anime_title": "키스x시스 OAD",
+            "anime_year": "",
+            "episode_number": "01",
+        },
+    )
+
+    parsed = AnitopyTitleParser(ignore_tokens="OAD").parse("dummy.mkv")
+
+    assert parsed.title == "키스x시스"
+    assert parsed.parse_group == "키스x시스"
+
+
 def test_anitopy_title_parser_falls_back_when_anitopy_raises(monkeypatch) -> None:
     monkeypatch.setattr(
         title_parser.anitopy, "parse", lambda stem: (_ for _ in ()).throw(ValueError())

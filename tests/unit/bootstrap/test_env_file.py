@@ -1,6 +1,7 @@
 """Tests for `.env` path and TMDB API key helpers."""
 
 import os
+from dataclasses import replace
 from pathlib import Path
 from threading import Event
 from typing import Any
@@ -8,24 +9,19 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from anivault.application.dto.library_index import IndexedMediaForParse
-from anivault.application.dto.match_result import MatchFileRow
-from anivault.application.dto.parse import (
-    ParsedInfo as ApplicationParsedInfo,
-)
-from anivault.application.dto.parse import (
-    ParseInput,
-)
-from anivault.application.dto.parse_cache import (
+from anivault.application.use_cases.parse_titles import make_execute as make_parse_execute
+from anivault.application.use_cases.plan_moves import make_execute
+from anivault.bootstrap import container, env_file
+from anivault.contracts.library_index import IndexedMediaForParse
+from anivault.contracts.parse import ParseInput
+from anivault.contracts.parse_cache import (
     ParseCacheErrorWrite,
     ParseCacheLookup,
     ParseCacheOkWrite,
 )
-from anivault.application.dto.plan import PlanInput
-from anivault.application.dto.progress import ProgressEvent
-from anivault.application.use_cases.parse_titles import make_execute as make_parse_execute
-from anivault.application.use_cases.plan_moves import make_execute
-from anivault.bootstrap import container, env_file
+from anivault.contracts.pipeline import PipelineRow
+from anivault.contracts.planning import PlanInput
+from anivault.contracts.progress import ProgressEvent
 from anivault.domain.models.parsed_info import ParsedInfo as DomainParsedInfo
 from anivault.interfaces.gui.app import PAGE_META
 
@@ -121,8 +117,8 @@ class _ParseCache:
         self.upserted_errors.extend(item.media_file_id for item in items)
 
 
-def _matched_row(path: Path) -> MatchFileRow:
-    return MatchFileRow(
+def _matched_row(path: Path) -> PipelineRow:
+    return PipelineRow(
         original_file=str(path),
         parsed_title="Parsed",
         parse_group="Parsed",
@@ -142,7 +138,7 @@ def _matched_row(path: Path) -> MatchFileRow:
 
 
 def _plan_input(
-    row: MatchFileRow,
+    row: PipelineRow,
     target_root: Path,
     *,
     include_companion_subtitles: bool,
@@ -221,11 +217,6 @@ def test_load_into_os_environ_loads_file_when_unset(
     (tmp_path / ".env").write_text(f"{env_file.TMDB_API_KEY}=fromfile\n", encoding="utf-8")
     env_file.load_into_os_environ()
     assert os.environ.get(env_file.TMDB_API_KEY) == "fromfile"
-
-
-def test_application_parse_dto_reexports_domain_parsed_info() -> None:
-    """Application DTO imports should keep working after moving ParsedInfo to domain."""
-    assert ApplicationParsedInfo is DomainParsedInfo
 
 
 def test_domain_parsed_info_defaults_match_previous_dto_shape() -> None:
@@ -423,7 +414,7 @@ def test_plan_moves_subtitle_only_still_requires_match_data(tmp_path: Path) -> N
     subtitle = tmp_path / "orphan.srt"
     subtitle.write_text("subtitle", encoding="utf-8")
     row = _matched_row(subtitle)
-    row.tmdb_korean_title_group = ""
+    row = replace(row, tmdb_korean_title_group="")
     execute = make_execute()
 
     result = execute(
@@ -443,8 +434,7 @@ def test_plan_moves_adds_resolution_preview_meta_per_subgroup(tmp_path: Path) ->
     first.write_bytes(b"1080")
     second.write_bytes(b"720")
     first_row = _matched_row(first)
-    second_row = _matched_row(second)
-    second_row.resolution = "720p"
+    second_row = replace(_matched_row(second), resolution="720p")
     execute = make_execute()
 
     result = execute(
@@ -477,8 +467,7 @@ def test_plan_moves_preview_uses_unknown_resolution_and_reuses_video_meta_for_su
     subtitle = source_dir / "show.srt"
     video.write_bytes(b"video")
     subtitle.write_text("subtitle", encoding="utf-8")
-    row = _matched_row(video)
-    row.resolution = ""
+    row = replace(_matched_row(video), resolution="")
     execute = make_execute()
 
     result = execute(

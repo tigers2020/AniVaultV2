@@ -1,16 +1,11 @@
-"""library_index.py
-
-라이브러리 인덱스 조회용 경량 DTO.
-
-Author: Pom Kim
-"""
+"""Library index contracts."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class BulkMediaUpsertItem:
     """Input row for bulk media index upsert."""
 
@@ -18,7 +13,7 @@ class BulkMediaUpsertItem:
     media_kind: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class BulkMediaUpsertResult:
     """Summary from bulk media index upsert."""
 
@@ -27,9 +22,9 @@ class BulkMediaUpsertResult:
     seen_path_norms: set[str]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class MediaFileRecord:
-    """media_files 행 요약."""
+    """Read model for indexed media files."""
 
     id: int
     root_id: int
@@ -39,9 +34,9 @@ class MediaFileRecord:
     is_deleted: bool
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class IndexedMediaForParse:
-    """파싱 캐시용: 경로에 대응하는 인덱스 행 메타."""
+    """Indexed media metadata needed to resolve parse cache entries."""
 
     id: int
     path_norm: str

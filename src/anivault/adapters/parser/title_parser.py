@@ -10,8 +10,8 @@ from pathlib import Path
 
 import anitopy  # type: ignore[import-untyped]
 
-from anivault.application.dto.parse import ParsedInfo
 from anivault.application.ports.filename_parser import FilenameParser
+from anivault.domain.models import ParsedInfo
 from anivault.domain.rules.resolution_from_filename import (
     normalize_resolution_from_raw,
     resolution_from_filename,
@@ -285,15 +285,16 @@ class AnitopyTitleParser(FilenameParser):
     """anitopy 1차, 빈 결과·예외 시 MinimalTitleParser로 폴백."""
 
     def __init__(self, ignore_tokens: str = "") -> None:
-        """폴백 파서를 구성한다.
+        """폴백 파서를 구성하고, anitopy 제목 정리에 쓸 무시 토큰 집합을 준비한다.
 
         Args:
             self: 이 인스턴스.
-            ignore_tokens: 폴백 파서에 넘길 무시 토큰.
+            ignore_tokens: anitopy·폴백 파서에 공통으로 쓸 무시 토큰(쉼표 구분).
 
         Returns:
             None.
         """
+        self._ignore_token_set = _token_set(ignore_tokens)
         self._fallback = MinimalTitleParser(ignore_tokens=ignore_tokens)
 
     def parse(self, filename: str) -> ParsedInfo:
@@ -314,7 +315,7 @@ class AnitopyTitleParser(FilenameParser):
         title_raw = _anitopy_field_str(data.get("anime_title")) if data else ""
         if not title_raw:
             return self._fallback.parse(filename)
-        title = title_raw
+        title = _clean_title(title_raw, self._ignore_token_set)
         year = _anitopy_field_str(data.get("anime_year")) if data else ""
         year = year or _extract_year(stem)
         stem_season, stem_episode = _extract_season_episode(stem)

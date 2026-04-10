@@ -1,6 +1,7 @@
 """Main window setup and page switching."""
 
 from PySide6.QtCore import QTimer
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow
 
 from anivault.constants.gui.copy import APP_WINDOW_TITLE, PAGE_META
@@ -25,29 +26,26 @@ class MainWindow(QMainWindow):
         self.resize(MAIN_WINDOW_MIN_WIDTH, MAIN_WINDOW_MIN_HEIGHT)
         self._shell = MainShell()
         self.setCentralWidget(self._shell)
-        from anivault.bootstrap.container import (
-            create_organizer_page,
-            create_settings_page,
-            create_subtitle_organizer_page,
-        )
+        from anivault.bootstrap.container import AniVaultAppContainer
         from anivault.interfaces.gui.models import PipelineTableModel
 
+        self._app_container = AniVaultAppContainer()
         self._progress_dialog = ProgressDialog(parent=self)
         self._pipeline_model = PipelineTableModel()
         self._pipeline_model_subtitles = PipelineTableModel()
         self._shell.add_page(
-            create_organizer_page(
+            self._app_container.create_organizer_page(
                 pipeline_model=self._pipeline_model,
                 progress_dialog=self._progress_dialog,
             )
         )
         self._shell.add_page(
-            create_subtitle_organizer_page(
+            self._app_container.create_subtitle_organizer_page(
                 pipeline_model=self._pipeline_model_subtitles,
                 progress_dialog=self._progress_dialog,
             )
         )
-        self._shell.add_page(create_settings_page())
+        self._shell.add_page(self._app_container.create_settings_page())
         self._shell.tab_clicked.connect(self._on_tab_clicked)
         self._tab_to_index = {
             TAB_ORGANIZER: 0,
@@ -69,6 +67,12 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._responsive_timer.start(MAIN_WINDOW_RESIZE_DEBOUNCE_MS)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        try:
+            self._app_container.close()
+        finally:
+            super().closeEvent(event)
 
     def _apply_responsive_density(self) -> None:
         size = self.size()

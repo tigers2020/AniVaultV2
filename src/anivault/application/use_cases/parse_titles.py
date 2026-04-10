@@ -13,19 +13,20 @@ from pathlib import Path
 from threading import Event
 from typing import cast
 
-from anivault.application.dto.library_index import IndexedMediaForParse
-from anivault.application.dto.parse import ParsedInfo, ParseInput, ParseResult
-from anivault.application.dto.parse_cache import (
-    ParseCacheErrorWrite,
-    ParseCacheLookup,
-    ParseCacheOkWrite,
-)
-from anivault.application.dto.parse_serde import parsed_info_to_compact_json
-from anivault.application.dto.progress import ProgressEvent
 from anivault.application.ports.filename_parser import FilenameParser
 from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.parse_cache_port import ParseCacheRepository
 from anivault.constants.application.progress import PROGRESS_PERCENT_MAX, PROGRESS_STAGE_PARSE
+from anivault.contracts.library_index import IndexedMediaForParse
+from anivault.contracts.parse import ParseInput, ParseResult
+from anivault.contracts.parse_cache import (
+    ParseCacheErrorWrite,
+    ParseCacheLookup,
+    ParseCacheOkWrite,
+)
+from anivault.contracts.progress import ProgressEvent
+from anivault.domain.models import ParsedInfo
+from anivault.domain.models.parsed_info_serde import parsed_info_to_compact_json
 from anivault.domain.parsing.normalize_cache_title import normalize_title_for_parse_cache
 from anivault.domain.parsing.parse_signature import compute_parse_input_signature
 from anivault.domain.parsing.parser_version import PARSER_VERSION

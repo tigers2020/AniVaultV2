@@ -9,12 +9,9 @@ from anivault.adapters.persistence.sqlite.connection import create_connection
 from anivault.adapters.persistence.sqlite.sqlite_library_index_repository import (
     SqliteLibraryIndexRepository,
 )
-from anivault.application.dto.library_index import (
-    BulkMediaUpsertItem,
-    BulkMediaUpsertResult,
-)
-from anivault.application.dto.scan import ScanInput
 from anivault.application.use_cases.scan_library import make_execute
+from anivault.contracts.library_index import BulkMediaUpsertItem, BulkMediaUpsertResult
+from anivault.contracts.scan import ScanInput
 from anivault.domain.path_norm import normalize_path_key
 
 

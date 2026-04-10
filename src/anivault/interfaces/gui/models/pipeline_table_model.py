@@ -12,7 +12,8 @@ from typing import Any
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, QPersistentModelIndex, Qt
 
 from anivault.constants.gui.tables import PIPELINE_TABLE_COLUMNS
-from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow, PipelineRow
+from anivault.contracts.pipeline import PipelineRow
+from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow
 
 _INVALID_INDEX: QModelIndex = QModelIndex()
 

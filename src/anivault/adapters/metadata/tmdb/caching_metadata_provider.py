@@ -13,21 +13,29 @@ import json
 import logging
 from collections.abc import Sequence
 from dataclasses import asdict
+from typing import Protocol
 
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_plus_days_sqlite_text
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.ports.metadata_provider import MetadataProvider
-from anivault.application.ports.title_match_port import TitleMatchRepository
+from anivault.application.ports.title_match_port import (
+    SearchCacheRepository,
+    TmdbSeriesRepository,
+)
 from anivault.constants.adapters.tmdb import (
     TMDB_LOCAL_CANDIDATE_LIMIT,
     TMDB_SEARCH_CACHE_TTL_EMPTY_DAYS,
     TMDB_SEARCH_CACHE_TTL_OK_DAYS,
     UNKNOWN_TMDB_LANGUAGE,
 )
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.domain.rules.tmdb_search_cache_key import build_tmdb_search_cache_key
 from anivault.domain.rules.tmdb_search_query import normalize_tmdb_search_query
 
 logger = logging.getLogger(__name__)
+
+
+class _MetadataCacheRepository(SearchCacheRepository, TmdbSeriesRepository, Protocol):
+    """Combined protocol for local TMDB search/series cache access."""
 
 
 class CachingMetadataProvider:
@@ -36,7 +44,7 @@ class CachingMetadataProvider:
     def __init__(
         self,
         inner: MetadataProvider,
-        title_match: TitleMatchRepository,
+        title_match: _MetadataCacheRepository,
         *,
         language: str,
     ) -> None:
@@ -57,7 +65,7 @@ class CachingMetadataProvider:
 
     def search_series(
         self, query: str, *, year: int | None = None
-    ) -> Sequence[TmdbSeriesCandidateDTO]:
+    ) -> Sequence[TmdbSeriesCandidate]:
         """캐시 hit 시 네트워크 없이 후보를 반환한다.
 
         Args:
@@ -105,13 +113,13 @@ class CachingMetadataProvider:
 
 
 def _put_search_cache(
-    title_match: TitleMatchRepository,
+    title_match: SearchCacheRepository,
     *,
     key: str,
     language: str,
     query: str,
     year: int | None,
-    candidates: list[TmdbSeriesCandidateDTO],
+    candidates: list[TmdbSeriesCandidate],
 ) -> None:
     """검색 결과를 `tmdb_search_cache`에 저장한다.
 
@@ -144,7 +152,7 @@ def _put_search_cache(
         logger.exception("tmdb_search_cache 기록 실패 key=%s", key)
 
 
-def _encode_candidates_json(candidates: list[TmdbSeriesCandidateDTO]) -> str:
+def _encode_candidates_json(candidates: list[TmdbSeriesCandidate]) -> str:
     """후보 목록을 compact JSON 배열로 직렬화한다.
 
     Args:
@@ -160,7 +168,7 @@ def _encode_candidates_json(candidates: list[TmdbSeriesCandidateDTO]) -> str:
     )
 
 
-def _decode_candidates_json(raw: str) -> list[TmdbSeriesCandidateDTO]:
+def _decode_candidates_json(raw: str) -> list[TmdbSeriesCandidate]:
     """JSON 배열을 후보 목록으로 복원한다.
 
     Args:
@@ -177,13 +185,13 @@ def _decode_candidates_json(raw: str) -> list[TmdbSeriesCandidateDTO]:
     if not isinstance(data, list):
         msg = "search cache JSON은 배열이어야 한다"
         raise TypeError(msg)
-    out: list[TmdbSeriesCandidateDTO] = []
+    out: list[TmdbSeriesCandidate] = []
     for item in data:
         if not isinstance(item, dict):
             msg = "각 원소는 객체여야 한다"
             raise TypeError(msg)
         out.append(
-            TmdbSeriesCandidateDTO(
+            TmdbSeriesCandidate(
                 tmdb_id=int(item["tmdb_id"]),
                 name_ko=str(item.get("name_ko", "") or ""),
                 original_name=str(item.get("original_name", "") or ""),

@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 from PySide6.QtCore import QThread
 
-from anivault.application.dto.progress import ProgressEvent
+from anivault.contracts.progress import ProgressEvent
 from anivault.interfaces.gui.components.molecules import ProgressDialog
 from anivault.interfaces.gui.workers import UseCaseWorker, WorkerSignals, run_worker
 

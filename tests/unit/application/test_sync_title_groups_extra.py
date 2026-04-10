@@ -1,41 +1,22 @@
 from __future__ import annotations
 
-from anivault.application.dto.title_groups import (
+from anivault.application.use_cases.sync_title_groups import make_execute
+from anivault.contracts.title_groups import (
+    TitleGroupBundle,
+    TitleGroupingRow,
     TitleGroupListRecord,
-    TitleGroupMemberSync,
-    TitleGroupSyncBundle,
+    TitleGroupMember,
 )
-from anivault.application.use_cases.sync_title_groups import _computed_to_bundle, make_execute
-from anivault.domain.services.title_grouping import (
-    TitleGroupComputed,
-    TitleGroupingInputRow,
-    TitleGroupMemberComputed,
-)
-
-
-def test_computed_to_bundle_maps_domain_result() -> None:
-    bundle = _computed_to_bundle(
-        TitleGroupComputed(
-            group_key="group",
-            group_type="parsed_title_norm",
-            canonical_title="Show",
-            canonical_title_normalized="show",
-            members=(TitleGroupMemberComputed(1, "primary_video", 0.9),),
-        )
-    )
-
-    assert bundle.group_key == "group"
-    assert bundle.members == (TitleGroupMemberSync(1, "primary_video", 0.9),)
 
 
 def test_make_execute_loads_rows_computes_groups_and_replaces(monkeypatch) -> None:
     class _Repo:
         def __init__(self) -> None:
-            self.replaced: tuple[int, list[TitleGroupSyncBundle]] | None = None
+            self.replaced: tuple[int, list[TitleGroupBundle]] | None = None
 
-        def load_rows_for_grouping(self, root_id: int) -> list[TitleGroupingInputRow]:
+        def load_rows_for_grouping(self, root_id: int) -> list[TitleGroupingRow]:
             return [
-                TitleGroupingInputRow(
+                TitleGroupingRow(
                     media_file_id=1,
                     parsed_title="Show",
                     parsed_title_normalized="show",
@@ -55,14 +36,14 @@ def test_make_execute_loads_rows_computes_groups_and_replaces(monkeypatch) -> No
         def replace_root_title_groups(
             self,
             root_id: int,
-            bundles: list[TitleGroupSyncBundle],
+            bundles: list[TitleGroupBundle],
         ) -> None:
             self.replaced = (root_id, bundles)
 
         def replace_group_members(
             self,
             group_id: int,
-            members: list[TitleGroupMemberSync],
+            members: list[TitleGroupMember],
         ) -> None:
             return None
 
@@ -77,12 +58,14 @@ def test_make_execute_loads_rows_computes_groups_and_replaces(monkeypatch) -> No
 
     repo = _Repo()
     computed = [
-        TitleGroupComputed(
+        TitleGroupBundle(
             group_key="group",
             group_type="parsed_title_norm",
             canonical_title="Show",
             canonical_title_normalized="show",
-            members=(TitleGroupMemberComputed(1, "primary_video", 0.9),),
+            tmdb_series_id=None,
+            group_confidence=None,
+            members=(TitleGroupMember(1, "primary_video", 0.9),),
         )
     ]
     monkeypatch.setattr(
@@ -96,3 +79,4 @@ def test_make_execute_loads_rows_computes_groups_and_replaces(monkeypatch) -> No
     root_id, bundles = repo.replaced
     assert root_id == 7
     assert len(bundles) == 1
+    assert bundles == computed

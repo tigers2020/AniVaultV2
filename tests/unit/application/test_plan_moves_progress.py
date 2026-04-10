@@ -7,15 +7,15 @@ from threading import Event
 
 import pytest
 
-from anivault.application.dto.match_result import MatchFileRow
-from anivault.application.dto.plan import PlanInput
-from anivault.application.dto.progress import ProgressEvent
 from anivault.application.use_cases.plan_moves import make_execute
 from anivault.constants.application.progress import PROGRESS_PERCENT_MAX
+from anivault.contracts.pipeline import PipelineRow
+from anivault.contracts.planning import PlanInput
+from anivault.contracts.progress import ProgressEvent
 
 
-def _row_for_index(index: int) -> MatchFileRow:
-    return MatchFileRow(
+def _row_for_index(index: int) -> PipelineRow:
+    return PipelineRow(
         original_file=f"F:/Library/Series/Episode {index:05d}.mkv",
         parsed_title="Series",
         parse_group="Series",
@@ -62,8 +62,8 @@ def test_plan_moves_throttles_progress_callbacks() -> None:
     assert len(events) <= PROGRESS_PERCENT_MAX + 2
 
 
-def _matched_row(path: Path) -> MatchFileRow:
-    return MatchFileRow(
+def _matched_row(path: Path) -> PipelineRow:
+    return PipelineRow(
         original_file=str(path),
         parsed_title="Parsed",
         parse_group="Parsed",

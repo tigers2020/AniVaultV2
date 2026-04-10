@@ -10,7 +10,7 @@ from anivault.adapters.persistence.sqlite.sqlite_library_index_repository import
 from anivault.adapters.persistence.sqlite.sqlite_organize_plan_repository import (
     SqliteOrganizePlanRepository,
 )
-from anivault.application.dto.organize_plan import OrganizePlanAppendRow
+from anivault.contracts.organize_plan import OrganizePlanAppendRow
 
 
 def test_sqlite_organize_plan_repository_round_trip(tmp_path: Path) -> None:

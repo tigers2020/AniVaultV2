@@ -77,7 +77,7 @@ def test_match_file_to_pipeline_row_uses_local_poster_when_available(monkeypatch
         get_poster_local_path=MagicMock(return_value="C:/poster.jpg")
     )
     monkeypatch.setattr(
-        "anivault.interfaces.gui.presenters.organizer_presenter.resolve_final_poster_display_source",
+        "anivault.interfaces.gui.presenters.row_mapper.resolve_final_poster_display_source",
         lambda local, remote: local or remote,
     )
 

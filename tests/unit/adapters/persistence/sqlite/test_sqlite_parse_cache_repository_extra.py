@@ -10,16 +10,16 @@ from anivault.adapters.persistence.sqlite.sqlite_library_index_repository import
 from anivault.adapters.persistence.sqlite.sqlite_parse_cache_repository import (
     SqliteParseCacheRepository,
 )
-from anivault.application.dto.library_index import BulkMediaUpsertItem, IndexedMediaForParse
-from anivault.application.dto.parse_cache import ParseCacheErrorWrite
+from anivault.contracts.library_index import BulkMediaUpsertItem, IndexedMediaForParse
+from anivault.contracts.parse_cache import ParseCacheErrorWrite
 from anivault.domain.models import ParsedInfo
+from anivault.domain.models.parsed_info_serde import parsed_info_to_compact_json
 from anivault.domain.parsing.normalize_cache_title import normalize_title_for_parse_cache
 from anivault.domain.parsing.parser_version import PARSER_VERSION
 
 
 def _ok_write(media_file_id: int, signature: str, parsed: ParsedInfo):
-    from anivault.application.dto.parse_cache import ParseCacheOkWrite
-    from anivault.application.dto.parse_serde import parsed_info_to_compact_json
+    from anivault.contracts.parse_cache import ParseCacheOkWrite
 
     return ParseCacheOkWrite(
         media_file_id=media_file_id,

@@ -12,7 +12,7 @@ from threading import Lock
 from typing import cast
 
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
-from anivault.application.dto.organize_plan import (
+from anivault.contracts.organize_plan import (
     OrganizeOperationKind,
     OrganizePlanAppendRow,
     OrganizePlanBundle,

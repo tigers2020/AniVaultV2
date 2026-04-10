@@ -1,22 +1,22 @@
 from pathlib import Path
 
-from anivault.application.dto.match_result import MatchFileRow, MatchInput
-from anivault.application.dto.title_groups import (
-    TitleGroupListRecord,
-    TitleGroupMemberSync,
-    TitleGroupSyncBundle,
-)
-from anivault.application.dto.title_match import GroupTmdbMatchRecord, MatchStatusDto
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.use_cases.hydrate_cached_tmdb_matches import make_execute
 from anivault.constants.gui.components import PIPELINE_ROW_STATUS_TMDB_CACHED
+from anivault.contracts.pipeline import MatchInput, PipelineRow
+from anivault.contracts.title_groups import (
+    TitleGroupBundle,
+    TitleGroupingRow,
+    TitleGroupListRecord,
+    TitleGroupMember,
+)
+from anivault.contracts.title_match import GroupTmdbMatchRecord, MatchStatus
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.domain.path_norm import normalize_path_key
 from anivault.domain.rules.tmdb_image_url import tmdb_poster_cdn_url
-from anivault.domain.services.title_grouping import TitleGroupingInputRow
 
 
-def _row(path: str) -> MatchFileRow:
-    return MatchFileRow(
+def _row(path: str) -> PipelineRow:
+    return PipelineRow(
         original_file=path,
         parsed_title="Parsed",
         parse_group="Parsed",
@@ -40,7 +40,7 @@ class _TitleGroups:
         self.path_to_group = path_to_group
         self.bulk_lookups: list[list[str]] = []
 
-    def load_rows_for_grouping(self, root_id: int) -> list[TitleGroupingInputRow]:
+    def load_rows_for_grouping(self, root_id: int) -> list[TitleGroupingRow]:
         """Unused by hydrate use case; satisfies TitleGroupRepository."""
         del root_id
         return []
@@ -62,10 +62,10 @@ class _TitleGroups:
             if path_norm in self.path_to_group
         }
 
-    def replace_root_title_groups(self, root_id: int, bundles: list[TitleGroupSyncBundle]) -> None:
+    def replace_root_title_groups(self, root_id: int, bundles: list[TitleGroupBundle]) -> None:
         del root_id, bundles
 
-    def replace_group_members(self, group_id: int, members: list[TitleGroupMemberSync]) -> None:
+    def replace_group_members(self, group_id: int, members: list[TitleGroupMember]) -> None:
         del group_id, members
 
     def list_title_groups_for_root(self, root_id: int) -> list[TitleGroupListRecord]:
@@ -84,7 +84,7 @@ class _TitleMatch:
         self,
         *,
         matches: dict[int, GroupTmdbMatchRecord] | None = None,
-        candidates: dict[int, TmdbSeriesCandidateDTO] | None = None,
+        candidates: dict[int, TmdbSeriesCandidate] | None = None,
         poster_paths: dict[tuple[int, str, str], str] | None = None,
     ) -> None:
         self.matches = matches or {}
@@ -114,7 +114,7 @@ class _TitleMatch:
 
     def upsert_series(
         self,
-        candidate: TmdbSeriesCandidateDTO,
+        candidate: TmdbSeriesCandidate,
         *,
         raw_json: str,
         expires_at: str,
@@ -129,10 +129,10 @@ class _TitleMatch:
             group_id: self.matches[group_id] for group_id in group_ids if group_id in self.matches
         }
 
-    def get_series_candidate(self, tmdb_id: int) -> TmdbSeriesCandidateDTO | None:
+    def get_series_candidate(self, tmdb_id: int) -> TmdbSeriesCandidate | None:
         return self.candidates.get(tmdb_id)
 
-    def get_series_candidates(self, tmdb_ids: list[int]) -> dict[int, TmdbSeriesCandidateDTO]:
+    def get_series_candidates(self, tmdb_ids: list[int]) -> dict[int, TmdbSeriesCandidate]:
         return {
             tmdb_id: self.candidates[tmdb_id] for tmdb_id in tmdb_ids if tmdb_id in self.candidates
         }
@@ -142,7 +142,7 @@ class _TitleMatch:
         query: str,
         *,
         limit: int = 10,
-    ) -> list[TmdbSeriesCandidateDTO]:
+    ) -> list[TmdbSeriesCandidate]:
         del query, limit
         return []
 
@@ -150,7 +150,7 @@ class _TitleMatch:
         self,
         group_id: int,
         tmdb_id: int,
-        match_status: MatchStatusDto,
+        match_status: MatchStatus,
         match_score: float | None,
     ) -> None:
         del group_id, tmdb_id, match_status, match_score
@@ -187,7 +187,7 @@ def test_hydrate_cached_tmdb_matches_uses_series_and_local_poster(tmp_path: Path
     poster.write_bytes(b"jpg")
     group_id = 10
     tmdb_id = 123
-    candidate = TmdbSeriesCandidateDTO(
+    candidate = TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko="Korean Title",
         original_name="Original Title",
@@ -233,7 +233,7 @@ def test_hydrate_cached_tmdb_matches_falls_back_to_cdn_on_missing_local_poster(
     media = str(tmp_path / "show.mkv")
     group_id = 10
     tmdb_id = 123
-    candidate = TmdbSeriesCandidateDTO(
+    candidate = TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko="Korean Title",
         original_name="Original Title",
@@ -271,7 +271,7 @@ def test_hydrate_cached_tmdb_matches_applies_hit_to_whole_current_group(
     uncached_media = str(tmp_path / "show-02.mkv")
     group_id = 10
     tmdb_id = 123
-    candidate = TmdbSeriesCandidateDTO(
+    candidate = TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko="Korean Title",
         original_name="Original Title",
@@ -318,7 +318,7 @@ def test_hydrate_cached_tmdb_matches_uses_later_path_hit_for_same_current_group(
     cached_media = str(tmp_path / "show-01.mkv")
     group_id = 10
     tmdb_id = 123
-    candidate = TmdbSeriesCandidateDTO(
+    candidate = TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko="Korean Title",
         original_name="Original Title",
@@ -403,7 +403,7 @@ def test_hydrate_cached_tmdb_matches_memoizes_poster_lookup_for_shared_candidate
     poster.write_bytes(b"jpg")
     group_id = 10
     tmdb_id = 123
-    candidate = TmdbSeriesCandidateDTO(
+    candidate = TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko="Korean Title",
         original_name="Original Title",

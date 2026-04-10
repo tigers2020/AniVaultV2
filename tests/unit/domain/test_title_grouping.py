@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from anivault.contracts.title_groups import TitleGroupingRow
 from anivault.domain.services.title_grouping import (
-    TitleGroupingInputRow,
     _bucket_key_for_row,
     _canonical_from_row,
     _member_role_for_media_kind,
@@ -17,8 +17,8 @@ def _row(
     parsed_title_normalized: str | None = "show",
     sidecar_group_key: str | None = None,
     media_kind: str = "video",
-) -> TitleGroupingInputRow:
-    return TitleGroupingInputRow(
+) -> TitleGroupingRow:
+    return TitleGroupingRow(
         media_file_id=media_file_id,
         parsed_title=parsed_title,
         parsed_title_normalized=parsed_title_normalized,

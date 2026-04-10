@@ -3,12 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from threading import Event
 
-from anivault.application.dto.plan import ApplyInput
 from anivault.application.use_cases.apply_plan import (
     _apply_operations_or_error,
     _execute_apply,
     _move_operation_or_error,
 )
+from anivault.contracts.planning import ApplyInput
 from anivault.domain.models.file_operation import FileOperation, OperationType
 
 

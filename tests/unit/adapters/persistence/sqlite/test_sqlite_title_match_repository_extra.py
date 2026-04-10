@@ -15,11 +15,11 @@ from anivault.adapters.persistence.sqlite.sqlite_title_match_repository import (
     _rank_local_title_hits,
     _rank_title_match,
 )
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 
 
-def _candidate(tmdb_id: int, name_ko: str = "Frieren") -> TmdbSeriesCandidateDTO:
-    return TmdbSeriesCandidateDTO(
+def _candidate(tmdb_id: int, name_ko: str = "Frieren") -> TmdbSeriesCandidate:
+    return TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko=name_ko,
         original_name="Sousou no Frieren",

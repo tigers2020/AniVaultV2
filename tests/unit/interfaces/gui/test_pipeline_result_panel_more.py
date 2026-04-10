@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from anivault.interfaces.gui.components.molecules.view_toggle_bar import VIEW_CONTENT, VIEW_ICON_M
 from anivault.interfaces.gui.models import PipelineRow, group_pipeline_rows
-from anivault.interfaces.gui.templates import pipeline_result_panel as panel_module
+from anivault.interfaces.gui.templates import pipeline_result_state as panel_state_module
 from anivault.interfaces.gui.templates.pipeline_result_panel import PipelineResultPanel
 
 
@@ -152,7 +152,7 @@ def test_unified_index_selectable_index_and_state_helpers(monkeypatch) -> None:
     assert panel._selectable_index(0) == -1  # type: ignore[attr-defined]
 
     saved: list[dict[str, object]] = []
-    monkeypatch.setattr(panel_module, "save_all", lambda payload: saved.append(payload))
+    monkeypatch.setattr(panel_state_module, "save_all", lambda payload: saved.append(payload))
     panel._restoring_state = True  # type: ignore[attr-defined]
     panel._view_bar = SimpleNamespace(current_view=lambda: VIEW_ICON_M)  # type: ignore[attr-defined]
     panel._persist_ui_state()  # type: ignore[attr-defined]
@@ -161,7 +161,7 @@ def test_unified_index_selectable_index_and_state_helpers(monkeypatch) -> None:
 
 def test_restore_ui_state_and_poster_image_loaded_handle_edge_cases(monkeypatch) -> None:
     panel = PipelineResultPanel.__new__(PipelineResultPanel)
-    monkeypatch.setattr(panel_module, "load_all", lambda: {"ui_state": []})
+    monkeypatch.setattr(panel_state_module, "load_all", lambda: {"ui_state": []})
     view_calls: list[str] = []
     panel._on_view_changed = lambda key: view_calls.append(key)  # type: ignore[attr-defined]
 

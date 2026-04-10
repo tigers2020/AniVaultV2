@@ -11,8 +11,8 @@ import sqlite3
 from threading import Lock
 
 from anivault.adapters.persistence.sqlite.sqlite_time import utc_now_sqlite_text
-from anivault.application.dto.search_tv_library import SearchTvLibraryRecord
 from anivault.application.ports.tmdb_search_tv_library_port import TmdbSearchTvLibraryRepository
+from anivault.contracts.tmdb import SearchTvLibraryRecord
 
 _UPSERT_SQL = """
 INSERT INTO tmdb_search_tv_library (

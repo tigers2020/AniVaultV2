@@ -4,16 +4,16 @@ import math
 from threading import Event
 from typing import cast
 
-from anivault.application.dto.match_result import MatchFileRow
-from anivault.application.dto.tmdb import TmdbSeriesCandidateDTO
 from anivault.application.ports.title_group_port import TitleGroupRepository
 from anivault.application.ports.title_match_port import TitleMatchRepository
 from anivault.application.use_cases import match_series
 from anivault.constants.gui.components import PIPELINE_ROW_STATUS_TMDB_MATCHED
+from anivault.contracts.pipeline import PipelineRow
+from anivault.contracts.tmdb import TmdbSeriesCandidate
 
 
-def _row(original: str, *, parsed: str = "", group: str = "") -> MatchFileRow:
-    return MatchFileRow(
+def _row(original: str, *, parsed: str = "", group: str = "") -> PipelineRow:
+    return PipelineRow(
         original_file=original,
         parsed_title=parsed,
         parse_group=group,
@@ -40,8 +40,8 @@ def _candidate(
     poster_path: str = "/poster.jpg",
     backdrop_path: str = "/backdrop.jpg",
     popularity: float = 10.0,
-) -> TmdbSeriesCandidateDTO:
-    return TmdbSeriesCandidateDTO(
+) -> TmdbSeriesCandidate:
+    return TmdbSeriesCandidate(
         tmdb_id=tmdb_id,
         name_ko=name_ko,
         original_name=original_name,
@@ -56,16 +56,14 @@ def _candidate(
 
 class _TitleMatchRepo:
     def __init__(
-        self, candidate: TmdbSeriesCandidateDTO | None = None, match: object | None = None
+        self, candidate: TmdbSeriesCandidate | None = None, match: object | None = None
     ) -> None:
         self.candidate = candidate
         self.match = match
         self.upserts: list[int] = []
         self.group_matches: list[tuple[int, int, str, float | None]] = []
 
-    def upsert_series(
-        self, chosen: TmdbSeriesCandidateDTO, *, raw_json: str, expires_at: str
-    ) -> None:
+    def upsert_series(self, chosen: TmdbSeriesCandidate, *, raw_json: str, expires_at: str) -> None:
         self.upserts.append(chosen.tmdb_id)
 
     def set_group_match(
@@ -76,7 +74,7 @@ class _TitleMatchRepo:
     def get_group_match(self, group_id: int) -> object | None:
         return self.match
 
-    def get_series_candidate(self, tmdb_id: int) -> TmdbSeriesCandidateDTO | None:
+    def get_series_candidate(self, tmdb_id: int) -> TmdbSeriesCandidate | None:
         return self.candidate
 
 
@@ -140,7 +138,7 @@ def test_notify_match_progress_helpers_emit_expected_events() -> None:
     match_series._notify_match_progress_step(events.append, 2, 1, "done")
 
     assert [(e.current, e.total, e.message) for e in events] == [
-        (0, 2, "TMDB 매칭 준비…"),
+        (0, 2, "TMDB matching setup"),
         (1, 2, "done"),
     ]
 

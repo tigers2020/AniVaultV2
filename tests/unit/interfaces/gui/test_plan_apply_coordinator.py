@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from anivault.application.dto.plan import ApplyResult, PlanMovePreviewMeta, PlanResult
+from anivault.contracts.planning import ApplyResult, PlanMovePreviewMeta, PlanResult
 from anivault.domain.models.file_operation import FileOperation, OperationType
 from anivault.interfaces.gui.presenters.organizing import plan_apply_coordinator as module
 

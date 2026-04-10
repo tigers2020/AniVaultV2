@@ -12,9 +12,6 @@ from pathlib import Path
 from threading import Event
 from typing import cast
 
-from anivault.application.dto.organize_plan import OrganizePlanItemStatus, OrganizePlanStatus
-from anivault.application.dto.plan import ApplyInput, ApplyResult
-from anivault.application.dto.progress import ProgressEvent
 from anivault.application.ports.file_repository import FileRepository
 from anivault.application.ports.library_index_port import LibraryIndexRepository
 from anivault.application.ports.operation_log_port import OperationLogRepository
@@ -26,6 +23,9 @@ from anivault.constants.application.statuses import (
     ORGANIZE_PLAN_STATUS_APPLIED,
     ORGANIZE_PLAN_STATUS_FAILED,
 )
+from anivault.contracts.organize_plan import OrganizePlanItemStatus, OrganizePlanStatus
+from anivault.contracts.planning import ApplyInput, ApplyResult
+from anivault.contracts.progress import ProgressEvent
 from anivault.domain.models import FileOperation
 
 ApplyProgressCallback = Callable[[ProgressEvent], None]

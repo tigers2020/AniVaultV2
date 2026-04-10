@@ -3,11 +3,11 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call
 
-from anivault.application.dto.match_result import MatchInput, MatchResult
-from anivault.application.dto.parse import ParseResult
-from anivault.application.dto.scan import ScanResult
+from anivault.contracts.parse import ParseResult
+from anivault.contracts.pipeline import MatchInput, MatchResult, PipelineRow
+from anivault.contracts.scan import ScanResult
 from anivault.domain.models.parsed_info import ParsedInfo
-from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow, PipelineRow
+from anivault.interfaces.gui.models.ui_rows import PipelineGroupRow
 from anivault.interfaces.gui.presenters.organizing import scan_parse_coordinator as module
 
 
@@ -288,11 +288,6 @@ def test_apply_parse_result_rows_after_optional_hydrate_tracks_pending_job(monke
         coord,
         "_apply_parse_result_groups_chunked",
         lambda *args, **kwargs: applied.append((args, kwargs)),
-    )
-    monkeypatch.setattr(
-        module,
-        "pipeline_row_to_match_file",
-        lambda row: SimpleNamespace(original_file=row.original_file),
     )
     monkeypatch.setattr(module, "group_pipeline_rows", lambda rows: ["group"])
 

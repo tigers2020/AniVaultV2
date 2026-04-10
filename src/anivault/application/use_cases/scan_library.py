@@ -15,9 +15,6 @@ from pathlib import Path
 from threading import Event
 from typing import cast
 
-from anivault.application.dto.library_index import BulkMediaUpsertItem, IndexedMediaForParse
-from anivault.application.dto.progress import ProgressEvent
-from anivault.application.dto.scan import ScanInput, ScanResult
 from anivault.application.ports.file_repository import FileRepository
 from anivault.application.ports.library_index_port import (
     LibraryIndexRepository,
@@ -30,6 +27,9 @@ from anivault.constants.application.statuses import (
     SCAN_SESSION_STATUS_FAILED,
     SCAN_SESSION_STATUS_SUCCESS,
 )
+from anivault.contracts.library_index import BulkMediaUpsertItem, IndexedMediaForParse
+from anivault.contracts.progress import ProgressEvent
+from anivault.contracts.scan import ScanInput, ScanResult
 from anivault.domain.media.extensions import VIDEO_SCAN_EXTENSIONS, classify_media_kind
 from anivault.domain.rules.resolution_from_filename import resolution_from_filename
 from anivault.domain.services.subtitle_scan_filter import filter_subtitle_paths_without_paired_video

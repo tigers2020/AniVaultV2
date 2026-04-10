@@ -12,7 +12,7 @@ from anivault.adapters.persistence.sqlite.connection import create_connection
 from anivault.adapters.persistence.sqlite.sqlite_tmdb_search_tv_library_repository import (
     SqliteTmdbSearchTvLibraryRepository,
 )
-from anivault.application.dto.search_tv_library import SearchTvLibraryRecord
+from anivault.contracts.tmdb import SearchTvLibraryRecord
 
 _REPO_ROOT = Path(__file__).resolve().parents[5]
 _FIXTURE_DIR = _REPO_ROOT / "docs" / "fixtures" / "tmdb_api" / "search_tv"

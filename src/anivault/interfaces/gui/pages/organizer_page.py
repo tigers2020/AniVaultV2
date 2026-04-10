@@ -13,8 +13,9 @@ from anivault.constants.gui.settings import (
     auto_scan_on_first_show_from_loaded,
     scan_source_path_from_loaded,
 )
+from anivault.contracts.pipeline import PipelineRow
 from anivault.interfaces.gui.components.organisms import FolderScanBar, StatsGrid
-from anivault.interfaces.gui.models import PipelineRow, PipelineTableModel
+from anivault.interfaces.gui.models import PipelineTableModel
 from anivault.interfaces.gui.presenters import OrganizerPresenter
 from anivault.interfaces.gui.settings_storage import load_all, save_all
 from anivault.interfaces.gui.templates import PipelineResultPanel

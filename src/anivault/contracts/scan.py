@@ -1,16 +1,11 @@
-"""scan.py
-
-scan_library 유스케이스용 DTO: ScanInput, ScanResult.
-
-Author: Pom Kim
-"""
+"""Scan use-case contracts."""
 
 from dataclasses import dataclass, field
 
 
-@dataclass
+@dataclass(slots=True)
 class ScanInput:
-    """scan_library 입력."""
+    """Input for library scanning."""
 
     path: str
     recursive: bool = True
@@ -18,9 +13,9 @@ class ScanInput:
     exclude_subtitles_with_paired_video: bool = False
 
 
-@dataclass
+@dataclass(slots=True)
 class ScanResult:
-    """scan_library 결과. paths와 resolutions는 동일 길이·순서."""
+    """Output for library scanning."""
 
     paths: list[str] = field(default_factory=list)
     resolutions: list[str] = field(default_factory=list)
