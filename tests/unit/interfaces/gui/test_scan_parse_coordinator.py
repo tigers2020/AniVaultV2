@@ -173,9 +173,7 @@ def test_on_progress_updates_dialog_when_token_valid() -> None:
     dialog.is_progress_token_valid.return_value = True
     coord = _coord(SimpleNamespace(_progress_dialog=dialog))
 
-    coord._on_progress(
-        ProgressEvent(stage="", current=1, total=2, message="msg", percent=0), 5
-    )
+    coord._on_progress(ProgressEvent(stage="", current=1, total=2, message="msg", percent=0), 5)
 
     dialog.update_progress.assert_called_once()
 
@@ -380,9 +378,7 @@ def test_on_cached_tmdb_hydrate_result_applies_grouped_rows_when_current(monkeyp
 
     monkeypatch.setattr(coord, "_apply_parse_result_groups_chunked", capture_apply)
 
-    coord._on_cached_tmdb_hydrate_result(
-        MatchResult(files=(_row("a.mkv"),)), MagicMock(), 1
-    )
+    coord._on_cached_tmdb_hydrate_result(MatchResult(files=(_row("a.mkv"),)), MagicMock(), 1)
 
     assert applied
 

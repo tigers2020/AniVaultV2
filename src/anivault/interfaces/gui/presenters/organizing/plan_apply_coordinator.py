@@ -72,7 +72,7 @@ class PlanApplyCoordinator(QObject):
             dialog.update_progress(message=event.message, value=value, maximum=maximum)
 
     @staticmethod
-    def _coerce_path_rules(settings: dict) -> dict:
+    def _coerce_path_rules(settings: dict[str, object]) -> dict[str, object]:
         path_rules = settings.get("path_rules") or {}
         return path_rules if isinstance(path_rules, dict) else {}
 

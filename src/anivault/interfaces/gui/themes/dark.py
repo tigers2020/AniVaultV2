@@ -16,6 +16,7 @@ from anivault.interfaces.gui.themes.base import (
     RADIUS_PX,
     ColorPalette,
 )
+from anivault.interfaces.gui.themes.qss_fragments import qss_block, qss_blocks
 
 
 class DarkTheme:
@@ -87,174 +88,192 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QWidget {{
-            background-color: {c["bg"]};
-            color: {c["text"]};
-            font-family: {FONT_FAMILY};
-            font-size: {self._root_font_size_pt}pt;
-        }}
-        QMainWindow {{
-            background-color: {c["bg"]};
-        }}
-        QFrame {{
-            background-color: {c["panel"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._radius_px}px;
-            color: {c["text"]};
-        }}
-        QLabel {{
-            color: {c["text"]};
-            border: none;
-            background: transparent;
-            font-family: {FONT_FAMILY};
-            font-size: 11pt;
-        }}
-        QPushButton {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c["panel2"]}, stop:1 {c["panel"]});
-            border: 1px solid {c["border"]};
-            border-top-color: rgba(43, 55, 102, 0.45);
-            border-left-color: rgba(43, 55, 102, 0.45);
-            border-bottom-color: rgba(20, 28, 55, 0.95);
-            border-right-color: rgba(20, 28, 55, 0.95);
-            border-radius: {self._button_radius_px}px;
-            color: {c["text"]};
-            padding: 11px 14px;
-            font-weight: 600;
-        }}
-        QPushButton:hover {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(122, 162, 255, 0.18), stop:1 rgba(122, 162, 255, 0.08));
-            border-color: rgba(122, 162, 255, 0.28);
-        }}
-        QPushButton:pressed {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c["panel"]}, stop:1 #0d1328);
-            border-top-color: rgba(20, 28, 55, 0.95);
-            border-left-color: rgba(20, 28, 55, 0.95);
-            border-bottom-color: rgba(43, 55, 102, 0.45);
-            border-right-color: rgba(43, 55, 102, 0.45);
-            padding: 12px 14px 10px 14px;
-        }}
-        QPushButton#primary {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8fa8ff, stop:1 #6b82e8);
-            color: #0a1022;
-            border: none;
-        }}
-        QPushButton#primary:hover {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9eb4ff, stop:1 #8e8cff);
-            border: none;
-        }}
-        QPushButton#primary:pressed {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5c72d4, stop:1 #4a5fc7);
-            padding: 12px 14px 10px 14px;
-        }}
-        QPushButton#success {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8ef5e5, stop:1 #5cc9b8);
-            color: #07151a;
-            border: none;
-        }}
-        QPushButton#success:hover {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9ef9ea, stop:1 #91f0da);
-            border: none;
-        }}
-        QPushButton#success:pressed {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4ab5a5, stop:1 #3da898);
-            padding: 12px 14px 10px 14px;
-        }}
-        QPushButton#warn {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 180, 84, 0.22), stop:1 rgba(255, 180, 84, 0.1));
-            border: 1px solid rgba(255, 180, 84, 0.3);
-            border-top-color: rgba(255, 180, 84, 0.38);
-            border-left-color: rgba(255, 180, 84, 0.38);
-            border-bottom-color: rgba(255, 180, 84, 0.22);
-            border-right-color: rgba(255, 180, 84, 0.22);
-            color: #ffd697;
-        }}
-        QPushButton#warn:pressed {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 180, 84, 0.08), stop:1 rgba(255, 180, 84, 0.18));
-            padding: 12px 14px 10px 14px;
-        }}
-        QPushButton#danger {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 107, 129, 0.22), stop:1 rgba(255, 107, 129, 0.1));
-            border: 1px solid rgba(255, 107, 129, 0.3);
-            border-top-color: rgba(255, 107, 129, 0.38);
-            border-left-color: rgba(255, 107, 129, 0.38);
-            border-bottom-color: rgba(255, 107, 129, 0.22);
-            border-right-color: rgba(255, 107, 129, 0.22);
-            color: #ffc0cb;
-        }}
-        QPushButton#danger:pressed {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 107, 129, 0.08), stop:1 rgba(255, 107, 129, 0.18));
-            padding: 12px 14px 10px 14px;
-        }}
-        QToolButton {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c["panel2"]}, stop:1 {c["panel2"]});
-            border: 1px solid {c["border"]};
-            border-top-color: rgba(43, 55, 102, 0.45);
-            border-left-color: rgba(43, 55, 102, 0.45);
-            border-bottom-color: rgba(20, 28, 55, 0.95);
-            border-right-color: rgba(20, 28, 55, 0.95);
-            border-radius: {self._button_radius_px}px;
-            color: {c["text"]};
-            padding: 11px 14px;
-            font-weight: 600;
-        }}
-        QToolButton:hover {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(122, 162, 255, 0.18), stop:1 rgba(122, 162, 255, 0.08));
-            border-color: rgba(122, 162, 255, 0.28);
-        }}
-        QToolButton:pressed {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c["panel"]}, stop:1 #0d1328);
-            border-top-color: rgba(20, 28, 55, 0.95);
-            border-left-color: rgba(20, 28, 55, 0.95);
-            border-bottom-color: rgba(43, 55, 102, 0.45);
-            border-right-color: rgba(43, 55, 102, 0.45);
-            padding: 12px 14px 10px 14px;
-        }}
-        QToolButton:checked {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8fa8ff, stop:1 #6b82e8);
-            color: #0a1022;
-            border: none;
-        }}
-        QToolButton:checked:hover {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9eb4ff, stop:1 #8e8cff);
-            border: none;
-        }}
-        QLineEdit, QComboBox, QPlainTextEdit {{
-            background-color: {c["input_bg"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._input_radius_px}px;
-            color: {c["text"]};
-            padding: 11px 12px;
-            font-family: {FONT_FAMILY};
-            font-size: 11pt;
-        }}
-        QComboBox::drop-down {{
-            border: none;
-        }}
-        QScrollArea {{
-            border: none;
-            background: transparent;
-        }}
-        QTableWidget, QTableView {{
-            background-color: {c["table_bg"]};
-            gridline-color: rgba(43, 55, 102, 0.7);
-            color: {c["text"]};
-            border: none;
-        }}
-        QHeaderView::section {{
-            background-color: {c["header_bg"]};
-            color: {c["muted"]};
-            padding: 12px 14px;
-            font-family: {FONT_FAMILY};
-            font-size: 10pt;
-            font-weight: 600;
-        }}
-        QFrame#sidebar_pipeline_card QLabel {{
-            color: {c["text"]};
-            background: transparent;
-            border: none;
-        }}
-    """
+        return qss_blocks(
+            qss_block(
+                "QWidget",
+                f"background-color: {c['bg']}",
+                f"color: {c['text']}",
+                f"font-family: {FONT_FAMILY}",
+                f"font-size: {self._root_font_size_pt}pt",
+            ),
+            qss_block("QMainWindow", f"background-color: {c['bg']}"),
+            qss_block(
+                "QFrame",
+                f"background-color: {c['panel']}",
+                f"border: 1px solid {c['border']}",
+                f"border-radius: {self._radius_px}px",
+                f"color: {c['text']}",
+            ),
+            qss_block(
+                "QLabel",
+                f"color: {c['text']}",
+                "border: none",
+                "background: transparent",
+                f"font-family: {FONT_FAMILY}",
+                "font-size: 11pt",
+            ),
+            qss_block(
+                "QPushButton",
+                f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['panel2']}, stop:1 {c['panel']})",
+                f"border: 1px solid {c['border']}",
+                "border-top-color: rgba(43, 55, 102, 0.45)",
+                "border-left-color: rgba(43, 55, 102, 0.45)",
+                "border-bottom-color: rgba(20, 28, 55, 0.95)",
+                "border-right-color: rgba(20, 28, 55, 0.95)",
+                f"border-radius: {self._button_radius_px}px",
+                f"color: {c['text']}",
+                "padding: 11px 14px",
+                "font-weight: 600",
+            ),
+            qss_block(
+                "QPushButton:hover",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(122, 162, 255, 0.18), stop:1 rgba(122, 162, 255, 0.08))",
+                "border-color: rgba(122, 162, 255, 0.28)",
+            ),
+            qss_block(
+                "QPushButton:pressed",
+                f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['panel']}, stop:1 #0d1328)",
+                "border-top-color: rgba(20, 28, 55, 0.95)",
+                "border-left-color: rgba(20, 28, 55, 0.95)",
+                "border-bottom-color: rgba(43, 55, 102, 0.45)",
+                "border-right-color: rgba(43, 55, 102, 0.45)",
+                "padding: 12px 14px 10px 14px",
+            ),
+            qss_block(
+                "QPushButton#primary",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8fa8ff, stop:1 #6b82e8)",
+                "color: #0a1022",
+                "border: none",
+            ),
+            qss_block(
+                "QPushButton#primary:hover",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9eb4ff, stop:1 #8e8cff)",
+                "border: none",
+            ),
+            qss_block(
+                "QPushButton#primary:pressed",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5c72d4, stop:1 #4a5fc7)",
+                "padding: 12px 14px 10px 14px",
+            ),
+            qss_block(
+                "QPushButton#success",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8ef5e5, stop:1 #5cc9b8)",
+                "color: #07151a",
+                "border: none",
+            ),
+            qss_block(
+                "QPushButton#success:hover",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9ef9ea, stop:1 #91f0da)",
+                "border: none",
+            ),
+            qss_block(
+                "QPushButton#success:pressed",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4ab5a5, stop:1 #3da898)",
+                "padding: 12px 14px 10px 14px",
+            ),
+            qss_block(
+                "QPushButton#warn",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 180, 84, 0.22), stop:1 rgba(255, 180, 84, 0.1))",
+                "border: 1px solid rgba(255, 180, 84, 0.3)",
+                "border-top-color: rgba(255, 180, 84, 0.38)",
+                "border-left-color: rgba(255, 180, 84, 0.38)",
+                "border-bottom-color: rgba(255, 180, 84, 0.22)",
+                "border-right-color: rgba(255, 180, 84, 0.22)",
+                "color: #ffd697",
+            ),
+            qss_block(
+                "QPushButton#warn:pressed",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 180, 84, 0.08), stop:1 rgba(255, 180, 84, 0.18))",
+                "padding: 12px 14px 10px 14px",
+            ),
+            qss_block(
+                "QPushButton#danger",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 107, 129, 0.22), stop:1 rgba(255, 107, 129, 0.1))",
+                "border: 1px solid rgba(255, 107, 129, 0.3)",
+                "border-top-color: rgba(255, 107, 129, 0.38)",
+                "border-left-color: rgba(255, 107, 129, 0.38)",
+                "border-bottom-color: rgba(255, 107, 129, 0.22)",
+                "border-right-color: rgba(255, 107, 129, 0.22)",
+                "color: #ffc0cb",
+            ),
+            qss_block(
+                "QPushButton#danger:pressed",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 107, 129, 0.08), stop:1 rgba(255, 107, 129, 0.18))",
+                "padding: 12px 14px 10px 14px",
+            ),
+            qss_block(
+                "QToolButton",
+                f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['panel2']}, stop:1 {c['panel2']})",
+                f"border: 1px solid {c['border']}",
+                "border-top-color: rgba(43, 55, 102, 0.45)",
+                "border-left-color: rgba(43, 55, 102, 0.45)",
+                "border-bottom-color: rgba(20, 28, 55, 0.95)",
+                "border-right-color: rgba(20, 28, 55, 0.95)",
+                f"border-radius: {self._button_radius_px}px",
+                f"color: {c['text']}",
+                "padding: 11px 14px",
+                "font-weight: 600",
+            ),
+            qss_block(
+                "QToolButton:hover",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(122, 162, 255, 0.18), stop:1 rgba(122, 162, 255, 0.08))",
+                "border-color: rgba(122, 162, 255, 0.28)",
+            ),
+            qss_block(
+                "QToolButton:pressed",
+                f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['panel']}, stop:1 #0d1328)",
+                "border-top-color: rgba(20, 28, 55, 0.95)",
+                "border-left-color: rgba(20, 28, 55, 0.95)",
+                "border-bottom-color: rgba(43, 55, 102, 0.45)",
+                "border-right-color: rgba(43, 55, 102, 0.45)",
+                "padding: 12px 14px 10px 14px",
+            ),
+            qss_block(
+                "QToolButton:checked",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8fa8ff, stop:1 #6b82e8)",
+                "color: #0a1022",
+                "border: none",
+            ),
+            qss_block(
+                "QToolButton:checked:hover",
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9eb4ff, stop:1 #8e8cff)",
+                "border: none",
+            ),
+            qss_block(
+                "QLineEdit, QComboBox, QPlainTextEdit",
+                f"background-color: {c['input_bg']}",
+                f"border: 1px solid {c['border']}",
+                f"border-radius: {self._input_radius_px}px",
+                f"color: {c['text']}",
+                "padding: 11px 12px",
+                f"font-family: {FONT_FAMILY}",
+                "font-size: 11pt",
+            ),
+            qss_block("QComboBox::drop-down", "border: none"),
+            qss_block("QScrollArea", "border: none", "background: transparent"),
+            qss_block(
+                "QTableWidget, QTableView",
+                f"background-color: {c['table_bg']}",
+                "gridline-color: rgba(43, 55, 102, 0.7)",
+                f"color: {c['text']}",
+                "border: none",
+            ),
+            qss_block(
+                "QHeaderView::section",
+                f"background-color: {c['header_bg']}",
+                f"color: {c['muted']}",
+                "padding: 12px 14px",
+                f"font-family: {FONT_FAMILY}",
+                "font-size: 10pt",
+                "font-weight: 600",
+            ),
+            qss_block(
+                "QFrame#sidebar_pipeline_card QLabel",
+                f"color: {c['text']}",
+                "background: transparent",
+                "border: none",
+            ),
+        )
 
     def main_bg(self) -> str:
         """main bg용 QSS 또는 스타일 문자열을 반환한다.
@@ -288,12 +307,11 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QWidget#sidebar {{
-            background-color: {c["sidebar_bg"]};
-            border-right: 1px solid {c["border"]};
-        }}
-    """
+        return qss_block(
+            "QWidget#sidebar",
+            f"background-color: {c['sidebar_bg']}",
+            f"border-right: 1px solid {c['border']}",
+        )
 
     def sidebar_nav_title(self) -> str:
         """sidebar nav title용 QSS 또는 스타일 문자열을 반환한다.
@@ -321,15 +339,14 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QFrame {{
-            margin-top: 18px;
-            padding: 14px;
-            border: 1px solid {c["border"]};
-            border-radius: {self._frame_radius_px}px;
-            background-color: {c["card_bg"]};
-        }}
-    """
+        return qss_block(
+            "QFrame",
+            "margin-top: 18px",
+            "padding: 14px",
+            f"border: 1px solid {c['border']}",
+            f"border-radius: {self._frame_radius_px}px",
+            f"background-color: {c['card_bg']}",
+        )
 
     def sidebar_card_title(self) -> str:
         """sidebar card title용 QSS 또는 스타일 문자열을 반환한다.
@@ -353,14 +370,13 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QFrame {{
-            padding: 14px;
-            border: 1px solid {c["border"]};
-            border-radius: {self._frame_radius_px}px;
-            background-color: {c["card_bg"]};
-        }}
-    """
+        return qss_block(
+            "QFrame",
+            "padding: 14px",
+            f"border: 1px solid {c['border']}",
+            f"border-radius: {self._frame_radius_px}px",
+            f"background-color: {c['card_bg']}",
+        )
 
     def sidebar_footer_value(self) -> str:
         """sidebar footer value용 QSS 또는 스타일 문자열을 반환한다.
@@ -444,15 +460,14 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QLineEdit {{
-            background-color: {c["input_bg"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._input_radius_px}px;
-            color: {c["text"]};
-            padding: 11px 12px;
-        }}
-    """
+        return qss_block(
+            "QLineEdit",
+            f"background-color: {c['input_bg']}",
+            f"border: 1px solid {c['border']}",
+            f"border-radius: {self._input_radius_px}px",
+            f"color: {c['text']}",
+            "padding: 11px 12px",
+        )
 
     def combo_box(self) -> str:
         """combo box용 QSS 또는 스타일 문자열을 반환한다.
@@ -464,19 +479,18 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QComboBox {{
-            background-color: {c["input_bg"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._input_radius_px}px;
-            color: {c["text"]};
-            padding: 11px 12px;
-            min-height: 20px;
-        }}
-        QComboBox::drop-down {{
-            border: none;
-        }}
-    """
+        return qss_blocks(
+            qss_block(
+                "QComboBox",
+                f"background-color: {c['input_bg']}",
+                f"border: 1px solid {c['border']}",
+                f"border-radius: {self._input_radius_px}px",
+                f"color: {c['text']}",
+                "padding: 11px 12px",
+                "min-height: 20px",
+            ),
+            qss_block("QComboBox::drop-down", "border: none"),
+        )
 
     def pill(self, color: str = "blue") -> str:
         """Pill 색상 키에 맞는 인라인 스타일 조각을 반환한다.
@@ -605,17 +619,15 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QFrame#stat_card {{
-            background-color: {c["card_bg"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._radius_px}px;
-        }}
-        QFrame#stat_card QLabel {{
-            background: transparent;
-            border: none;
-        }}
-    """
+        return qss_blocks(
+            qss_block(
+                "QFrame#stat_card",
+                f"background-color: {c['card_bg']}",
+                f"border: 1px solid {c['border']}",
+                f"border-radius: {self._radius_px}px",
+            ),
+            qss_block("QFrame#stat_card QLabel", "background: transparent", "border: none"),
+        )
 
     def stat_card_value(self) -> str:
         """stat card value용 QSS 또는 스타일 문자열을 반환한다.
@@ -661,17 +673,16 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QLabel {{
-            background-color: {c["input_bg"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._input_radius_px}px;
-            padding: 10px;
-            font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-            color: {c["text"]};
-            font-size: 10pt;
-        }}
-    """
+        return qss_block(
+            "QLabel",
+            f"background-color: {c['input_bg']}",
+            f"border: 1px solid {c['border']}",
+            f"border-radius: {self._input_radius_px}px",
+            "padding: 10px",
+            'font-family: ui-monospace, "Cascadia Code", Consolas, monospace',
+            f"color: {c['text']}",
+            "font-size: 10pt",
+        )
 
     def poster_card(self) -> str:
         """poster card용 QSS 또는 스타일 문자열을 반환한다.
@@ -683,13 +694,12 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QFrame {{
-            background-color: {c["panel2"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._frame_radius_px}px;
-        }}
-    """
+        return qss_block(
+            "QFrame",
+            f"background-color: {c['panel2']}",
+            f"border: 1px solid {c['border']}",
+            f"border-radius: {self._frame_radius_px}px",
+        )
 
     def frame_radius_px(self) -> int:
         """포스터 이미지·텍스트 패널 등에 쓰는 모서리 반경(px)을 반환한다.
@@ -750,13 +760,12 @@ class DarkTheme:
             QSS 문자열.
         """
         r = self._frame_radius_px
-        return f"""
-        QFrame#content_view_text_panel {{
-            background-color: rgba(0, 0, 0, 0.75);
-            border: none;
-            border-radius: {r}px;
-        }}
-        """
+        return qss_block(
+            "QFrame#content_view_text_panel",
+            "background-color: rgba(0, 0, 0, 0.75)",
+            "border: none",
+            f"border-radius: {r}px",
+        )
 
     def card_panel(self) -> str:
         """card panel용 QSS 또는 스타일 문자열을 반환한다.
@@ -768,13 +777,12 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QFrame {{
-            background-color: {c["card_bg"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._radius_px}px;
-        }}
-    """
+        return qss_block(
+            "QFrame",
+            f"background-color: {c['card_bg']}",
+            f"border: 1px solid {c['border']}",
+            f"border-radius: {self._radius_px}px",
+        )
 
     def list_item(self) -> str:
         """list item용 QSS 또는 스타일 문자열을 반환한다.
@@ -786,13 +794,12 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QWidget {{
-            background-color: {c["panel2"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._button_radius_px}px;
-        }}
-    """
+        return qss_block(
+            "QWidget",
+            f"background-color: {c['panel2']}",
+            f"border: 1px solid {c['border']}",
+            f"border-radius: {self._button_radius_px}px",
+        )
 
     def list_item_strong(self) -> str:
         """list item strong용 QSS 또는 스타일 문자열을 반환한다.
@@ -881,30 +888,29 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QMenu {{
-            background-color: {c["panel"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._menu_outer_radius_px}px;
-            padding: 6px;
-        }}
-        QMenu::item {{
-            padding: 10px 24px;
-            border-radius: {self._menu_item_radius_px}px;
-            color: {c["text"]};
-        }}
-        QMenu::item:selected {{
-            background-color: rgba(122, 162, 255, 0.18);
-        }}
-        QMenu::item:disabled {{
-            color: {c["muted"]};
-        }}
-        QMenu::separator {{
-            height: 1px;
-            background: {c["border"]};
-            margin: 6px 8px;
-        }}
-    """
+        return qss_blocks(
+            qss_block(
+                "QMenu",
+                f"background-color: {c['panel']}",
+                f"border: 1px solid {c['border']}",
+                f"border-radius: {self._menu_outer_radius_px}px",
+                "padding: 6px",
+            ),
+            qss_block(
+                "QMenu::item",
+                "padding: 10px 24px",
+                f"border-radius: {self._menu_item_radius_px}px",
+                f"color: {c['text']}",
+            ),
+            qss_block("QMenu::item:selected", "background-color: rgba(122, 162, 255, 0.18)"),
+            qss_block("QMenu::item:disabled", f"color: {c['muted']}"),
+            qss_block(
+                "QMenu::separator",
+                "height: 1px",
+                f"background: {c['border']}",
+                "margin: 6px 8px",
+            ),
+        )
 
     def progress_dialog(self) -> str:
         """progress dialog용 QSS 또는 스타일 문자열을 반환한다.
@@ -916,26 +922,29 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"""
-        QProgressDialog {{
-            background-color: {c["panel"]};
-            border: 1px solid {c["border"]};
-            border-radius: {self._radius_px}px;
-            color: {c["text"]};
-        }}
-        QProgressDialog QLabel {{
-            color: {c["text"]};
-            font-size: 11pt;
-        }}
-        QProgressBar {{
-            border: 1px solid {c["border"]};
-            border-radius: {self._progressbar_radius_px}px;
-            text-align: center;
-            background-color: {c["input_bg"]};
-        }}
-        QProgressBar::chunk {{
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                stop:0 {c["accent"]}, stop:1 #8e8cff);
-            border-radius: {self._progressbar_chunk_radius_px}px;
-        }}
-    """
+        return qss_blocks(
+            qss_block(
+                "QProgressDialog",
+                f"background-color: {c['panel']}",
+                f"border: 1px solid {c['border']}",
+                f"border-radius: {self._radius_px}px",
+                f"color: {c['text']}",
+            ),
+            qss_block(
+                "QProgressDialog QLabel",
+                f"color: {c['text']}",
+                "font-size: 11pt",
+            ),
+            qss_block(
+                "QProgressBar",
+                f"border: 1px solid {c['border']}",
+                f"border-radius: {self._progressbar_radius_px}px",
+                "text-align: center",
+                f"background-color: {c['input_bg']}",
+            ),
+            qss_block(
+                "QProgressBar::chunk",
+                f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {c['accent']}, stop:1 #8e8cff)",
+                f"border-radius: {self._progressbar_chunk_radius_px}px",
+            ),
+        )
