@@ -32,6 +32,8 @@ def test_main_window_helper_methods_delegate_to_shell_and_theme(monkeypatch) -> 
     shell = MagicMock()
     window._shell = shell  # type: ignore[attr-defined]
     window._tab_to_index = {"organizer": 2}  # type: ignore[attr-defined]
+    window._startup_progress_reset_done = False  # type: ignore[attr-defined]
+    window._progress_dialog = MagicMock()  # type: ignore[attr-defined]
     timer = MagicMock()
     window._responsive_timer = timer  # type: ignore[attr-defined]
     window.size = lambda: SimpleNamespace(width=lambda: 1280, height=lambda: 720)  # type: ignore[attr-defined]
@@ -46,16 +48,22 @@ def test_main_window_helper_methods_delegate_to_shell_and_theme(monkeypatch) -> 
     monkeypatch.setattr(
         app_module.QMainWindow, "resizeEvent", lambda self, event: super_calls.append(event)
     )
+    monkeypatch.setattr(
+        app_module.QMainWindow, "showEvent", lambda self, event: super_calls.append(event)
+    )
 
     window._on_tab_clicked("organizer")  # type: ignore[attr-defined]
     window.resizeEvent("event")  # type: ignore[arg-type]
     window._apply_responsive_density()  # type: ignore[attr-defined]
+    window.showEvent("show")  # type: ignore[arg-type]
+    window.showEvent("show-again")  # type: ignore[arg-type]
 
     shell.set_topbar_page.assert_called_once_with("Organizer", "Desc")
     shell.set_current_page.assert_called_once_with(2)
     timer.start.assert_called_once_with(app_module.MAIN_WINDOW_RESIZE_DEBOUNCE_MS)
     assert density_calls == [(1280, 720)]
-    assert super_calls == ["event"]
+    assert super_calls == ["event", "show", "show-again"]
+    window._progress_dialog.hide_progress.assert_called_once()  # type: ignore[attr-defined]
 
 
 def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
@@ -102,6 +110,7 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
         def __init__(self, parent=None):
             super().__init__(parent)
             self.forms = None
+            self.load_calls = 0
 
         def set_forms(self, *forms):
             self.forms = forms
@@ -116,7 +125,7 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
             pass  # test stub: signals not exercised in this case
 
         def on_load_clicked(self):
-            pass  # test stub: signals not exercised in this case
+            self.load_calls += 1
 
     from anivault.interfaces.gui.pages import settings_page as settings_page_module
 
@@ -127,8 +136,14 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
     monkeypatch.setattr(settings_page_module, "SettingsActionsCard", FakeSettingsActionsCard)
     monkeypatch.setattr(settings_page_module, "SettingsPresenter", FakePresenter)
     monkeypatch.setattr(settings_page_module.theme, "scroll_area_transparent", lambda: "scroll")
+    monkeypatch.setattr(settings_page_module.theme, "page_section_gap_px", lambda: 19)
     monkeypatch.setattr(settings_page_module.theme, "settings_page_section_gap_px", lambda: 21)
     monkeypatch.setattr(settings_page_module.theme, "settings_page_grid_gap_px", lambda: 17)
+    monkeypatch.setattr(settings_page_module.theme, "result_list_panel_min_width_px", lambda: 280)
+    super_calls: list[object] = []
+    monkeypatch.setattr(
+        settings_page_module.QWidget, "showEvent", lambda self, event: super_calls.append(event)
+    )
 
     page = SettingsPage()
     assert isinstance(page, QWidget)
@@ -143,10 +158,20 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
     content_layout = content.layout()
     assert content_layout is not None
     assert content_layout.spacing() == 21
+    assert content_layout.contentsMargins().bottom() == 19
     settings_grid = content_layout.itemAt(0).layout()
     assert settings_grid is not None
     assert settings_grid.horizontalSpacing() == 17
     assert settings_grid.verticalSpacing() == 17
+    assert settings_grid.columnMinimumWidth(0) == 280
+    assert settings_grid.columnMinimumWidth(1) == 280
+    actions_item = settings_grid.itemAtPosition(0, 0)
+    assert actions_item is not None
+    assert actions_item.widget() is not None
+    assert actions_item.widget().objectName() == "settings_actions_card"
+    page.showEvent("event")  # type: ignore[arg-type]
+    assert super_calls == ["event"]
+    assert page._presenter.load_calls == 1  # type: ignore[attr-defined]
 
     presenter = FakePresenter()
     page_with_presenter = SettingsPage(presenter=cast(SettingsPresenter, presenter))
@@ -403,6 +428,34 @@ def test_settings_presenter_load_reset_save_and_theme(monkeypatch) -> None:
     assert themes == ["dark", "saved:dark"]
 
 
+def test_scan_build_card_emits_settings_changed_on_path_signal() -> None:
+    _ensure_app()
+
+    from anivault.interfaces.gui.components.organisms.scan_build_card import ScanBuildCard
+
+    widget = ScanBuildCard()
+    emitted: list[str] = []
+    widget.settings_changed.connect(lambda: emitted.append("changed"))
+    widget._source.path_changed.emit("F:/Anime")  # type: ignore[attr-defined]
+
+    assert emitted == ["changed"]
+    widget.close()
+
+
+def test_folder_scan_bar_relays_selected_path() -> None:
+    _ensure_app()
+
+    from anivault.interfaces.gui.components.organisms.folder_scan_bar import FolderScanBar
+
+    widget = FolderScanBar()
+    emitted: list[str] = []
+    widget.path_changed.connect(emitted.append)
+    widget._path_field.path_changed.emit("F:/Anime")  # type: ignore[attr-defined]
+
+    assert emitted == ["F:/Anime"]
+    widget.close()
+
+
 def test_organizer_page_helpers_update_stats_and_autoscan(monkeypatch) -> None:
     page = OrganizerPage.__new__(OrganizerPage)
     page._model = cast(
@@ -436,6 +489,7 @@ def test_organizer_page_helpers_update_stats_and_autoscan(monkeypatch) -> None:
         "singleShot",
         lambda delay, callback: single_shots.append((delay, callback)),
     )
+    monkeypatch.setattr(organizer_page_module.Path, "is_dir", lambda self: True)
 
     page._on_scan_path_changed("F:/Anime")  # type: ignore[attr-defined]
     page._update_stats()  # type: ignore[attr-defined]
@@ -447,6 +501,44 @@ def test_organizer_page_helpers_update_stats_and_autoscan(monkeypatch) -> None:
     assert single_shots and single_shots[0][0] == 100
     single_shots[0][1]()
     page._presenter.on_scan_clicked.assert_called_once_with("F:/Anime")  # type: ignore[attr-defined]
+
+
+def test_organizer_page_show_event_skips_autoscan_for_blank_or_missing_path(monkeypatch) -> None:
+    page = OrganizerPage.__new__(OrganizerPage)
+    page._scan_bar = MagicMock()  # type: ignore[attr-defined]
+    page._presenter = cast(Any, SimpleNamespace(on_scan_clicked=MagicMock()))
+    page._auto_scan_done = False  # type: ignore[attr-defined]
+
+    super_calls: list[object] = []
+    monkeypatch.setattr(
+        organizer_page_module.QWidget, "showEvent", lambda self, event: super_calls.append(event)
+    )
+    single_shots: list[tuple[int, Callable[[], None]]] = []
+    monkeypatch.setattr(
+        organizer_page_module.QTimer,
+        "singleShot",
+        lambda delay, callback: single_shots.append((delay, callback)),
+    )
+
+    monkeypatch.setattr(
+        organizer_page_module,
+        "load_all",
+        lambda: {"scan_build": {"source_path": "   ", "auto_scan_on_first_show": True}},
+    )
+    page.showEvent("blank")  # type: ignore[arg-type]
+
+    monkeypatch.setattr(
+        organizer_page_module,
+        "load_all",
+        lambda: {"scan_build": {"source_path": "F:/Missing", "auto_scan_on_first_show": True}},
+    )
+    monkeypatch.setattr(organizer_page_module.Path, "is_dir", lambda self: False)
+    page.showEvent("missing")  # type: ignore[arg-type]
+
+    assert super_calls == ["blank", "missing"]
+    assert single_shots == []
+    page._presenter.on_scan_clicked.assert_not_called()  # type: ignore[attr-defined]
+    assert page._auto_scan_done is False  # type: ignore[attr-defined]
 
 
 def test_organizer_page_constructor_wires_components(monkeypatch) -> None:
@@ -553,6 +645,9 @@ def test_organizer_page_constructor_wires_components(monkeypatch) -> None:
     assert isinstance(page._stats_grid, FakeStatsGrid)  # type: ignore[attr-defined]
     assert isinstance(page._result_panel, FakeResultPanel)  # type: ignore[attr-defined]
     assert page._scan_bar.path_value == "F:/Anime"  # type: ignore[attr-defined]
+    assert page._scan_bar.objectName() == "organizer_command_bar"  # type: ignore[attr-defined]
+    assert page._stats_grid.objectName() == "organizer_summary_grid"  # type: ignore[attr-defined]
+    assert page._result_panel.objectName() == "organizer_results_panel"  # type: ignore[attr-defined]
     assert page._presenter.panel is page._result_panel  # type: ignore[attr-defined]
     assert page._presenter.dry_run_handler.__self__ is page._scan_bar  # type: ignore[attr-defined]
     assert page._presenter.dry_run_handler.__name__ == "set_dry_run_enabled"  # type: ignore[attr-defined]

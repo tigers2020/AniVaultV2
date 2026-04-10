@@ -5,13 +5,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from anivault.constants.gui.copy import SIDEBAR_TAB_LABELS, SIDEBAR_TITLE
 from anivault.constants.gui.navigation import TAB_ORGANIZER, TAB_SETTINGS, TAB_SUBTITLES
-from anivault.constants.gui.theme import (
-    SIDEBAR_MARGIN_BOTTOM_PX,
-    SIDEBAR_MARGIN_LEFT_PX,
-    SIDEBAR_MARGIN_RIGHT_PX,
-    SIDEBAR_MARGIN_TOP_PX,
-    SIDEBAR_NAV_SPACING_PX,
-)
+from anivault.constants.gui.theme import SIDEBAR_NAV_SPACING_PX
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import Brand, NavItem
 from anivault.interfaces.gui.themes import on_density_changed
@@ -28,11 +22,12 @@ class Sidebar(QWidget):
         self._apply_responsive_metrics()
         self.setStyleSheet(theme.sidebar())
         layout = QVBoxLayout(self)
+        sidebar_padding = theme.sidebar_padding_px()
         layout.setContentsMargins(
-            SIDEBAR_MARGIN_LEFT_PX,
-            SIDEBAR_MARGIN_TOP_PX,
-            SIDEBAR_MARGIN_RIGHT_PX,
-            SIDEBAR_MARGIN_BOTTOM_PX,
+            sidebar_padding,
+            sidebar_padding,
+            sidebar_padding,
+            sidebar_padding,
         )
         layout.setSpacing(0)
         layout.addWidget(Brand())
@@ -46,7 +41,7 @@ class Sidebar(QWidget):
         nav_buttons = QWidget()
         nav_buttons_layout = QVBoxLayout(nav_buttons)
         nav_buttons_layout.setContentsMargins(0, 0, 0, 0)
-        nav_buttons_layout.setSpacing(SIDEBAR_NAV_SPACING_PX)
+        nav_buttons_layout.setSpacing(max(SIDEBAR_NAV_SPACING_PX, theme.compact_gap_px()))
         for btn in (self._organizer_btn, self._subtitles_btn, self._settings_btn):
             btn.tab_clicked.connect(self.tab_clicked.emit)
             nav_buttons_layout.addWidget(btn)

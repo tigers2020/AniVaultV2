@@ -1,5 +1,5 @@
 -- 008_tmdb_search_tv_library.sql
--- Permanent local rows aligned with docs/fixtures/tmdb_api/search_tv/_schema.json result_item_keys.
+-- Permanent local rows aligned with tests/fixtures/tmdb_api/search_tv JSON result item keys.
 
 CREATE TABLE tmdb_search_tv_library (
     tmdb_id INTEGER NOT NULL,

@@ -6,7 +6,7 @@ Author: Pom Kim
 """
 
 from PySide6.QtCore import QEvent, Signal
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy
+from PySide6.QtWidgets import QFrame, QGridLayout, QSizePolicy
 
 from anivault.constants.gui.components import (
     FOLDER_SCAN_BAR_BUTTON_DRY_RUN,
@@ -29,22 +29,25 @@ class FolderScanBar(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(18, 14, 18, 14)
-        layout.setSpacing(12)
+        layout = QGridLayout(self)
+        body_padding = theme.card_body_padding_px()
+        layout.setContentsMargins(body_padding, body_padding, body_padding, body_padding)
+        layout.setHorizontalSpacing(theme.inline_control_gap_px())
+        layout.setVerticalSpacing(theme.compact_gap_px())
+        layout.setColumnStretch(0, 1)
         self._path_field = PathSelectField(placeholder=FOLDER_SCAN_BAR_PATH_PLACEHOLDER)
-        self._path_field.path_changed.connect(self.path_changed.emit)
-        layout.addWidget(self._path_field, 1)
+        self._path_field.path_changed.connect(lambda path: self.path_changed.emit(path))
+        layout.addWidget(self._path_field, 0, 0, 1, 3)
         self._scan_btn = Button(FOLDER_SCAN_BAR_BUTTON_SCAN, "primary")
         self._scan_btn.clicked.connect(self._on_scan)
-        layout.addWidget(self._scan_btn)
+        layout.addWidget(self._scan_btn, 1, 0)
         self._match_btn = Button(FOLDER_SCAN_BAR_BUTTON_MATCH)
         self._match_btn.clicked.connect(self.match_clicked.emit)
-        layout.addWidget(self._match_btn)
+        layout.addWidget(self._match_btn, 1, 1)
         self._dry_run_btn = Button(FOLDER_SCAN_BAR_BUTTON_DRY_RUN)
         self._dry_run_btn.setEnabled(False)
         self._dry_run_btn.clicked.connect(self.dry_run_clicked.emit)
-        layout.addWidget(self._dry_run_btn)
+        layout.addWidget(self._dry_run_btn, 1, 2)
         self.setStyleSheet(theme.card_panel())
         self.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed))
         self._sync_fixed_height()

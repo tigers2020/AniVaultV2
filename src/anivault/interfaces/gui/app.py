@@ -1,7 +1,7 @@
 """Main window setup and page switching."""
 
 from PySide6.QtCore import QTimer
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QShowEvent
 from PySide6.QtWidgets import QMainWindow
 
 from anivault.constants.gui.copy import APP_WINDOW_TITLE, PAGE_META
@@ -33,6 +33,7 @@ class MainWindow(QMainWindow):
         self._progress_dialog = ProgressDialog(parent=self)
         self._pipeline_model = PipelineTableModel()
         self._pipeline_model_subtitles = PipelineTableModel()
+        self._startup_progress_reset_done = False
         self._shell.add_page(
             self._app_container.create_organizer_page(
                 pipeline_model=self._pipeline_model,
@@ -57,6 +58,12 @@ class MainWindow(QMainWindow):
         self._responsive_timer.setSingleShot(True)
         self._responsive_timer.timeout.connect(self._apply_responsive_density)
         self._apply_responsive_density()
+
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        if not self._startup_progress_reset_done:
+            self._startup_progress_reset_done = True
+            self._progress_dialog.hide_progress()
 
     def _on_tab_clicked(self, tab_id: str) -> None:
         title, desc = PAGE_META.get(tab_id, ("", ""))

@@ -69,20 +69,48 @@ def test_container_factory_helpers_wire_dependencies(monkeypatch, tmp_path) -> N
     assert repos.title_match is not None
     assert repos.search_tv_library is not None
 
-    monkeypatch.setattr(
-        container_module, "load_all", lambda: {"parse_tmdb": {"ignore_tokens": "x264"}}
-    )
+    load_payloads = [
+        {"parse_tmdb": {"ignore_tokens": "x264"}},
+        {"parse_tmdb": {"ignore_tokens": "HEVC"}},
+    ]
+    load_idx = 0
+
+    def load_all_seq() -> dict:
+        nonlocal load_idx
+        payload = load_payloads[load_idx]
+        load_idx += 1
+        return payload
+
+    monkeypatch.setattr(container_module, "load_all", load_all_seq)
     monkeypatch.setattr(
         container_module, "AnitopyTitleParser", lambda ignore_tokens="": ("parser", ignore_tokens)
     )
-    monkeypatch.setattr(
-        container_module, "make_parse_execute", lambda parser, **kwargs: ("execute", parser, kwargs)
-    )
+    inner_calls: list[tuple[object, dict]] = []
+
+    def fake_make_parse_execute(parser, **kwargs):
+        inner_calls.append((parser, kwargs))
+
+        def inner(input_dto, progress_callback, cancel_token):
+            return ("parse-result", input_dto, progress_callback, cancel_token)
+
+        return inner
+
+    monkeypatch.setattr(container_module, "make_parse_execute", fake_make_parse_execute)
     parse_execute = _create_parse_execute(
         SimpleNamespace(library_index="library", parse_cache="cache")
     )
-    assert parse_execute[0] == "execute"
-    assert parse_execute[1] == ("parser", "x264")
+    fake_input = SimpleNamespace(paths=())
+    fake_token = SimpleNamespace(is_set=lambda: False)
+    out = parse_execute(fake_input, None, fake_token)
+    assert out[0] == "parse-result"
+    assert out[1] is fake_input
+    assert out[3] is fake_token
+    assert inner_calls[0][0] == ("parser", "x264")
+    assert inner_calls[0][1] == {"library_index": "library", "parse_cache": "cache"}
+
+    out2 = parse_execute(fake_input, None, fake_token)
+    assert out2[0] == "parse-result"
+    assert inner_calls[1][0] == ("parser", "HEVC")
 
     monkeypatch.setattr(
         container_module,

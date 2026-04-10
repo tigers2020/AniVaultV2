@@ -8,6 +8,7 @@ Author: Pom Kim
 from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import QGridLayout, QSizePolicy, QWidget
 
+from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import StatCard
 
 
@@ -38,8 +39,9 @@ class StatsGrid(QWidget):
         """
         super().__init__(parent)
         layout = QGridLayout(self)
-        layout.setSpacing(18)
-        layout.setContentsMargins(0, 0, 0, 18)
+        layout.setHorizontalSpacing(theme.inline_control_gap_px())
+        layout.setVerticalSpacing(theme.inline_control_gap_px())
+        layout.setContentsMargins(0, 0, 0, theme.page_section_gap_px())
         self._cards = [
             StatCard("Scanned Files", _fmt(0)),
             StatCard("Parsed Titles", _fmt(0)),

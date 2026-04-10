@@ -3,7 +3,6 @@
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from anivault.constants.gui.copy import TOPBAR_DEFAULT_DESCRIPTION, TOPBAR_DEFAULT_TITLE
-from anivault.constants.gui.theme import TOPBAR_BOTTOM_MARGIN_PX, TOPBAR_STACK_SPACING_PX
 from anivault.interfaces.gui import theme
 
 
@@ -13,9 +12,9 @@ class Topbar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, TOPBAR_BOTTOM_MARGIN_PX)
+        layout.setContentsMargins(0, 0, 0, theme.topbar_bottom_gap_px())
         left = QVBoxLayout()
-        left.setSpacing(TOPBAR_STACK_SPACING_PX)
+        left.setSpacing(theme.panel_header_stack_gap_px())
         self._title = QLabel(TOPBAR_DEFAULT_TITLE)
         self._title.setStyleSheet(theme.topbar_title())
         left.addWidget(self._title)

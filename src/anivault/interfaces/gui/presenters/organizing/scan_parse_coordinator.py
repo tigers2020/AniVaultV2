@@ -143,6 +143,12 @@ class ScanParseCoordinator(QObject):
         if isinstance(parent, QWidget):
             QMessageBox.warning(parent, title, message)
 
+    def _clear_stale_progress_dialog(self) -> None:
+        dialog = presenter_runtime.progress_dialog(self._p)
+        if dialog is None or presenter_runtime.has_active_pipeline_work(self._p):
+            return
+        presenter_runtime.finish_worker_session(self._p, dialog, hide=True)
+
     def _scan_path_is_usable_directory(self, path: str) -> bool:
         """스캔 루트가 열 수 있는 디렉터리면 True, 아니면 경고 후 False.
 
@@ -182,12 +188,14 @@ class ScanParseCoordinator(QObject):
         """
         path = (path or "").strip()
         if not path:
+            self._clear_stale_progress_dialog()
             self._warn_scan_path(
                 SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_TITLE,
                 SCAN_PARSE_COORDINATOR_SCAN_PATH_EMPTY_MESSAGE,
             )
             return
         if not self._scan_path_is_usable_directory(path):
+            self._clear_stale_progress_dialog()
             return
         if presenter_runtime.has_active_pipeline_work(self._p):
             parent = presenter_runtime.parent_widget(self._p)

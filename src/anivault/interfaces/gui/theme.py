@@ -78,6 +78,21 @@ __all__ = [
     "layout_spacing_md",
     "layout_spacing_lg",
     "layout_main_padding",
+    "page_section_gap_px",
+    "card_body_padding_px",
+    "inline_control_gap_px",
+    "compact_gap_px",
+    "panel_header_padding_px",
+    "panel_header_bottom_gap_px",
+    "panel_header_stack_gap_px",
+    "sidebar_padding_px",
+    "topbar_bottom_gap_px",
+    "result_list_panel_min_width_px",
+    "result_list_panel_max_width_px",
+    "details_pane_min_width_px",
+    "details_pane_max_width_px",
+    "details_pane_default_width_px",
+    "result_splitter_main_width_px",
     "settings_card_body_padding_px",
     "settings_row_gap_px",
     "settings_section_gap_px",
@@ -325,24 +340,96 @@ def layout_main_padding() -> int:
     return scaled_int(26, profile.scale, minimum=18, maximum=36)
 
 
-def settings_card_body_padding_px() -> int:
+def page_section_gap_px() -> int:
+    profile = _p()
+    return scaled_int(18, profile.grid_spacing_scale, minimum=12, maximum=28)
+
+
+def card_body_padding_px() -> int:
     profile = _p()
     return scaled_int(18, profile.scale, minimum=14, maximum=28)
 
 
-def settings_row_gap_px() -> int:
+def inline_control_gap_px() -> int:
     profile = _p()
-    return scaled_int(10, profile.grid_spacing_scale, minimum=8, maximum=16)
+    return scaled_int(12, profile.grid_spacing_scale, minimum=8, maximum=18)
+
+
+def compact_gap_px() -> int:
+    profile = _p()
+    return scaled_int(6, profile.grid_spacing_scale, minimum=4, maximum=10)
+
+
+def panel_header_padding_px() -> int:
+    profile = _p()
+    return scaled_int(18, profile.scale, minimum=14, maximum=28)
+
+
+def panel_header_bottom_gap_px() -> int:
+    profile = _p()
+    return scaled_int(12, profile.grid_spacing_scale, minimum=8, maximum=18)
+
+
+def panel_header_stack_gap_px() -> int:
+    profile = _p()
+    return scaled_int(6, profile.grid_spacing_scale, minimum=4, maximum=10)
+
+
+def sidebar_padding_px() -> int:
+    profile = _p()
+    return scaled_int(20, profile.scale, minimum=16, maximum=30)
+
+
+def topbar_bottom_gap_px() -> int:
+    profile = _p()
+    return scaled_int(18, profile.grid_spacing_scale, minimum=12, maximum=24)
+
+
+def result_list_panel_min_width_px() -> int:
+    profile = _p()
+    return scaled_int(280, profile.scale, minimum=240, maximum=360)
+
+
+def result_list_panel_max_width_px() -> int:
+    profile = _p()
+    return scaled_int(420, profile.scale, minimum=360, maximum=520)
+
+
+def details_pane_min_width_px() -> int:
+    profile = _p()
+    return scaled_int(320, profile.scale, minimum=280, maximum=420)
+
+
+def details_pane_max_width_px() -> int:
+    profile = _p()
+    return scaled_int(500, profile.scale, minimum=420, maximum=620)
+
+
+def details_pane_default_width_px() -> int:
+    profile = _p()
+    return scaled_int(360, profile.scale, minimum=300, maximum=440)
+
+
+def result_splitter_main_width_px() -> int:
+    profile = _p()
+    return scaled_int(980, profile.scale, minimum=760, maximum=1280)
+
+
+def settings_card_body_padding_px() -> int:
+    return card_body_padding_px()
+
+
+def settings_row_gap_px() -> int:
+    return inline_control_gap_px()
 
 
 def settings_section_gap_px() -> int:
     profile = _p()
-    return scaled_int(14, profile.grid_spacing_scale, minimum=10, maximum=20)
+    return scaled_int(14, profile.grid_spacing_scale, minimum=10, maximum=22)
 
 
 def settings_page_section_gap_px() -> int:
-    profile = _p()
-    return scaled_int(14, profile.grid_spacing_scale, minimum=10, maximum=22)
+    return page_section_gap_px()
 
 
 def settings_page_grid_gap_px() -> int:

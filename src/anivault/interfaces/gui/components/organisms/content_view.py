@@ -36,8 +36,8 @@ class ContentView(QFrame):
         splitter.setChildrenCollapsible(False)
 
         left = QFrame()
-        left.setMinimumWidth(260)
-        left.setMaximumWidth(420)
+        left.setMinimumWidth(theme.result_list_panel_min_width_px())
+        left.setMaximumWidth(theme.result_list_panel_max_width_px())
         left.setStyleSheet(theme.card_panel())
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -47,8 +47,14 @@ class ContentView(QFrame):
         left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._list_container = QWidget()
         self._list_layout = QVBoxLayout(self._list_container)
-        self._list_layout.setContentsMargins(8, 8, 8, 8)
-        self._list_layout.setSpacing(4)
+        card_padding = theme.card_body_padding_px()
+        self._list_layout.setContentsMargins(
+            card_padding,
+            card_padding,
+            card_padding,
+            card_padding,
+        )
+        self._list_layout.setSpacing(theme.compact_gap_px())
         left_scroll.setWidget(self._list_container)
         left_layout.addWidget(left_scroll)
         splitter.addWidget(left)
@@ -64,13 +70,17 @@ class ContentView(QFrame):
 
         self._meta_scroll_content = QWidget()
         meta_content_layout = QVBoxLayout(self._meta_scroll_content)
-        meta_content_layout.setContentsMargins(8, 8, 8, 8)
+        meta_padding = theme.card_body_padding_px()
+        meta_content_layout.setContentsMargins(
+            meta_padding, meta_padding, meta_padding, meta_padding
+        )
+        meta_content_layout.setSpacing(theme.compact_gap_px())
 
         self._meta_frame = QFrame()
         self._meta_frame.setObjectName("content_view_text_panel")
         self._meta_frame.setStyleSheet(theme.content_view_text_panel_overlay())
         meta_layout = QVBoxLayout(self._meta_frame)
-        meta_layout.setContentsMargins(8, 8, 8, 8)
+        meta_layout.setContentsMargins(meta_padding, meta_padding, meta_padding, meta_padding)
         self._meta_label = Label("", "muted")
         self._meta_label.setWordWrap(True)
         self._meta_label.setStyleSheet(theme.panel_header_desc())
@@ -82,7 +92,12 @@ class ContentView(QFrame):
         right_layout.addWidget(right_scroll)
         splitter.addWidget(right)
 
-        splitter.setSizes([320, 900])
+        splitter.setSizes(
+            [
+                theme.result_list_panel_min_width_px(),
+                theme.result_splitter_main_width_px(),
+            ]
+        )
         layout.addWidget(splitter)
         self.setStyleSheet(theme.card_panel())
 
@@ -127,7 +142,7 @@ class ContentView(QFrame):
             image_aspect="backdrop",
             text_panel_overlay=True,
         )
-        card.setMinimumWidth(220)
+        card.setMinimumWidth(theme.result_list_panel_min_width_px() - theme.card_body_padding_px())
         card.setCursor(Qt.CursorShape.PointingHandCursor)
         card.mousePressEvent = lambda event, idx=index: self._on_select(idx)  # type: ignore[method-assign,misc]
         self._list_layout.addWidget(card)

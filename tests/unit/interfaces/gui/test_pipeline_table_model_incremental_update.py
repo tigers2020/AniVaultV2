@@ -87,3 +87,35 @@ def test_grouped_rows_collapse_multiple_episode_values_into_range() -> None:
 
     assert len(grouped) == 1
     assert grouped[0].episode == "1-3"
+
+
+def test_grouped_rows_collapse_multiple_season_values_into_range() -> None:
+    grouped = group_pipeline_rows(
+        [
+            _row("/a/1.mkv", season="1"),
+            _row("/a/2.mkv", season="2"),
+            _row("/a/3.mkv", season="3"),
+        ]
+    )
+
+    assert len(grouped) == 1
+    assert grouped[0].season == "1-3"
+
+
+def test_grouped_rows_list_non_contiguous_seasons() -> None:
+    grouped = group_pipeline_rows(
+        [
+            _row("/a/1.mkv", season="1"),
+            _row("/a/2.mkv", season="3"),
+            _row("/a/3.mkv", season="4"),
+        ]
+    )
+
+    assert len(grouped) == 1
+    assert grouped[0].season == "1,3,4"
+
+
+def test_single_row_season_unchanged() -> None:
+    grouped = group_pipeline_rows([_row("/a/1.mkv", season="2", episode="5")])
+    assert len(grouped) == 1
+    assert grouped[0].season == "2"

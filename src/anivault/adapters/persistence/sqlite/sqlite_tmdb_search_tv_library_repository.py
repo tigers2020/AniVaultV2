@@ -40,7 +40,7 @@ ON CONFLICT(tmdb_id, language) DO UPDATE SET
 
 
 class SqliteTmdbSearchTvLibraryRepository(TmdbSearchTvLibraryRepository):
-    """docs/fixtures/tmdb_api/search_tv 픽스처 정렬 행 저장."""
+    """tests/fixtures/tmdb_api/search_tv 픽스처와 동일 키의 행 저장."""
 
     def __init__(self, conn: sqlite3.Connection, lock: Lock) -> None:
         self._conn = conn

@@ -29,7 +29,6 @@ class SettingsActionBar(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(theme.settings_row_gap_px())
-        layout.addStretch()
         save_btn = Button(SETTINGS_ACTION_BAR_BUTTON_SAVE, "primary")
         save_btn.clicked.connect(self.save_clicked.emit)
         layout.addWidget(save_btn)
@@ -39,3 +38,4 @@ class SettingsActionBar(QWidget):
         load_btn = Button(SETTINGS_ACTION_BAR_BUTTON_LOAD)
         load_btn.clicked.connect(self.load_clicked.emit)
         layout.addWidget(load_btn)
+        layout.addStretch()

@@ -75,13 +75,17 @@ def _episode_numbers_to_text(values: list[int]) -> str:
     return ",".join(str(value) for value in numbers)
 
 
-def _aggregate_episode(members: tuple[PipelineRow, ...]) -> str:
+def _aggregate_integer_list_field(members: tuple[PipelineRow, ...], attr: str) -> str:
     numbers: list[int] = []
     for member in members:
-        numbers.extend(_episode_numbers_from_text(member.episode))
+        numbers.extend(_episode_numbers_from_text(getattr(member, attr)))
     if numbers:
         return _episode_numbers_to_text(sorted(numbers))
-    return _aggregate_str(members, "episode")
+    return _aggregate_str(members, attr)
+
+
+def _aggregate_episode(members: tuple[PipelineRow, ...]) -> str:
+    return _aggregate_integer_list_field(members, "episode")
 
 
 @dataclass(frozen=True)
@@ -120,7 +124,7 @@ class PipelineGroupRow:
 
     @property
     def season(self) -> str:
-        return _aggregate_str(self.members, "season")
+        return _aggregate_integer_list_field(self.members, "season")
 
     @property
     def episode(self) -> str:

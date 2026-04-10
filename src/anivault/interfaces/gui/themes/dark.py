@@ -18,9 +18,32 @@ from anivault.interfaces.gui.themes.base import (
 )
 from anivault.interfaces.gui.themes.qss_fragments import qss_block, qss_blocks
 
+DARK_THEME_PALETTE = ColorPalette(
+    bg="#0b1020",
+    panel="#121933",
+    panel2="#182243",
+    border="#2b3766",
+    border_subtle="rgba(43, 55, 102, 0.28)",
+    text="#e8ecff",
+    muted="#9aa7d3",
+    accent="#7aa2ff",
+    accent2="#73e0c1",
+    warn="#ffb454",
+    danger="#ff6b81",
+    ok="#4ade80",
+    input_bg="rgba(11, 16, 32, 0.82)",
+    table_bg="rgba(24, 34, 67, 0.65)",
+    header_bg="rgba(11, 16, 32, 0.45)",
+    sidebar_bg="rgba(10, 15, 30, 0.9)",
+    card_bg="rgba(24, 34, 67, 0.88)",
+)
+
 
 class DarkTheme:
     """Dark theme with navy/blue palette."""
+
+    PALETTE = DARK_THEME_PALETTE
+    CONTENT_VIEW_TEXT_PANEL_OVERLAY_BG = "rgba(0, 0, 0, 0.75)"
 
     def __init__(self, *, scale: float = 1.0) -> None:
         """밀도 스케일과 팔레트·파생 픽셀 값을 초기화한다.
@@ -46,25 +69,7 @@ class DarkTheme:
         self._progressbar_radius_px = max(6, int(round(10 * self._scale)))
         self._progressbar_chunk_radius_px = max(4, int(round(9 * self._scale)))
 
-        self.palette = ColorPalette(
-            bg="#0b1020",
-            panel="#121933",
-            panel2="#182243",
-            border="#2b3766",
-            border_subtle="rgba(43, 55, 102, 0.28)",
-            text="#e8ecff",
-            muted="#9aa7d3",
-            accent="#7aa2ff",
-            accent2="#73e0c1",
-            warn="#ffb454",
-            danger="#ff6b81",
-            ok="#4ade80",
-            input_bg="rgba(11, 16, 32, 0.82)",
-            table_bg="rgba(24, 34, 67, 0.65)",
-            header_bg="rgba(11, 16, 32, 0.45)",
-            sidebar_bg="rgba(10, 15, 30, 0.9)",
-            card_bg="rgba(24, 34, 67, 0.88)",
-        )
+        self.palette = self.PALETTE
         self.colors = self.palette.to_dict()
 
     def _c(self) -> dict[str, str]:
@@ -762,7 +767,7 @@ class DarkTheme:
         r = self._frame_radius_px
         return qss_block(
             "QFrame#content_view_text_panel",
-            "background-color: rgba(0, 0, 0, 0.75)",
+            f"background-color: {self.CONTENT_VIEW_TEXT_PANEL_OVERLAY_BG}",
             "border: none",
             f"border-radius: {r}px",
         )

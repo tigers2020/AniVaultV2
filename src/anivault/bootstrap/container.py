@@ -352,14 +352,24 @@ def _create_sqlite_repositories() -> _SqliteRepositories:
 def _create_parse_execute(
     repos: _SqliteRepositories,
 ) -> Callable[[ParseInput, Callable[[ProgressEvent], None] | None, Event], ParseResult]:
-    settings = load_all()
-    ignore_tokens = parse_ignore_tokens_from_loaded(settings)
-    parser = AnitopyTitleParser(ignore_tokens=ignore_tokens)
-    return make_parse_execute(
-        parser,
-        library_index=repos.library_index,
-        parse_cache=repos.parse_cache,
-    )
+    """Return parse runner that re-reads GUI settings each run (e.g. ignore_tokens)."""
+
+    def execute(
+        input_dto: ParseInput,
+        progress_callback: Callable[[ProgressEvent], None] | None,
+        cancel_token: Event,
+    ) -> ParseResult:
+        settings = load_all()
+        ignore_tokens = parse_ignore_tokens_from_loaded(settings)
+        parser = AnitopyTitleParser(ignore_tokens=ignore_tokens)
+        inner = make_parse_execute(
+            parser,
+            library_index=repos.library_index,
+            parse_cache=repos.parse_cache,
+        )
+        return inner(input_dto, progress_callback, cancel_token)
+
+    return execute
 
 
 def _create_metadata_provider(

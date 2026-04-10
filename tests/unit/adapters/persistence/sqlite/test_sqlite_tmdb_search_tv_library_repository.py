@@ -1,4 +1,4 @@
-"""Round-trip tmdb_search_tv_library vs docs/fixtures/tmdb_api/search_tv."""
+"""Round-trip tmdb_search_tv_library vs tests/fixtures/tmdb_api/search_tv."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from anivault.adapters.persistence.sqlite.sqlite_tmdb_search_tv_library_reposito
 from anivault.contracts.tmdb import SearchTvLibraryRecord
 
 _REPO_ROOT = Path(__file__).resolve().parents[5]
-_FIXTURE_DIR = _REPO_ROOT / "docs" / "fixtures" / "tmdb_api" / "search_tv"
+_FIXTURE_DIR = _REPO_ROOT / "tests" / "fixtures" / "tmdb_api" / "search_tv"
 
 
 def _record_from_fixture_item(d: dict, language: str) -> SearchTvLibraryRecord:

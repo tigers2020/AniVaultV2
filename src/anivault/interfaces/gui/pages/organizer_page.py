@@ -5,6 +5,8 @@ StatsGrid + PipelineResultPanel. 데이터는 OrganizerPresenter.
 Author: Pom Kim
 """
 
+from pathlib import Path
+
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
@@ -14,6 +16,7 @@ from anivault.constants.gui.settings import (
     scan_source_path_from_loaded,
 )
 from anivault.contracts.pipeline import PipelineRow
+from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import FolderScanBar, StatsGrid
 from anivault.interfaces.gui.models import PipelineTableModel
 from anivault.interfaces.gui.presenters import OrganizerPresenter
@@ -59,9 +62,10 @@ class OrganizerPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         content_layout = QVBoxLayout()
-        content_layout.setSpacing(0)
+        content_layout.setSpacing(theme.page_section_gap_px())
         content_layout.setContentsMargins(0, 0, 0, 0)
         self._scan_bar = FolderScanBar()
+        self._scan_bar.setObjectName("organizer_command_bar")
         source_path = scan_source_path_from_loaded(load_all())
         self._scan_bar.set_path(source_path)
         self._scan_bar.scan_clicked.connect(self._presenter.on_scan_clicked)
@@ -77,7 +81,9 @@ class OrganizerPage(QWidget):
         )
         content_layout.addWidget(self._scan_bar)
         self._stats_grid = StatsGrid()
+        self._stats_grid.setObjectName("organizer_summary_grid")
         content_layout.addWidget(self._stats_grid)
+        self._result_panel.setObjectName("organizer_results_panel")
         content_layout.addWidget(self._result_panel)
         # Make Pipeline Result panel consume remaining vertical space.
         content_layout.setStretchFactor(self._result_panel, 1)
@@ -122,6 +128,16 @@ class OrganizerPage(QWidget):
             groups=groups,
         )
 
+    @staticmethod
+    def _can_schedule_auto_scan(path: str) -> bool:
+        normalized_path = (path or "").strip()
+        if not normalized_path:
+            return False
+        try:
+            return Path(normalized_path).is_dir()
+        except OSError:
+            return False
+
     def showEvent(self, event: QShowEvent) -> None:
         """설정에서 경로를 다시 읽고, 최초 한 번 자동 스캔을 예약한다.
 
@@ -137,6 +153,11 @@ class OrganizerPage(QWidget):
         source_path = scan_source_path_from_loaded(settings)
         self._scan_bar.set_path(source_path)
         auto_scan = auto_scan_on_first_show_from_loaded(settings)
-        if source_path and not self._auto_scan_done and auto_scan:
+        normalized_source_path = source_path.strip()
+        if (
+            auto_scan
+            and not self._auto_scan_done
+            and self._can_schedule_auto_scan(normalized_source_path)
+        ):
             self._auto_scan_done = True
-            QTimer.singleShot(100, lambda: self._presenter.on_scan_clicked(source_path))
+            QTimer.singleShot(100, lambda: self._presenter.on_scan_clicked(normalized_source_path))

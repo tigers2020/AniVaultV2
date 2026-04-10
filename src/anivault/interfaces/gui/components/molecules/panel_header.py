@@ -43,9 +43,15 @@ class PanelHeader(QWidget):
         self._description_text = description
         self._desc_lbl: Label | None = None
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(18, 18, 18, 0)
+        header_padding = theme.panel_header_padding_px()
+        layout.setContentsMargins(
+            header_padding,
+            header_padding,
+            header_padding,
+            theme.panel_header_bottom_gap_px(),
+        )
         left = QVBoxLayout()
-        left.setSpacing(6)
+        left.setSpacing(theme.panel_header_stack_gap_px())
         left.setContentsMargins(0, 0, 0, 0)
         title_lbl = Label(title, "title")
         title_lbl.setStyleSheet(theme.panel_header_title())

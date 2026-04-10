@@ -56,10 +56,12 @@ class DetailsPane(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumWidth(300)
-        self.setMaximumWidth(480)
+        self.setMinimumWidth(theme.details_pane_min_width_px())
+        self.setMaximumWidth(theme.details_pane_max_width_px())
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 14, 14, 14)
+        body_padding = theme.card_body_padding_px()
+        layout.setContentsMargins(body_padding, body_padding, body_padding, body_padding)
+        layout.setSpacing(theme.inline_control_gap_px())
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)

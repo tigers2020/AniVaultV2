@@ -250,9 +250,11 @@ def save_all(data: dict[str, Any]) -> None:
                 existing = loaded
     for key, val in to_merge.items():
         if isinstance(val, dict):
-            existing.setdefault(key, {})
-            if isinstance(existing[key], dict):
-                existing[key].update(val)
+            current = existing.get(key)
+            if isinstance(current, dict):
+                current.update(val)
+            else:
+                existing[key] = dict(val)
         else:
             existing[key] = val
     with suppress(OSError):

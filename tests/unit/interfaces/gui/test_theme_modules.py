@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 from types import SimpleNamespace
 
 from anivault.interfaces.gui import theme as theme_module
@@ -86,6 +87,21 @@ def test_theme_module_wrappers_and_metrics(monkeypatch) -> None:
     assert theme_module.layout_spacing_md() > 0
     assert theme_module.layout_spacing_lg() > 0
     assert theme_module.layout_main_padding() > 0
+    assert theme_module.page_section_gap_px() > 0
+    assert theme_module.card_body_padding_px() > 0
+    assert theme_module.inline_control_gap_px() > 0
+    assert theme_module.compact_gap_px() > 0
+    assert theme_module.panel_header_padding_px() > 0
+    assert theme_module.panel_header_bottom_gap_px() > 0
+    assert theme_module.panel_header_stack_gap_px() > 0
+    assert theme_module.sidebar_padding_px() > 0
+    assert theme_module.topbar_bottom_gap_px() > 0
+    assert theme_module.result_list_panel_min_width_px() > 0
+    assert theme_module.result_list_panel_max_width_px() > 0
+    assert theme_module.details_pane_min_width_px() > 0
+    assert theme_module.details_pane_max_width_px() > 0
+    assert theme_module.details_pane_default_width_px() > 0
+    assert theme_module.result_splitter_main_width_px() > 0
     assert theme_module.settings_card_body_padding_px() > 0
     assert theme_module.settings_row_gap_px() > 0
     assert theme_module.settings_section_gap_px() > 0
@@ -101,13 +117,20 @@ def test_theme_registry_density_and_persistence(tmp_path, monkeypatch) -> None:
 
     callbacks: list[str] = []
     monkeypatch.setattr(themes_module, "_THEMES", {"dark": FakeTheme, "light": FakeTheme})
-    monkeypatch.setattr(themes_module, "_current", None)
-    monkeypatch.setattr(themes_module, "_current_theme_name", "dark")
-    monkeypatch.setattr(themes_module, "_current_density_key", "standard")
+    monkeypatch.setattr(themes_module._registry, "themes", {"dark": FakeTheme, "light": FakeTheme})
+    monkeypatch.setattr(themes_module._registry, "current_theme", None)
+    monkeypatch.setattr(themes_module._registry, "current_theme_name", "dark")
+    monkeypatch.setattr(themes_module._registry, "current_density_key", "standard")
     monkeypatch.setattr(
-        themes_module, "_on_color_theme_changed", [lambda: callbacks.append("theme")]
+        themes_module._registry,
+        "on_color_theme_changed",
+        [lambda: callbacks.append("theme")],
     )
-    monkeypatch.setattr(themes_module, "_on_density_changed", [lambda: callbacks.append("density")])
+    monkeypatch.setattr(
+        themes_module._registry,
+        "on_density_changed",
+        [lambda: callbacks.append("density")],
+    )
     monkeypatch.setattr(themes_module, "get_profile", lambda key: SimpleNamespace(scale=1.25))
     monkeypatch.setattr(themes_module, "choose_density_key", lambda width, height: "compact")
 
@@ -132,6 +155,49 @@ def test_theme_registry_density_and_persistence(tmp_path, monkeypatch) -> None:
     themes_module.save_theme("light")
     assert "light" in theme_file.read_text(encoding="utf-8")
     themes_module.load_saved_theme()
+
+
+def test_save_theme_preserves_nested_settings_structure(tmp_path, monkeypatch) -> None:
+    theme_file = tmp_path / "config.json"
+    theme_file.write_text(
+        json.dumps(
+            {
+                "theme": "dark",
+                "path_rules": {
+                    "target_root": "F:/Library",
+                    "path_template": "{target}\\{title}",
+                },
+                "parse_tmdb": {
+                    "ignore_tokens": "x264",
+                    "season_folder_format": "Season{season:02}",
+                },
+                "scan_build": {
+                    "source_path": "F:/Anime",
+                    "auto_scan_on_first_show": True,
+                },
+                "ui_state": {
+                    "pipeline_results": {
+                        "view_key": "icon_m",
+                        "selected_index": 2,
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(themes_module, "CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(themes_module, "CONFIG_FILE", theme_file)
+
+    themes_module.save_theme("light")
+
+    saved = json.loads(theme_file.read_text(encoding="utf-8"))
+    assert saved["theme"] == "light"
+    assert isinstance(saved["path_rules"], dict)
+    assert isinstance(saved["parse_tmdb"], dict)
+    assert isinstance(saved["scan_build"], dict)
+    assert isinstance(saved["ui_state"], dict)
+    assert saved["path_rules"]["target_root"] == "F:/Library"
+    assert saved["scan_build"]["source_path"] == "F:/Anime"
 
 
 def test_responsive_helpers_choose_profiles_and_bounds() -> None:

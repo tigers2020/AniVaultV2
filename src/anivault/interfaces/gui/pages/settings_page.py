@@ -5,6 +5,7 @@
 Author: Pom Kim
 """
 
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import QFrame, QGridLayout, QScrollArea, QVBoxLayout, QWidget
 
 from anivault.interfaces.gui import theme
@@ -37,10 +38,14 @@ class SettingsPage(QWidget):
         if presenter is not None:
             self._presenter.setParent(self)
         scan_card = ScanBuildCard()
+        scan_card.setObjectName("settings_scan_card")
         appearance_card = AppearanceCard()
+        appearance_card.setObjectName("settings_appearance_card")
         appearance_card.theme_changed.connect(self._presenter.on_theme_changed)
         path_rules_form = PathRulesForm()
+        path_rules_form.setObjectName("settings_path_rules_card")
         parse_tmdb_form = ParseTmdbForm()
+        parse_tmdb_form.setObjectName("settings_parse_tmdb_card")
         self._presenter.set_forms(path_rules_form, parse_tmdb_form, scan_card)
 
         layout = QVBoxLayout(self)
@@ -51,9 +56,11 @@ class SettingsPage(QWidget):
         scroll.setWidgetResizable(True)
         content = QWidget()
         content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
+        page_gap = theme.page_section_gap_px()
+        content_layout.setContentsMargins(0, 0, 0, page_gap)
         content_layout.setSpacing(theme.settings_page_section_gap_px())
         actions_card = SettingsActionsCard()
+        actions_card.setObjectName("settings_actions_card")
         bar = actions_card.action_bar()
         bar.save_clicked.connect(self._presenter.on_save_clicked)
         bar.reset_clicked.connect(self._presenter.on_reset_clicked)
@@ -65,12 +72,19 @@ class SettingsPage(QWidget):
         settings_grid.setVerticalSpacing(grid_gap)
         settings_grid.setColumnStretch(0, 1)
         settings_grid.setColumnStretch(1, 1)
-        settings_grid.addWidget(actions_card, 0, 0)
-        settings_grid.addWidget(appearance_card, 0, 1)
-        settings_grid.addWidget(scan_card, 1, 0, 1, 2)
+        settings_grid.setColumnMinimumWidth(0, theme.result_list_panel_min_width_px())
+        settings_grid.setColumnMinimumWidth(1, theme.result_list_panel_min_width_px())
+        settings_grid.setRowStretch(2, 1)
+        settings_grid.addWidget(actions_card, 0, 0, 1, 2)
+        settings_grid.addWidget(scan_card, 1, 0)
+        settings_grid.addWidget(appearance_card, 1, 1)
         settings_grid.addWidget(path_rules_form, 2, 0)
         settings_grid.addWidget(parse_tmdb_form, 2, 1)
         content_layout.addLayout(settings_grid)
         content_layout.addStretch(1)
         scroll.setWidget(content)
         layout.addWidget(scroll)
+
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self._presenter.on_load_clicked()

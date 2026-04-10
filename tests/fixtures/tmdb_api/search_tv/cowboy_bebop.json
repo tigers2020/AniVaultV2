@@ -1,0 +1,23 @@
+{
+  "_meta": {"language": "ko-KR"},
+  "response": {
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/fRYz1Sk6TAcgQQJaNOg6oiA0YVB.jpg",
+        "genre_ids": [16, 10765],
+        "id": 30983,
+        "origin_country": ["JP"],
+        "original_language": "ja",
+        "original_name": "カウボーイビバップ",
+        "overview": "Fixture overview for round-trip test.",
+        "popularity": 62.1,
+        "poster_path": "/fbUI7gXWf1TZlIafoS8TYZQZQAS.jpg",
+        "first_air_date": "1998-04-03",
+        "name": "카우보이 비밥",
+        "vote_average": 8.9,
+        "vote_count": 2200
+      }
+    ]
+  }
+}

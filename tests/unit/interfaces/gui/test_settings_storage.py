@@ -226,3 +226,31 @@ def test_save_all_does_not_persist_tmdb_api_key_in_config(tmp_path: Path, monkey
     raw = json.loads(config_file.read_text(encoding="utf-8"))
     assert "tmdb_api_key" not in raw.get("parse_tmdb", {})
     assert raw["parse_tmdb"]["ignore_tokens"] == "x"
+
+
+def test_save_all_replaces_corrupted_scan_build_string(tmp_path: Path, monkeypatch) -> None:
+    """Legacy str(scan_build dict) in config must not block merging source_path."""
+    config_dir = tmp_path / ".anivault"
+    config_file = config_dir / "config.json"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file.write_text(
+        json.dumps(
+            {
+                "theme": "dark",
+                "scan_build": "{'source_path': 'was-broken'}",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(settings_storage, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(settings_storage, "CONFIG_FILE", config_file)
+
+    settings_storage.save_all({"scan_build": {"source_path": "F:/Anime"}})
+
+    raw = json.loads(config_file.read_text(encoding="utf-8"))
+    assert isinstance(raw["scan_build"], dict)
+    assert raw["scan_build"]["source_path"] == "F:/Anime"
+    assert raw["theme"] == "dark"
+
+    loaded = settings_storage.load_all()
+    assert scan_source_path_from_loaded(loaded) == "F:/Anime"

@@ -39,7 +39,7 @@ class ScanBuildCard(QFrame):
         self._source = PathSelectField(placeholder=SCAN_BUILD_CARD_SOURCE_PLACEHOLDER)
         row.addWidget(self._source, 1)
         body.addLayout(row)
-        self._source.path_changed.connect(lambda: self.settings_changed.emit())
+        self._source.path_changed.connect(lambda *_args: self.settings_changed.emit())
         layout.addLayout(body)
         self.setStyleSheet(theme.card_panel())
 

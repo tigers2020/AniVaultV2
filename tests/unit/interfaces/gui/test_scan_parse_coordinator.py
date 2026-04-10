@@ -117,7 +117,15 @@ def test_scan_path_is_usable_directory_covers_success_and_errors(monkeypatch) ->
 
 
 def test_on_scan_clicked_handles_blank_invalid_and_no_execute(monkeypatch) -> None:
-    presenter = SimpleNamespace(_notify_dry_run=MagicMock(), _scan_execute=None)
+    presenter = SimpleNamespace(
+        _notify_dry_run=MagicMock(),
+        _scan_execute=None,
+        _progress_dialog=MagicMock(),
+        _finish_worker_session=lambda dialog, *, hide: (
+            dialog.mark_work_finished(),
+            dialog.hide_progress() if hide else None,
+        ),
+    )
     coord = _coord(presenter)
     warned: list[str] = []
     monkeypatch.setattr(coord, "_warn_scan_path", lambda title, body: warned.append(title))
@@ -129,6 +137,23 @@ def test_on_scan_clicked_handles_blank_invalid_and_no_execute(monkeypatch) -> No
 
     assert warned == ["스캔 경로 없음"]
     assert not presenter._notify_dry_run.called
+
+    assert presenter._progress_dialog.hide_progress.call_count == 2
+    assert presenter._progress_dialog.mark_work_finished.call_count == 2
+
+
+def test_clear_stale_progress_dialog_skips_when_work_is_active() -> None:
+    dialog = MagicMock()
+    presenter = SimpleNamespace(
+        _progress_dialog=dialog,
+        has_active_pipeline_work=lambda: True,
+    )
+    coord = _coord(presenter)
+
+    coord._clear_stale_progress_dialog()
+
+    dialog.hide_progress.assert_not_called()
+    dialog.mark_work_finished.assert_not_called()
 
 
 def test_on_scan_clicked_starts_worker(monkeypatch) -> None:

@@ -1,0 +1,23 @@
+{
+  "_meta": {"language": "ko-KR"},
+  "response": {
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/lysUnU6V0VfcthDbviuVlIqgHOR.jpg",
+        "genre_ids": [16, 10759, 35],
+        "id": 120089,
+        "origin_country": ["JP"],
+        "original_language": "ja",
+        "original_name": "SPY×FAMILY",
+        "overview": "short",
+        "popularity": 123.183,
+        "poster_path": "/rikBBQHmCTOiZ7YoJVkYcKdXgNx.jpg",
+        "first_air_date": "2022-04-09",
+        "name": "스파이 패밀리",
+        "vote_average": 8.511,
+        "vote_count": 2213
+      }
+    ]
+  }
+}

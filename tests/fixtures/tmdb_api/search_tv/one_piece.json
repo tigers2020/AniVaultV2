@@ -1,0 +1,23 @@
+{
+  "_meta": {"language": "ko-KR"},
+  "response": {
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/4Mt7nhoxlV8LcRlH2KwM1NM1Drz.jpg",
+        "genre_ids": [16, 10759],
+        "id": 37854,
+        "origin_country": ["JP"],
+        "original_language": "ja",
+        "original_name": "ONE PIECE",
+        "overview": "Fixture overview for round-trip test.",
+        "popularity": 300.5,
+        "poster_path": "/cMD9Ygz11zjJzA9BR7Q6fKyfgbj.jpg",
+        "first_air_date": "1999-10-20",
+        "name": "원피스",
+        "vote_average": 8.7,
+        "vote_count": 25000
+      }
+    ]
+  }
+}

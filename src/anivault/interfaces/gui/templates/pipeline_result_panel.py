@@ -28,6 +28,7 @@ from anivault.constants.gui.components import (
     PIPELINE_RESULT_PANEL_UNMATCHED_LABEL,
 )
 from anivault.constants.gui.navigation import ICON_SIZES, VIEW_TO_INDEX
+from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.molecules import (
     PanelHeader,
     PosterCard,
@@ -124,6 +125,7 @@ class PipelineResultPanel(QFrame):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(theme.compact_gap_px())
 
         self._view_bar = ViewToggleBar()
         self._header = PanelHeader(
@@ -163,14 +165,14 @@ class PipelineResultPanel(QFrame):
         top_wrap = QWidget()
         top_l = QVBoxLayout(top_wrap)
         top_l.setContentsMargins(0, 0, 0, 0)
-        top_l.setSpacing(4)
+        top_l.setSpacing(theme.compact_gap_px())
         _lbl_m = QLabel(PIPELINE_RESULT_PANEL_MATCHED_LABEL)
         top_l.addWidget(_lbl_m)
         top_l.addWidget(self._matched_table, 1)
         bottom_wrap = QWidget()
         bottom_l = QVBoxLayout(bottom_wrap)
         bottom_l.setContentsMargins(0, 0, 0, 0)
-        bottom_l.setSpacing(4)
+        bottom_l.setSpacing(theme.compact_gap_px())
         _lbl_u = QLabel(PIPELINE_RESULT_PANEL_UNMATCHED_LABEL)
         bottom_l.addWidget(_lbl_u)
         bottom_l.addWidget(self._unmatched_table, 1)
@@ -216,9 +218,9 @@ class PipelineResultPanel(QFrame):
             QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         )
         self._main_splitter.setMinimumHeight(0)
-        self._pane_width = 340
-        self._main_min_width = 320
-        main_splitter.setSizes([960, 0])
+        self._pane_width = theme.details_pane_default_width_px()
+        self._main_min_width = theme.result_list_panel_min_width_px()
+        main_splitter.setSizes([theme.result_splitter_main_width_px(), 0])
         main_splitter.setStretchFactor(0, 1)
         main_splitter.setStretchFactor(1, 0)
 

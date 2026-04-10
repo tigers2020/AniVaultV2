@@ -38,6 +38,7 @@ class MainShell(QWidget):
         main_layout = QVBoxLayout(main)
         pad = theme.layout_main_padding()
         main_layout.setContentsMargins(pad, pad, pad, pad)
+        main_layout.setSpacing(theme.page_section_gap_px())
         self._topbar = Topbar()
         main_layout.addWidget(self._topbar)
         self._stack = QStackedWidget()

@@ -38,6 +38,7 @@ class SettingsActionsCard(QFrame):
         body = QVBoxLayout()
         body_padding = theme.settings_card_body_padding_px()
         body.setContentsMargins(body_padding, body_padding, body_padding, body_padding)
+        body.setSpacing(theme.settings_section_gap_px())
         self._action_bar = SettingsActionBar()
         body.addWidget(self._action_bar)
         layout.addLayout(body)
