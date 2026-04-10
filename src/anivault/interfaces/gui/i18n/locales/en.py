@@ -61,6 +61,9 @@ MESSAGES: dict[str, str] = {
     K.ORG_MATCH_EMPTY_QUERY_TITLE: "Empty query",
     K.ORG_MATCH_EMPTY_QUERY_MESSAGE: "Enter a search query.",
     K.ORG_MANUAL_TMDB_ERROR_TITLE: "TMDB search failed",
+    K.ORG_MANUAL_TMDB_ERROR_MESSAGE: (
+        "The search could not be completed. Check your network and API key, then try again."
+    ),
     K.ORG_SCAN_PATH_ERROR_TITLE: "Scan path error",
     K.ORG_SCAN_PATH_ERROR_MESSAGE: (
         "The folder could not be read (storage, permissions, removable drive, etc.).\n\n"
@@ -140,6 +143,8 @@ MESSAGES: dict[str, str] = {
     ),
     K.ORG_PIPELINE_ZONE_MATCHED: "With TMDB Korean title",
     K.ORG_PIPELINE_ZONE_UNMATCHED: "Unmatched / not started",
+    K.ORG_PIPELINE_CTX_OPEN_LOCATION: "Open file location",
+    K.ORG_PIPELINE_CTX_OPEN_TMDB: "View on TMDB",
     K.CONTENT_FILE_COUNT_INLINE: "({count} files)",
     K.DETAILS_EMPTY: "Select an item",
     K.DETAILS_MANUAL_BTN: "Manual TMDB match",

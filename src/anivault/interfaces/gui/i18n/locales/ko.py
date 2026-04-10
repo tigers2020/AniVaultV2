@@ -59,6 +59,9 @@ MESSAGES: dict[str, str] = {
     K.ORG_MATCH_EMPTY_QUERY_TITLE: "검색어 없음",
     K.ORG_MATCH_EMPTY_QUERY_MESSAGE: "검색어를 입력하세요.",
     K.ORG_MANUAL_TMDB_ERROR_TITLE: "TMDB 검색 실패",
+    K.ORG_MANUAL_TMDB_ERROR_MESSAGE: (
+        "검색을 완료할 수 없습니다. 네트워크와 API 키를 확인한 뒤 다시 시도하세요."
+    ),
     K.ORG_SCAN_PATH_ERROR_TITLE: "스캔 경로 오류",
     K.ORG_SCAN_PATH_ERROR_MESSAGE: (
         "지정한 폴더를 읽을 수 없습니다(스토리지, 권한, 이동식 드라이브 등).\n\n{path}\n\n{error}"
@@ -137,6 +140,8 @@ MESSAGES: dict[str, str] = {
     ),
     K.ORG_PIPELINE_ZONE_MATCHED: "TMDB 한글 제목 있음",
     K.ORG_PIPELINE_ZONE_UNMATCHED: "미매칭·미진행",
+    K.ORG_PIPELINE_CTX_OPEN_LOCATION: "파일 위치 열기",
+    K.ORG_PIPELINE_CTX_OPEN_TMDB: "TMDB에서 보기",
     K.CONTENT_FILE_COUNT_INLINE: "({count}개)",
     K.DETAILS_EMPTY: "항목을 선택하세요",
     K.DETAILS_MANUAL_BTN: "TMDB 수동 매칭",

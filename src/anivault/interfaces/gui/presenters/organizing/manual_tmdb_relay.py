@@ -5,13 +5,22 @@ WorkerSignals를 수동 TMDB 대화상자로 넘기는 Qt 릴레이.
 Author: Pom Kim
 """
 
+from __future__ import annotations
+
+import logging
+
 from PySide6.QtCore import QObject, Slot
 from PySide6.QtWidgets import QMessageBox
 
 from anivault.contracts.tmdb import TmdbSeriesCandidate
 from anivault.interfaces.gui.dialogs.tmdb_manual_match_dialog import TmdbManualMatchDialog
 from anivault.interfaces.gui.i18n import translate
-from anivault.interfaces.gui.i18n.keys import ORG_MANUAL_TMDB_ERROR_TITLE
+from anivault.interfaces.gui.i18n.keys import (
+    ORG_MANUAL_TMDB_ERROR_MESSAGE,
+    ORG_MANUAL_TMDB_ERROR_TITLE,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class ManualTmdbSearchRelay(QObject):
@@ -68,4 +77,9 @@ class ManualTmdbSearchRelay(QObject):
             None.
         """
         self._dlg.set_search_busy(False)
-        QMessageBox.warning(self._dlg, translate(ORG_MANUAL_TMDB_ERROR_TITLE), str(exc))
+        logger.warning("Manual TMDB search failed", exc_info=exc)
+        QMessageBox.warning(
+            self._dlg,
+            translate(ORG_MANUAL_TMDB_ERROR_TITLE),
+            translate(ORG_MANUAL_TMDB_ERROR_MESSAGE),
+        )
