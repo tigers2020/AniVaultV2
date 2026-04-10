@@ -115,10 +115,9 @@ class _GridContainer(QWidget):
         while self._grid.count():
             item = self._grid.takeAt(0)
             if item is None:
-                continue
-            widget = item.widget()
-            if widget is not None:
-                widget.setParent(None)
+                break
+            # Keep widgets parented to this container. setParent(None) would briefly
+            # promote each card to a top-level window during large-grid relayout.
         if not self._cards:
             return
 
