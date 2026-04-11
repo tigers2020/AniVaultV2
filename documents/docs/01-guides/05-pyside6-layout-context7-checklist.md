@@ -40,5 +40,5 @@
 
 ### AniVault 교차 참조
 
-- [ ] [documents/QT_Architecture_Spec.md](QT_Architecture_Spec.md) — 페이지·프레젠터·컴포넌트 경계.
+- [ ] [documents/docs/02-architecture/06-qt-architecture-spec.md](../02-architecture/06-qt-architecture-spec.md) — 페이지·프레젠터·컴포넌트 경계.
 - [ ] `docs/gui-layout-standardization-plan.md` — 토큰 롤아웃 대상 위젯 목록.

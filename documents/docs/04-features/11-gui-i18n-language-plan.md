@@ -115,7 +115,7 @@ flowchart TB
 
 - AniVault가 직접 그리는 텍스트 우선; Qt/OS 시스템 다이얼로그 레벨 현지화는 범위 밖.
 - `copy.py` / `components.py` / `tables.py` **완전 제거는 하지 않고**, 즉시 반영 필요 경로부터 점진 이전.
-- **구현 착수 전** 본 문서(`documents/GUI_i18n_language_plan.md`) **본문 승인 표시** 필수.
+- **구현 착수 전** 본 문서(`documents/docs/04-features/11-gui-i18n-language-plan.md`) **본문 승인 표시** 필수.
 
 ## 승인
 

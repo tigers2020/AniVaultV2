@@ -1,6 +1,6 @@
 # 아키텍처 리뷰 기반 리팩터링 실행 계획
 
-**문서 위치**: `docs/refactoring/architecture-review-refactoring-plan.md`  
+**문서 위치**: `documents/docs/02-architecture/01-architecture-review-refactoring-plan.md`  
 함수명·줄 번호는 구현 직전 로컬 코드와 한 번 더 대조하는 것이 안전합니다.
 
 **진행 상황 요약 (동기화)**: **P0는 코드 기준으로 완료. P1-A / P1-B도 코드 기준으로 완료.** P2는 미착수. 아래 [진행 상황](#진행-상황) 표 참고.

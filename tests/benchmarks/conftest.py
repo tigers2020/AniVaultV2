@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-REPORT_DIR = PROJECT_ROOT / "docs" / "benchmarks"
+REPORT_DIR = PROJECT_ROOT / "documents" / "docs" / "06-benchmarks"
 REPORT_PREFIX = "benchmark-"
 REPORT_MARKER_START = "<!-- ANIVAULT_BENCHMARK_JSON"
 REPORT_MARKER_END = "-->"

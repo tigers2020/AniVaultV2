@@ -121,7 +121,7 @@ src/anivault/
 tests/  unit/  integration/  golden/
 ```
 
-Qt GUI 상세는 `documents/QT_Architecture_Spec.md`, GUI 역할 카드는 `persona/gina-gui.md`를 본다.
+Qt GUI 상세는 `documents/docs/02-architecture/06-qt-architecture-spec.md`, GUI 역할 카드는 `persona/gina-gui.md`를 본다.
 
 ---
 

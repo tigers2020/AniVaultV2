@@ -35,4 +35,4 @@
 ## @참조
 
 - [AGENTS.md](../AGENTS.md)
-- [docs/CURSOR_MEMO.md](../docs/CURSOR_MEMO.md)
+- [documents/docs/CURSOR_MEMO.md](../documents/docs/CURSOR_MEMO.md)

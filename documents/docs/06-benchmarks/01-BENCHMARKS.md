@@ -37,7 +37,7 @@ pytest -m benchmark tests/benchmarks
 Each benchmark run also writes a human-readable Markdown report to:
 
 ```text
-docs/benchmarks/benchmark-YYYYMMDD-HHMMSS.md
+documents/docs/06-benchmarks/benchmark-YYYYMMDD-HHMMSS.md
 ```
 
 These reports use real millisecond values only. They intentionally omit pytest-benchmark's
@@ -56,7 +56,7 @@ Save benchmark results under `.benchmarks/`:
 pytest -m benchmark tests/benchmarks --benchmark-autosave
 ```
 
-This is optional. The Markdown report in `docs/benchmarks/` is generated automatically
+This is optional. The Markdown report in `documents/docs/06-benchmarks/` is generated automatically
 whenever benchmark fixture results exist.
 
 ## Covered Paths

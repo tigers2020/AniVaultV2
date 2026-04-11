@@ -3,7 +3,7 @@
 애니메이션 라이브러리 **스캔·매칭·정리** 도구. V2는 그린필드 전략으로 재구성한다.
 
 - **문서 인덱스**: [documents/README.md](documents/README.md)
-- **아키텍처·GUI**: [documents/QT_Architecture_Spec.md](documents/QT_Architecture_Spec.md)
+- **아키텍처·GUI**: [documents/docs/02-architecture/06-qt-architecture-spec.md](documents/docs/02-architecture/06-qt-architecture-spec.md)
 - **프로토콜**: [protocols/README.md](protocols/README.md)
 - **페르소나**: [persona/README.md](persona/README.md)
 
