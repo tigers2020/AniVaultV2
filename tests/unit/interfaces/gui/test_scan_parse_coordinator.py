@@ -112,8 +112,8 @@ def test_scan_path_is_usable_directory_covers_success_and_errors(monkeypatch) ->
     assert coord._scan_path_is_usable_directory("F:/Anime") is False
     monkeypatch.setattr(module.Path, "is_dir", lambda self: False)
     assert coord._scan_path_is_usable_directory("F:/Anime") is False
-    assert warnings[0][0] == "스캔 경로 오류"
-    assert warnings[1][0] == "스캔 경로 없음"
+    assert warnings[0][0] == "폴더를 읽을 수 없음"
+    assert warnings[1][0] == "폴더를 찾을 수 없음"
 
 
 def test_on_scan_clicked_handles_blank_invalid_and_no_execute(monkeypatch) -> None:
@@ -135,7 +135,7 @@ def test_on_scan_clicked_handles_blank_invalid_and_no_execute(monkeypatch) -> No
     monkeypatch.setattr(coord, "_scan_path_is_usable_directory", lambda path: True)
     coord.on_scan_clicked("F:/Anime")
 
-    assert warned == ["스캔 경로 없음"]
+    assert warned == ["폴더를 찾을 수 없음"]
     assert not presenter._notify_dry_run.called
 
     assert presenter._progress_dialog.hide_progress.call_count == 2

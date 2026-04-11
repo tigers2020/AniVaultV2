@@ -29,7 +29,7 @@ Document AniVault's harness engineering model as a practical operating guide for
 
 ### Memory and handoff
 
-- Update `documents/CURSOR_MEMO.md` when a repeated mistake, project decision, or follow-up rule is discovered.
+- Update `documents/docs/CURSOR_MEMO.md` when a repeated mistake, project decision, or follow-up rule is discovered.
 - Keep using paired `*-research.md` and `*-plan.md` files for non-trivial work so future sessions can reconstruct context quickly.
 
 ### Verification discipline

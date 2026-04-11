@@ -103,7 +103,7 @@ def test_on_dry_run_clicked_handles_validation_errors(monkeypatch) -> None:
     coord.on_dry_run_clicked()
 
     assert infos == ["항목 없음", "TMDB 매칭 없음"]
-    assert warnings == ["경로 규칙"]
+    assert warnings == ["저장 위치 규칙 필요"]
 
 
 def test_on_dry_run_clicked_starts_worker(monkeypatch) -> None:
@@ -158,8 +158,8 @@ def test_on_plan_worker_result_handles_error_and_empty_moves(monkeypatch) -> Non
     coord._on_plan_worker_result(PlanResult(error="bad"))
     coord._on_plan_worker_result(PlanResult(moves=()))
 
-    assert warnings == ["플랜 오류"]
-    assert infos == ["Dry Run"]
+    assert warnings == ["미리보기 오류"]
+    assert infos == ["미리보기"]
 
 
 def test_on_plan_worker_result_opens_dialog_and_resets_pending_plan(monkeypatch) -> None:
@@ -195,7 +195,7 @@ def test_on_dry_run_apply_clicked_warns_when_apply_execute_missing(monkeypatch) 
     coord._on_dry_run_apply_clicked(dlg)
 
     dlg.accept.assert_called_once()
-    assert warnings == ["실제 이동 불가"]
+    assert warnings == ["파일 이동 불가"]
 
 
 def test_on_dry_run_apply_clicked_schedules_apply_worker(monkeypatch) -> None:
@@ -236,7 +236,7 @@ def test_start_apply_worker_warns_without_log_root(monkeypatch) -> None:
 
     coord._start_apply_worker(_plan())
 
-    assert warnings == ["로그 경로"]
+    assert warnings == ["기록 경로"]
 
 
 def test_start_apply_worker_starts_worker(monkeypatch) -> None:

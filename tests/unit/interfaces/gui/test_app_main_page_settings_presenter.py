@@ -44,7 +44,7 @@ def test_main_window_helper_methods_delegate_to_shell_and_theme(monkeypatch) -> 
         app_module,
         "translate",
         lambda key, **kw: {
-            app_module.PAGE_ORGANIZER_TITLE: "Organizer",
+            app_module.PAGE_ORGANIZER_TITLE: "Organize",
             app_module.PAGE_ORGANIZER_DESC: "Desc",
         }.get(key, key),
     )
@@ -68,7 +68,7 @@ def test_main_window_helper_methods_delegate_to_shell_and_theme(monkeypatch) -> 
     window.showEvent("show")  # type: ignore[arg-type]
     window.showEvent("show-again")  # type: ignore[arg-type]
 
-    shell.set_topbar_page.assert_called_once_with("Organizer", "Desc")
+    shell.set_topbar_page.assert_called_once_with("Organize", "Desc")
     shell.set_current_page.assert_called_once_with(2)
     timer.start.assert_called_once_with(app_module.MAIN_WINDOW_RESIZE_DEBOUNCE_MS)
     assert density_calls == [(1280, 720)]
@@ -217,8 +217,8 @@ def test_main_shell_and_settings_page_constructors(monkeypatch) -> None:
     get_i18n_service().set_current_language("en", emit_signal=False)
     page.retranslate_ui()
     assert tabs.tabText(0) == "General"
-    assert tabs.tabText(1) == "Paths"
-    assert tabs.tabText(2) == "Parse & TMDB"
+    assert tabs.tabText(1) == "Folders"
+    assert tabs.tabText(2) == "Filenames & TMDB"
 
     assert page._presenter.load_calls == 0  # type: ignore[attr-defined]
 

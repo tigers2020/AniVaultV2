@@ -232,9 +232,9 @@ class PosterGrid(QFrame):
         if show_header:
             layout.addWidget(
                 PanelHeader(
-                    "Final Move Preview",
-                    "TMDB poster 이미지를 기준으로 최종 이동 결과를 카드 그리드로 미리보기",
-                    pill_text="Poster Grid",
+                    "Move preview",
+                    "Preview where your files will go, shown as a card grid",
+                    pill_text="Grid",
                     pill_color="green",
                 )
             )

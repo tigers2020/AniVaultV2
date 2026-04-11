@@ -355,8 +355,8 @@ def test_subtitle_page_meta_describes_orphan_subtitle_workflow() -> None:
     title, description = PAGE_META["subtitles"]
 
     assert title == "자막만"
-    assert "비디오가 누락" in description
-    assert "자막 파일만" in description
+    assert "자막" in description
+    assert "스캔" in description
 
 
 def test_plan_moves_video_with_same_stem_subtitle_as_inherited_companion(

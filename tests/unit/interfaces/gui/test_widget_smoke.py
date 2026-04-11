@@ -94,7 +94,7 @@ def _buttons(widget) -> list[QPushButton]:
 
 def test_panel_header_and_poster_card_public_behavior() -> None:
     _ensure_app()
-    header = PanelHeader("Organizer", "A very long description that should be elided on resize.")
+    header = PanelHeader("Organize", "A very long description that should be elided on resize.")
     header.resize(140, 48)
     header.show()
 
@@ -115,8 +115,8 @@ def test_panel_header_and_poster_card_public_behavior() -> None:
     QApplication.processEvents()
 
     label_texts = [label.text() for label in header.findChildren(QLabel)]
-    assert "Organizer" in label_texts
-    assert any(text for text in label_texts if text != "Organizer")
+    assert "Organize" in label_texts
+    assert any(text for text in label_texts if text != "Organize")
 
     poster.set_title("Updated Poster")
     poster.set_path("F:/Library/Updated Poster.mkv")

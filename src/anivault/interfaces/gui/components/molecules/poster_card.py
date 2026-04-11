@@ -89,7 +89,7 @@ class PosterCard(QFrame):
         layout.setSpacing(
             CARD_LAYOUT_SPACING_COMPACT_PX if is_compact else CARD_LAYOUT_SPACING_POSTER_PX
         )
-        self._img_placeholder = "Backdrop" if image_aspect == "backdrop" else "Poster"
+        self._img_placeholder = "No image" if image_aspect == "backdrop" else "No image"
         self._setup_image_row(layout)
         body, body_frame = self._create_body_layout(use_text_panel, is_compact)
         self._populate_body(body, title, meta, path, is_compact, self._title_only)

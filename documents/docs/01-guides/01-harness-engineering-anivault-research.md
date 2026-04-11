@@ -43,7 +43,7 @@ This is a harness decision, not just a documentation habit. It reduces drift, hi
 
 AniVault does not assume the agent will remember prior mistakes:
 
-- `documents/CURSOR_MEMO.md` is the long-lived place for repeat mistakes and follow-up notes.
+- `documents/docs/CURSOR_MEMO.md` is the long-lived place for repeat mistakes and follow-up notes.
 - `documents/docs/*-research.md` and `*-plan.md` preserve decisions across sessions.
 
 This is a direct mitigation for session handoff loss. The memory lives in the repo, not in the temporary chat context.
@@ -92,7 +92,7 @@ Current mitigation:
 
 - `AGENTS.md`
 - `.cursor/rules/`
-- `documents/CURSOR_MEMO.md`
+- `documents/docs/CURSOR_MEMO.md`
 - paired research/plan documents in `documents/docs/`
 
 Practical meaning:
