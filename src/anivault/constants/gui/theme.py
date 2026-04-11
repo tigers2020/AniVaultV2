@@ -21,16 +21,7 @@ MAIN_WINDOW_MIN_WIDTH: Final[int] = 1280
 MAIN_WINDOW_MIN_HEIGHT: Final[int] = 768
 MAIN_WINDOW_RESIZE_DEBOUNCE_MS: Final[int] = 300
 
-TOPBAR_BOTTOM_MARGIN_PX: Final[int] = 22
-TOPBAR_STACK_SPACING_PX: Final[int] = 6
-
-SIDEBAR_MARGIN_LEFT_PX: Final[int] = 18
-SIDEBAR_MARGIN_TOP_PX: Final[int] = 24
-SIDEBAR_MARGIN_RIGHT_PX: Final[int] = 18
-SIDEBAR_MARGIN_BOTTOM_PX: Final[int] = 24
 SIDEBAR_NAV_SPACING_PX: Final[int] = 8
-
-VIEW_TOGGLE_SPACING_PX: Final[int] = 8
 
 POSTER_IMAGE_ASPECT_HW: Final[float] = 3 / 2
 BACKDROP_IMAGE_ASPECT_HW: Final[float] = 2 / 5
@@ -42,7 +33,16 @@ CARD_LAYOUT_SPACING_POSTER_PX: Final[int] = 8
 
 POSTER_GRID_MIN_CARD_WIDTH: Final[int] = 140
 POSTER_GRID_SPACING: Final[int] = 12
-POSTER_GRID_MARGINS: Final[tuple[int, int, int, int]] = (0, 0, 0, 0)
+# Inner padding around the grid; extra width on the right reserves space so a
+# vertical scrollbar does not squeeze the last column and trigger horizontal scroll.
+POSTER_GRID_INNER_PADDING_PX: Final[int] = 12
+POSTER_GRID_SCROLLBAR_GUTTER_PX: Final[int] = 18
+POSTER_GRID_MARGINS: Final[tuple[int, int, int, int]] = (
+    POSTER_GRID_INNER_PADDING_PX,
+    POSTER_GRID_INNER_PADDING_PX,
+    POSTER_GRID_INNER_PADDING_PX + POSTER_GRID_SCROLLBAR_GUTTER_PX,
+    POSTER_GRID_INNER_PADDING_PX,
+)
 
 DENSITY_KEY_COMPACT: Final[str] = "compact"
 DENSITY_KEY_STANDARD: Final[str] = "standard"

@@ -85,8 +85,18 @@ class _GridContainer(QWidget):
         self._cards: list[PosterCard] = []
         self._last_cols = 0
         self._last_width = 0
+        self._outer_layout = outer
         self._last_density_key = get_current_density_key()
         on_density_changed(self._apply_responsive_metrics)
+
+    def _available_grid_width(self, *, min_card: int, grid_spacing: int) -> int:
+        """Return width inside outer contents margins for column/card math."""
+        om = self._outer_layout.contentsMargins()
+        full_w = self.width()
+        inner = full_w - om.left() - om.right()
+        if full_w <= 0:
+            return max(1, min_card * 2 + grid_spacing - om.left() - om.right())
+        return max(1, inner)
 
     def set_cards(self, cards: list[PosterCard]) -> None:
         """카드 목록을 저장하고 그리드를 처음부터 다시 배치한다.
@@ -129,12 +139,10 @@ class _GridContainer(QWidget):
             if self._min_card_width is not None
             else theme.poster_min_card_width_px()
         )
-        width_px = self.width()
-        if width_px <= 0:
-            width_px = mc * 2 + grid_spacing
+        width_px = self._available_grid_width(min_card=mc, grid_spacing=grid_spacing)
         cols = _column_count(width_px, min_card=mc, grid_spacing=grid_spacing)
         self._last_cols = cols
-        self._last_width = width_px
+        self._last_width = self.width()
         # One size for all cards so height never "shrinks" by column
         card_w = max(mc, (width_px - (cols - 1) * grid_spacing) // cols)
         if self._body_below_image_px is None:
@@ -239,7 +247,7 @@ class PosterGrid(QFrame):
         scroll.setSizePolicy(
             QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         )
-        scroll.setHorizontalScrollBarPolicy(scroll.horizontalScrollBarPolicy())
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet(theme.scroll_area_transparent())
         self._container = _GridContainer(
             min_card_width=min_card_width,

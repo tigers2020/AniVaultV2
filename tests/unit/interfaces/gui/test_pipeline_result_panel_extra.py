@@ -289,3 +289,29 @@ def test_panel_syncs_on_model_data_changed_without_reset(monkeypatch) -> None:
     QApplication.processEvents()
 
     assert (panel._rows[0].tmdb_korean_title_group or "").strip() == "KoreanDisplay"  # type: ignore[attr-defined]
+
+
+def _ensure_qapp() -> QApplication:
+    inst = QApplication.instance()
+    if isinstance(inst, QApplication):
+        return inst
+    return QApplication([])
+
+
+def test_set_details_pane_visible_splitter_sizes_never_exceed_width() -> None:
+    _ensure_qapp()
+    panel = PipelineResultPanel()
+    panel.resize(520, 400)
+    panel.show()
+    QApplication.processEvents()
+
+    panel._set_details_pane_visible(True)  # type: ignore[attr-defined]
+    QApplication.processEvents()
+    splitter = panel._main_splitter  # type: ignore[attr-defined]
+    w = splitter.width()
+    assert sum(splitter.sizes()) <= w
+
+    panel.resize(400, 400)
+    QApplication.processEvents()
+    w2 = splitter.width()
+    assert sum(splitter.sizes()) <= w2

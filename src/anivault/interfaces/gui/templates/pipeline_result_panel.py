@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from PySide6.QtCore import QEvent, Qt, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QEvent, QPoint, Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices, QMouseEvent, QPixmap, QResizeEvent
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
+    QMenu,
     QSizePolicy,
     QSplitter,
     QStackedWidget,
@@ -57,6 +58,11 @@ from anivault.interfaces.gui.templates.pipeline_result_state import (
     normalize_ui_state,
     persist_ui_state,
     resolve_selected_index,
+)
+from anivault.interfaces.gui.utils.context_menu_chrome import apply_context_menu_chrome
+from anivault.interfaces.gui.utils.pipeline_icon_context import (
+    open_location_directory_for_group,
+    tmdb_tv_series_https_url,
 )
 
 
@@ -237,6 +243,33 @@ class PipelineResultPanel(QFrame):
         self._restore_ui_state()
         get_i18n_service().language_changed.connect(self.retranslate_ui)
 
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        """Detail 패널이 열린 상태에서 창 폭이 바뀌면 스플리터 폭을 다시 맞춘다."""
+        super().resizeEvent(event)
+        if self._pane_stack.currentIndex() == 1:
+            ww = self._main_splitter.width()
+            self._main_splitter.setSizes(self._splitter_sizes_with_details_visible(ww))
+
+    def _splitter_sizes_with_details_visible(self, w: int) -> list[int]:
+        """메인 스플리터에 넣을 [좌, 우] 폭. 합이 `w`를 넘지 않게 한다.
+
+        기존 `max(main_min, w - pane) + pane`는 좁은 창에서 좌+우 > w가 되어 그리드가 detail에 가려졌다.
+        """
+        w = max(0, w)
+        detail_min = theme.details_pane_min_width_px()
+        main_min = self._main_min_width
+        desired_right = self._pane_width
+
+        left = w - min(desired_right, w)
+
+        if left < main_min:
+            new_right = w - main_min
+            left = main_min if new_right >= detail_min else w - min(detail_min, w)
+
+        left = max(0, left)
+        right = max(0, w - left)
+        return [left, right]
+
     def retranslate_ui(self) -> None:
         self._header.set_header_texts(
             translate(K.ORG_PIPELINE_HEADER_TITLE),
@@ -395,9 +428,7 @@ class PipelineResultPanel(QFrame):
         if visible:
             self._pane_stack.setCurrentIndex(1)
             w = self._main_splitter.width()
-            self._main_splitter.setSizes(
-                [max(self._main_min_width, w - self._pane_width), self._pane_width]
-            )
+            self._main_splitter.setSizes(self._splitter_sizes_with_details_visible(w))
         else:
             self._pane_stack.setCurrentIndex(0)
             w = self._main_splitter.width()
@@ -416,6 +447,34 @@ class PipelineResultPanel(QFrame):
         self._set_details_pane_visible(True)
         self._on_selection(index)
 
+    def _show_icon_grid_context_menu(self, index: int, global_pos: QPoint) -> None:
+        """아이콘 그리드 카드 우클릭 시 파일 위치·TMDB 메뉴를 연다(선택/상세 패널은 바꾸지 않음).
+
+        Args:
+            self: 이 패널 인스턴스.
+            index: 그룹 행 인덱스.
+            global_pos: 메뉴를 띄울 전역 좌표.
+
+        Returns:
+            None.
+        """
+        if not (0 <= index < len(self._rows)):
+            return
+        group = self._rows[index]
+        menu = QMenu(self)
+        apply_context_menu_chrome(menu)
+        act_open = menu.addAction(translate(K.ORG_PIPELINE_CTX_OPEN_LOCATION))
+        act_tmdb = menu.addAction(translate(K.ORG_PIPELINE_CTX_OPEN_TMDB))
+        loc_dir = open_location_directory_for_group(group)
+        act_open.setEnabled(loc_dir is not None)
+        tmdb_url = tmdb_tv_series_https_url(group.representative().tmdb_series_id)
+        act_tmdb.setEnabled(tmdb_url is not None)
+        chosen = menu.exec(global_pos)
+        if chosen == act_open and loc_dir is not None:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(loc_dir)))
+        elif chosen == act_tmdb and tmdb_url is not None:
+            QDesktopServices.openUrl(QUrl(tmdb_url))
+
     def _make_card_clickable(self, card: PosterCard, index: int) -> None:
         """포스터 카드 클릭 시 해당 행을 선택하도록 커서·마우스 핸들러를 연결한다.
 
@@ -429,10 +488,18 @@ class PipelineResultPanel(QFrame):
         """
         card.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        def _on_press(_event: object) -> None:
-            self._on_icon_grid_card_clicked(index)
+        def _on_press(event: QMouseEvent) -> None:
+            if event.button() == Qt.MouseButton.LeftButton:
+                self._on_icon_grid_card_clicked(index)
+                event.accept()
+                return
+            if event.button() == Qt.MouseButton.RightButton:
+                self._show_icon_grid_context_menu(index, event.globalPos())
+                event.accept()
+                return
+            QFrame.mousePressEvent(card, event)
 
-        card.mousePressEvent = _on_press  # type: ignore[assignment]
+        card.mousePressEvent = _on_press  # type: ignore[method-assign]
 
     def _clear_all_poster_grids(self) -> None:
         """아이콘 그리드 위젯을 비우고 모두 재구성 필요로 표시한다.

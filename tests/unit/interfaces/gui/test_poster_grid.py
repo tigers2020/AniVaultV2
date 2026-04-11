@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QScrollArea
 
 from anivault.interfaces.gui.components.molecules.poster_card import PosterCard
 from anivault.interfaces.gui.components.organisms.poster_grid import PosterGrid
@@ -36,6 +37,14 @@ def _assert_cards_are_embedded(cards: list[PosterCard]) -> None:
     for card in cards:
         assert card.parent() is parent
         assert not card.isWindow()
+
+
+def test_poster_grid_horizontal_scroll_bar_always_off() -> None:
+    _ensure_app()
+    grid = PosterGrid(show_header=False, min_card_width=100)
+    scroll = grid.findChild(QScrollArea)
+    assert scroll is not None
+    assert scroll.horizontalScrollBarPolicy() == Qt.ScrollBarPolicy.ScrollBarAlwaysOff
 
 
 def test_poster_grid_set_cards_keeps_cards_embedded() -> None:
