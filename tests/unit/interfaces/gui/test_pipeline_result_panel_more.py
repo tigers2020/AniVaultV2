@@ -3,6 +3,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from PySide6.QtCore import Qt
+
 from anivault.interfaces.gui.components.molecules.view_toggle_bar import VIEW_CONTENT, VIEW_ICON_M
 from anivault.interfaces.gui.models import PipelineRow, group_pipeline_rows
 from anivault.interfaces.gui.templates import pipeline_result_state as panel_state_module
@@ -55,7 +57,10 @@ def test_on_view_changed_make_card_clickable_and_clear_grids() -> None:
     card = SimpleNamespace(setCursor=MagicMock())
     panel._on_icon_grid_card_clicked = lambda index: clicked.append(index)  # type: ignore[attr-defined]
     panel._make_card_clickable(card, 4)  # type: ignore[attr-defined]
-    card.mousePressEvent(None)
+    left_click = MagicMock()
+    left_click.button.return_value = Qt.MouseButton.LeftButton
+    left_click.accept = MagicMock()
+    card.mousePressEvent(left_click)
     assert clicked == [4]
 
     grid = MagicMock()

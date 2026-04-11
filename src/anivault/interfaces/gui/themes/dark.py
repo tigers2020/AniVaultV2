@@ -38,6 +38,14 @@ DARK_THEME_PALETTE = ColorPalette(
     card_bg="rgba(24, 34, 67, 0.88)",
 )
 
+_QSS_BORDER_NONE = "border: none"
+_QSS_BG_TRANSPARENT = "background: transparent"
+_QSS_FONT_SIZE_11PT = "font-size: 11pt"
+_QSS_FONT_WEIGHT_600 = "font-weight: 600"
+_QSS_PADDING_BUTTON_PRESSED = "padding: 12px 14px 10px 14px"
+_QSS_PADDING_INPUT_COMPACT = "padding: 11px 12px"
+_QSS_INLINE_TRANSPARENT_NO_BORDER = f"{_QSS_BG_TRANSPARENT}; {_QSS_BORDER_NONE};"
+
 
 class DarkTheme:
     """Dark theme with navy/blue palette."""
@@ -69,8 +77,8 @@ class DarkTheme:
         self._progressbar_radius_px = max(6, int(round(10 * self._scale)))
         self._progressbar_chunk_radius_px = max(4, int(round(9 * self._scale)))
 
-        self.palette = self.PALETTE
-        self.colors = self.palette.to_dict()
+        self.color_palette = self.PALETTE
+        self.colors = self.color_palette.to_dict()
 
     def _c(self) -> dict[str, str]:
         """색상 dict 별칭을 반환한다.
@@ -112,10 +120,10 @@ class DarkTheme:
             qss_block(
                 "QLabel",
                 f"color: {c['text']}",
-                "border: none",
-                "background: transparent",
+                _QSS_BORDER_NONE,
+                _QSS_BG_TRANSPARENT,
                 f"font-family: {FONT_FAMILY}",
-                "font-size: 11pt",
+                _QSS_FONT_SIZE_11PT,
             ),
             qss_block(
                 "QPushButton",
@@ -128,7 +136,7 @@ class DarkTheme:
                 f"border-radius: {self._button_radius_px}px",
                 f"color: {c['text']}",
                 "padding: 11px 14px",
-                "font-weight: 600",
+                _QSS_FONT_WEIGHT_600,
             ),
             qss_block(
                 "QPushButton:hover",
@@ -142,39 +150,39 @@ class DarkTheme:
                 "border-left-color: rgba(20, 28, 55, 0.95)",
                 "border-bottom-color: rgba(43, 55, 102, 0.45)",
                 "border-right-color: rgba(43, 55, 102, 0.45)",
-                "padding: 12px 14px 10px 14px",
+                _QSS_PADDING_BUTTON_PRESSED,
             ),
             qss_block(
                 "QPushButton#primary",
                 "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8fa8ff, stop:1 #6b82e8)",
                 "color: #0a1022",
-                "border: none",
+                _QSS_BORDER_NONE,
             ),
             qss_block(
                 "QPushButton#primary:hover",
                 "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9eb4ff, stop:1 #8e8cff)",
-                "border: none",
+                _QSS_BORDER_NONE,
             ),
             qss_block(
                 "QPushButton#primary:pressed",
                 "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5c72d4, stop:1 #4a5fc7)",
-                "padding: 12px 14px 10px 14px",
+                _QSS_PADDING_BUTTON_PRESSED,
             ),
             qss_block(
                 "QPushButton#success",
                 "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8ef5e5, stop:1 #5cc9b8)",
                 "color: #07151a",
-                "border: none",
+                _QSS_BORDER_NONE,
             ),
             qss_block(
                 "QPushButton#success:hover",
                 "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9ef9ea, stop:1 #91f0da)",
-                "border: none",
+                _QSS_BORDER_NONE,
             ),
             qss_block(
                 "QPushButton#success:pressed",
                 "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4ab5a5, stop:1 #3da898)",
-                "padding: 12px 14px 10px 14px",
+                _QSS_PADDING_BUTTON_PRESSED,
             ),
             qss_block(
                 "QPushButton#warn",
@@ -189,7 +197,7 @@ class DarkTheme:
             qss_block(
                 "QPushButton#warn:pressed",
                 "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 180, 84, 0.08), stop:1 rgba(255, 180, 84, 0.18))",
-                "padding: 12px 14px 10px 14px",
+                _QSS_PADDING_BUTTON_PRESSED,
             ),
             qss_block(
                 "QPushButton#danger",
@@ -204,7 +212,7 @@ class DarkTheme:
             qss_block(
                 "QPushButton#danger:pressed",
                 "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255, 107, 129, 0.08), stop:1 rgba(255, 107, 129, 0.18))",
-                "padding: 12px 14px 10px 14px",
+                _QSS_PADDING_BUTTON_PRESSED,
             ),
             qss_block(
                 "QToolButton",
@@ -217,7 +225,7 @@ class DarkTheme:
                 f"border-radius: {self._button_radius_px}px",
                 f"color: {c['text']}",
                 "padding: 11px 14px",
-                "font-weight: 600",
+                _QSS_FONT_WEIGHT_600,
             ),
             qss_block(
                 "QToolButton:hover",
@@ -231,18 +239,18 @@ class DarkTheme:
                 "border-left-color: rgba(20, 28, 55, 0.95)",
                 "border-bottom-color: rgba(43, 55, 102, 0.45)",
                 "border-right-color: rgba(43, 55, 102, 0.45)",
-                "padding: 12px 14px 10px 14px",
+                _QSS_PADDING_BUTTON_PRESSED,
             ),
             qss_block(
                 "QToolButton:checked",
                 "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8fa8ff, stop:1 #6b82e8)",
                 "color: #0a1022",
-                "border: none",
+                _QSS_BORDER_NONE,
             ),
             qss_block(
                 "QToolButton:checked:hover",
                 "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9eb4ff, stop:1 #8e8cff)",
-                "border: none",
+                _QSS_BORDER_NONE,
             ),
             qss_block(
                 "QLineEdit, QComboBox, QPlainTextEdit",
@@ -250,18 +258,18 @@ class DarkTheme:
                 f"border: 1px solid {c['border']}",
                 f"border-radius: {self._input_radius_px}px",
                 f"color: {c['text']}",
-                "padding: 11px 12px",
+                _QSS_PADDING_INPUT_COMPACT,
                 f"font-family: {FONT_FAMILY}",
-                "font-size: 11pt",
+                _QSS_FONT_SIZE_11PT,
             ),
-            qss_block("QComboBox::drop-down", "border: none"),
-            qss_block("QScrollArea", "border: none", "background: transparent"),
+            qss_block("QComboBox::drop-down", _QSS_BORDER_NONE),
+            qss_block("QScrollArea", _QSS_BORDER_NONE, _QSS_BG_TRANSPARENT),
             qss_block(
                 "QTableWidget, QTableView",
                 f"background-color: {c['table_bg']}",
                 "gridline-color: rgba(43, 55, 102, 0.7)",
                 f"color: {c['text']}",
-                "border: none",
+                _QSS_BORDER_NONE,
             ),
             qss_block(
                 "QHeaderView::section",
@@ -270,13 +278,13 @@ class DarkTheme:
                 "padding: 12px 14px",
                 f"font-family: {FONT_FAMILY}",
                 "font-size: 10pt",
-                "font-weight: 600",
+                _QSS_FONT_WEIGHT_600,
             ),
             qss_block(
                 "QFrame#sidebar_pipeline_card QLabel",
                 f"color: {c['text']}",
-                "background: transparent",
-                "border: none",
+                _QSS_BG_TRANSPARENT,
+                _QSS_BORDER_NONE,
             ),
         )
 
@@ -300,7 +308,7 @@ class DarkTheme:
         Returns:
             QSS 또는 스타일 문자열.
         """
-        return "QScrollArea { border: none; background: transparent; }"
+        return f"QScrollArea {{ {_QSS_BORDER_NONE}; {_QSS_BG_TRANSPARENT}; }}"
 
     def sidebar(self) -> str:
         """sidebar용 QSS 또는 스타일 문자열을 반환한다.
@@ -329,9 +337,9 @@ class DarkTheme:
         """
         c = self._c()
         return (
-            f"color: {c['muted']}; font-family: {FONT_FAMILY}; font-size: 9pt; font-weight: 600; "
+            f"color: {c['muted']}; font-family: {FONT_FAMILY}; font-size: 9pt; {_QSS_FONT_WEIGHT_600}; "
             "text-transform: uppercase; letter-spacing: 0.08em; margin: 18px 10px 10px; "
-            "background: transparent; border: none;"
+            f"{_QSS_INLINE_TRANSPARENT_NO_BORDER}"
         )
 
     def sidebar_card(self) -> str:
@@ -363,7 +371,7 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"{FONT_TITLE} font-size: 11pt; margin: 0 0 8px; color: {c['text']}; background: transparent; border: none;"
+        return f"{FONT_TITLE} {_QSS_FONT_SIZE_11PT}; margin: 0 0 8px; color: {c['text']}; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def sidebar_footer(self) -> str:
         """sidebar footer용 QSS 또는 스타일 문자열을 반환한다.
@@ -393,7 +401,7 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"margin-top: 6px; font-family: {FONT_FAMILY}; font-size: 11pt; font-weight: 700; color: {c['text']}; background: transparent; border: none;"
+        return f"margin-top: 6px; font-family: {FONT_FAMILY}; {_QSS_FONT_SIZE_11PT}; font-weight: 700; color: {c['text']}; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def topbar_title(self) -> str:
         """topbar title용 QSS 또는 스타일 문자열을 반환한다.
@@ -405,7 +413,9 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"{FONT_LARGE_TITLE} margin: 0; color: {c['text']}; background: transparent; border: none;"
+        return (
+            f"{FONT_LARGE_TITLE} margin: 0; color: {c['text']}; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
+        )
 
     def topbar_desc(self) -> str:
         """topbar desc용 QSS 또는 스타일 문자열을 반환한다.
@@ -417,7 +427,7 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"margin-top: 6px; {FONT_SUBTITLE} color: {c['muted']}; background: transparent; border: none;"
+        return f"margin-top: 6px; {FONT_SUBTITLE} color: {c['muted']}; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def label_muted(self) -> str:
         """label muted용 QSS 또는 스타일 문자열을 반환한다.
@@ -429,7 +439,9 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"color: {c['muted']}; {FONT_BODY} font-size: 10pt; background: transparent; border: none;"
+        return (
+            f"color: {c['muted']}; {FONT_BODY} font-size: 10pt; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
+        )
 
     def label_stat(self) -> str:
         """label stat용 QSS 또는 스타일 문자열을 반환한다.
@@ -441,7 +453,7 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"color: {c['muted']}; {FONT_STAT} margin: 0 0 8px 0; background: transparent; border: none;"
+        return f"color: {c['muted']}; {FONT_STAT} margin: 0 0 8px 0; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def label_title(self) -> str:
         """label title용 QSS 또는 스타일 문자열을 반환한다.
@@ -453,7 +465,9 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"{FONT_TITLE} font-size: 12pt; color: {c['text']}; background: transparent; border: none;"
+        return (
+            f"{FONT_TITLE} font-size: 12pt; color: {c['text']}; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
+        )
 
     def line_edit(self) -> str:
         """line edit용 QSS 또는 스타일 문자열을 반환한다.
@@ -471,7 +485,7 @@ class DarkTheme:
             f"border: 1px solid {c['border']}",
             f"border-radius: {self._input_radius_px}px",
             f"color: {c['text']}",
-            "padding: 11px 12px",
+            _QSS_PADDING_INPUT_COMPACT,
         )
 
     def combo_box(self) -> str:
@@ -491,10 +505,10 @@ class DarkTheme:
                 f"border: 1px solid {c['border']}",
                 f"border-radius: {self._input_radius_px}px",
                 f"color: {c['text']}",
-                "padding: 11px 12px",
+                _QSS_PADDING_INPUT_COMPACT,
                 "min-height: 20px",
             ),
-            qss_block("QComboBox::drop-down", "border: none"),
+            qss_block("QComboBox::drop-down", _QSS_BORDER_NONE),
         )
 
     def pill(self, color: str = "blue") -> str:
@@ -525,7 +539,7 @@ class DarkTheme:
         Returns:
             QSS 또는 스타일 문자열.
         """
-        return "color: #ffffff; font-size: 9pt; font-weight: 700; background: transparent;"
+        return f"color: #ffffff; font-size: 9pt; font-weight: 700; {_QSS_BG_TRANSPARENT};"
 
     def badge_label(self, size: int) -> str:
         """배지 글자 크기에 맞는 라벨 스타일을 반환한다.
@@ -537,7 +551,7 @@ class DarkTheme:
         Returns:
             QSS 조각.
         """
-        return f"color: #08101f; font-weight: 800; font-size: {max(10, int(round(max(14, size // 2) * 0.75)))}pt; background: transparent; border: none;"
+        return f"color: #08101f; font-weight: 800; font-size: {max(10, int(round(max(14, size // 2) * 0.75)))}pt; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def nav_item(self) -> str:
         """nav item용 QSS 또는 스타일 문자열을 반환한다.
@@ -555,11 +569,11 @@ class DarkTheme:
             text-align: left;
             padding: 12px 16px;
             border-radius: {self._button_radius_px}px;
-            background: transparent;
+            {_QSS_BG_TRANSPARENT};
             border: 1px solid transparent;
             color: {c["text"]};
             font-family: {FONT_FAMILY};
-            font-size: 11pt;
+            {_QSS_FONT_SIZE_11PT};
             font-weight: 500;
         }}
         QPushButton:hover, QPushButton:checked {{
@@ -578,7 +592,9 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"color: {c['text']}; {FONT_TITLE} font-size: 10pt; background: transparent; border: none;"
+        return (
+            f"color: {c['text']}; {FONT_TITLE} font-size: 10pt; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
+        )
 
     def step_row_text(self) -> str:
         """step row text용 QSS 또는 스타일 문자열을 반환한다.
@@ -590,7 +606,9 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"color: {c['text']}; {FONT_BODY} font-size: 10pt; background: transparent; border: none;"
+        return (
+            f"color: {c['text']}; {FONT_BODY} font-size: 10pt; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
+        )
 
     def brand_title(self) -> str:
         """brand title용 QSS 또는 스타일 문자열을 반환한다.
@@ -601,7 +619,7 @@ class DarkTheme:
         Returns:
             QSS 또는 스타일 문자열.
         """
-        return f"{FONT_TITLE} font-size: 12pt; margin: 0; background: transparent; border: none;"
+        return f"{FONT_TITLE} font-size: 12pt; margin: 0; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def brand_subtitle(self) -> str:
         """brand subtitle용 QSS 또는 스타일 문자열을 반환한다.
@@ -612,7 +630,9 @@ class DarkTheme:
         Returns:
             QSS 또는 스타일 문자열.
         """
-        return f"{FONT_SUBTITLE} font-size: 10pt; margin-top: 4px; background: transparent; border: none;"
+        return (
+            f"{FONT_SUBTITLE} font-size: 10pt; margin-top: 4px; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
+        )
 
     def stat_card(self) -> str:
         """stat card용 QSS 또는 스타일 문자열을 반환한다.
@@ -631,7 +651,7 @@ class DarkTheme:
                 f"border: 1px solid {c['border']}",
                 f"border-radius: {self._radius_px}px",
             ),
-            qss_block("QFrame#stat_card QLabel", "background: transparent", "border: none"),
+            qss_block("QFrame#stat_card QLabel", _QSS_BG_TRANSPARENT, _QSS_BORDER_NONE),
         )
 
     def stat_card_value(self) -> str:
@@ -644,7 +664,7 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"font-family: {FONT_FAMILY}; font-size: 20pt; font-weight: 800; color: {c['text']}; background: transparent; border: none; margin: 0;"
+        return f"font-family: {FONT_FAMILY}; font-size: 20pt; font-weight: 800; color: {c['text']}; {_QSS_INLINE_TRANSPARENT_NO_BORDER} margin: 0;"
 
     def panel_header_title(self) -> str:
         """panel header title용 QSS 또는 스타일 문자열을 반환한다.
@@ -655,7 +675,7 @@ class DarkTheme:
         Returns:
             QSS 또는 스타일 문자열.
         """
-        return f"{FONT_TITLE} font-size: 13pt; margin: 0; background: transparent; border: none;"
+        return f"{FONT_TITLE} font-size: 13pt; margin: 0; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def panel_header_desc(self) -> str:
         """panel header desc용 QSS 또는 스타일 문자열을 반환한다.
@@ -666,7 +686,7 @@ class DarkTheme:
         Returns:
             QSS 또는 스타일 문자열.
         """
-        return f"{FONT_SUBTITLE} margin-top: 6px; background: transparent; border: none;"
+        return f"{FONT_SUBTITLE} margin-top: 6px; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def path_box(self) -> str:
         """path box용 QSS 또는 스타일 문자열을 반환한다.
@@ -730,7 +750,7 @@ class DarkTheme:
         r = self._frame_radius_px
         return (
             f"background-color: {c['input_bg']}; color: {c['muted']}; "
-            f"border: none; border-radius: {r}px;"
+            f"{_QSS_BORDER_NONE}; border-radius: {r}px;"
         )
 
     def poster_card_title(self) -> str:
@@ -742,7 +762,7 @@ class DarkTheme:
         Returns:
             QSS 또는 스타일 문자열.
         """
-        return f"{FONT_TITLE} font-size: 12pt; margin: 0; background: transparent; border: none;"
+        return f"{FONT_TITLE} font-size: 12pt; margin: 0; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def poster_card_meta(self) -> str:
         """poster card meta용 QSS 또는 스타일 문자열을 반환한다.
@@ -753,7 +773,9 @@ class DarkTheme:
         Returns:
             QSS 또는 스타일 문자열.
         """
-        return f"{FONT_BODY} font-size: 10pt; line-height: 1.45; background: transparent; border: none;"
+        return (
+            f"{FONT_BODY} font-size: 10pt; line-height: 1.45; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
+        )
 
     def content_view_text_panel_overlay(self) -> str:
         """콘텐츠 뷰 이미지 하단 반투명 텍스트 패널 QSS를 반환한다.
@@ -768,7 +790,7 @@ class DarkTheme:
         return qss_block(
             "QFrame#content_view_text_panel",
             f"background-color: {self.CONTENT_VIEW_TEXT_PANEL_OVERLAY_BG}",
-            "border: none",
+            _QSS_BORDER_NONE,
             f"border-radius: {r}px",
         )
 
@@ -816,7 +838,7 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"{FONT_TITLE} font-size: 11pt; margin-bottom: 6px; color: {c['text']}; background: transparent; border: none;"
+        return f"{FONT_TITLE} {_QSS_FONT_SIZE_11PT}; margin-bottom: 6px; color: {c['text']}; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def list_item_muted(self) -> str:
         """list item muted용 QSS 또는 스타일 문자열을 반환한다.
@@ -827,7 +849,7 @@ class DarkTheme:
         Returns:
             QSS 또는 스타일 문자열.
         """
-        return f"{FONT_BODY} color: {self._c()['muted']}; background: transparent; border: none;"
+        return f"{FONT_BODY} color: {self._c()['muted']}; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def form_label_muted(self) -> str:
         """form label muted용 QSS 또는 스타일 문자열을 반환한다.
@@ -839,7 +861,7 @@ class DarkTheme:
             QSS 또는 스타일 문자열.
         """
         c = self._c()
-        return f"{FONT_CAPTION} color: {c['muted']}; background: transparent; border: none;"
+        return f"{FONT_CAPTION} color: {c['muted']}; {_QSS_INLINE_TRANSPARENT_NO_BORDER}"
 
     def view_toggle_button(self) -> str:
         """view toggle button용 QSS 또는 스타일 문자열을 반환한다.
@@ -862,7 +884,7 @@ class DarkTheme:
             border-radius: {self._button_radius_px}px;
             color: {c["text"]};
             padding: 11px 14px;
-            font-weight: 600;
+            {_QSS_FONT_WEIGHT_600};
             font-size: 10pt;
         }}
         QToolButton:hover {{
@@ -872,11 +894,11 @@ class DarkTheme:
         QToolButton:checked {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8fa8ff, stop:1 #6b82e8);
             color: #0a1022;
-            border: none;
+            {_QSS_BORDER_NONE};
         }}
         QToolButton:checked:hover {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #9eb4ff, stop:1 #8e8cff);
-            border: none;
+            {_QSS_BORDER_NONE};
         }}
         QToolButton::menu-indicator {{
             width: 16px;
@@ -907,7 +929,13 @@ class DarkTheme:
                 f"border-radius: {self._menu_item_radius_px}px",
                 f"color: {c['text']}",
             ),
-            qss_block("QMenu::item:selected", "background-color: rgba(122, 162, 255, 0.18)"),
+            qss_block("QMenu::item:hover", f"background-color: {c['header_bg']}"),
+            qss_block(
+                "QMenu::item:selected", f"background-color: {c['panel2']}", f"color: {c['text']}"
+            ),
+            qss_block(
+                "QMenu::item:pressed", f"background-color: {c['input_bg']}", f"color: {c['text']}"
+            ),
             qss_block("QMenu::item:disabled", f"color: {c['muted']}"),
             qss_block(
                 "QMenu::separator",
@@ -938,7 +966,7 @@ class DarkTheme:
             qss_block(
                 "QProgressDialog QLabel",
                 f"color: {c['text']}",
-                "font-size: 11pt",
+                _QSS_FONT_SIZE_11PT,
             ),
             qss_block(
                 "QProgressBar",

@@ -1,0 +1,253 @@
+{
+  "_meta": {
+    "slug": "one_piece",
+    "query": "ONE PIECE",
+    "language": "ko-KR",
+    "fetched_endpoint": "https://api.themoviedb.org/3/search/tv"
+  },
+  "response": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/qD211Hb5XwFxrszzBBe5EUYJerh.jpg",
+        "genre_ids": [
+          10759,
+          10765
+        ],
+        "id": 111110,
+        "origin_country": [
+          "US"
+        ],
+        "original_language": "en",
+        "original_name": "ONE PIECE",
+        "overview": "밀짚모자를 쓴 젊은 해적, 몽키 D. 루피. 각각 제멋대로인 동료들과 함께 보물을 찾아 장대한 모험을 떠난다. 인기 만화를 각색한 실사 시리즈.",
+        "popularity": 84.6324,
+        "poster_path": "/t5AnYuoWrDEyLWmDLbF1FVauS5k.jpg",
+        "first_air_date": "2023-08-31",
+        "name": "원피스",
+        "vote_average": 8.116,
+        "vote_count": 1698
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/wrV9hbOH3pYAsNZcQ609cjnlXt5.jpg",
+        "genre_ids": [
+          16,
+          10759,
+          35,
+          10765
+        ],
+        "id": 241709,
+        "origin_country": [
+          "JP"
+        ],
+        "original_language": "ja",
+        "original_name": "THE ONE PIECE",
+        "overview": "",
+        "popularity": 3.4303,
+        "poster_path": "/xGcPlcZ3fx3DlEGYB7ybky3V6Rh.jpg",
+        "first_air_date": "",
+        "name": "THE ONE PIECE",
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "adult": false,
+        "backdrop_path": null,
+        "genre_ids": [
+          99
+        ],
+        "id": 316804,
+        "origin_country": [
+          "US"
+        ],
+        "original_language": "en",
+        "original_name": "ONE PIECE BONUS CONTENT",
+        "overview": "근사한 특수효과, 곳곳에 숨겨진 이스터 에그, 그리고 입이 떡 벌어지는 스턴트까지. 시즌 2를 실감 나게 만들어 준 비하인드 요소들을 찾아 항해를 시작한다.",
+        "popularity": 1.4407,
+        "poster_path": "/vsa5qAIgtSHPgXdf32RRjyyphkg.jpg",
+        "first_air_date": "2026-03-17",
+        "name": "원피스: 보너스 콘텐츠",
+        "vote_average": 9.667,
+        "vote_count": 6
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/qA8U2ABepV5E2BcNIBcgUaFy4fM.jpg",
+        "genre_ids": [
+          16,
+          10759,
+          10765,
+          35,
+          10751
+        ],
+        "id": 318918,
+        "origin_country": [
+          "DK",
+          "US",
+          "JP",
+          "CA"
+        ],
+        "original_language": "en",
+        "original_name": "LEGO ONE PIECE",
+        "overview": "2부작 레고 스페셜. 자신이 크루에 합류하기 전, 이스트 블루에서 그랜드 라인으로 이어진 밀짚모자 일당의 여정을 우솝이 과장된 이야기로 풀어낸다.",
+        "popularity": 0.3,
+        "poster_path": null,
+        "first_air_date": "2026-09-29",
+        "name": "LEGO 원피스",
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/wS1xB9um2hEtzXBKqwaghHHiy9x.jpg",
+        "genre_ids": [
+          10767
+        ],
+        "id": 318421,
+        "origin_country": [
+          "US"
+        ],
+        "original_language": "en",
+        "original_name": "ONE PIECE: Into the Grand Line: Official Podcast",
+        "overview": "",
+        "popularity": 0.7161,
+        "poster_path": null,
+        "first_air_date": "2026-03-13",
+        "name": "ONE PIECE: Into the Grand Line: Official Podcast",
+        "vote_average": 0.0,
+        "vote_count": 0
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/2rmK7mnchw9Xr3XdiTFSxTTLXqv.jpg",
+        "genre_ids": [
+          10759,
+          35,
+          16
+        ],
+        "id": 37854,
+        "origin_country": [
+          "JP"
+        ],
+        "original_language": "ja",
+        "original_name": "ワンピース",
+        "overview": "해적왕을 꿈꾸는 소년 루피와 동료들의 유쾌한 모험담을 그린 작품! 힘있는 연출과 개성있는 그림체 및 캐릭터들의 활기찬 묘사로 인기를 모았으며, 1억 만부 이상 판매된 원작만화의 인기를 바탕으로 다양한 버전으로 제작된 초히트작 애니메이션이다.\n\n˝최고의 해적왕˝을 꿈꾸는 루피와 동료들의 파란만장한 모험담 !\n\n떄는 해적들이 난무하는 ‘춘추전국시대’. 곳곳에서는 전설적인 해적왕 골드로저가 남긴 보물 ‘원피스’를 놓고 수많은 해적들이 서로 싸우고 있었다. 어릴 때부터 골드로저를 너무도 동경한 나머지 자신도 전설의 해적왕이 되는 것이 꿈인 주인공 루피. 그러나 루피는 악마의 열매를 먹은 이후로 몸을 자유자재로 늘일 수 있지만 수영을 할 수가 없는 처지이다. 바다가 주 활동무대인 해적에게 있어 수영은 필수. 그러나 해적왕을 꿈꾸는 루피는 수영을 할 수 없음에도 불구하고 물에 빠지지 않으면 된다면서 자신의 꿈을 향해 모험을 떠난다. 그 과정에서 만나게 되는 현상금 헌터 ‘조로’, 자칭 해적전문 도둑인 ‘나미’, 저격수 ‘우솝, 그리고 주방장 ‘상디’까지. 지금부터 루피와 그의 동료 4명이 함께하는 해적의 꿈을 향한 파란만장한 모험이 펼쳐진다",
+        "popularity": 92.7296,
+        "poster_path": "/qHjXsSUuolEtbgvYPzRjAuB1VHE.jpg",
+        "first_air_date": "1999-10-20",
+        "name": "원피스",
+        "vote_average": 8.723,
+        "vote_count": 5197
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/5QWdGKrPWJQ3WcafuYA2PXL6uQG.jpg",
+        "genre_ids": [
+          16,
+          35
+        ],
+        "id": 251,
+        "origin_country": [
+          "US"
+        ],
+        "original_language": "en",
+        "original_name": "Aqua Teen Hunger Force",
+        "overview": "",
+        "popularity": 17.2261,
+        "poster_path": "/jCWOkfMLsT2sGHadCkmR65MWtJu.jpg",
+        "first_air_date": "2000-12-30",
+        "name": "Aqua Teen Hunger Force",
+        "vote_average": 7.515,
+        "vote_count": 240
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/d53feRiMKVabw9LH6vWy0cDmAKU.jpg",
+        "genre_ids": [
+          16,
+          10759
+        ],
+        "id": 243471,
+        "origin_country": [
+          "JP"
+        ],
+        "original_language": "ja",
+        "original_name": "ワンピース キャラクターズLog",
+        "overview": "",
+        "popularity": 5.8592,
+        "poster_path": "/aHRHoWK4fSItzAoQO6uz3gm0OYl.jpg",
+        "first_air_date": "2016-06-20",
+        "name": "ワンピース キャラクターズLog",
+        "vote_average": 9.0,
+        "vote_count": 2
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/9u6bqyTLassTHkLFmqUMy7ceAba.jpg",
+        "genre_ids": [
+          16,
+          18,
+          10765
+        ],
+        "id": 37534,
+        "origin_country": [
+          "JP"
+        ],
+        "original_language": "ja",
+        "original_name": "うた∽かた",
+        "overview": "",
+        "popularity": 3.5381,
+        "poster_path": "/6Hglcr0EH5hBYjQhqgoVoHEWWid.jpg",
+        "first_air_date": "2004-10-03",
+        "name": "우타∽카타",
+        "vote_average": 8.2,
+        "vote_count": 4
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/wNztxzaIOEn2wqxWyxjqjz7V2W.jpg",
+        "genre_ids": [
+          16,
+          35
+        ],
+        "id": 287202,
+        "origin_country": [
+          "JP"
+        ],
+        "original_language": "ja",
+        "original_name": "恋するワンピース",
+        "overview": "",
+        "popularity": 3.7858,
+        "poster_path": "/7dl79wHu9ab1JK7WSUtbUHegBEX.jpg",
+        "first_air_date": "2025-04-01",
+        "name": "恋するワンピース",
+        "vote_average": 8.7,
+        "vote_count": 3
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/pcyVB92oAuA2PQR8aoDurLETNda.jpg",
+        "genre_ids": [
+          18
+        ],
+        "id": 99112,
+        "origin_country": [
+          "KR"
+        ],
+        "original_language": "ko",
+        "original_name": "반의 반",
+        "overview": "인공지능 프로그래머 하원과 클래식 녹음 엔지니어 서우가 만나 그리는 시작도, 성장도, 끝도 자유로운 짝사랑 이야기. AH의 대표이자 인공지능 프로그래머인 하원. 자신의 인격을 넣은 대화용 디바이스를 테스트 중이다. 하원은 지수와의 추억이 있는 노래를 따라 우연히 들어간 녹음실에서 클래식 녹음 엔지니어 한서우를 만나게 된다. 그리고 서우와의 만남 이후, 디바이스는 하원의 인격으로 활성화되는데... 한편, 서우는 새로 온 녹음실 관리자 문순호로부터 김지수의 그릇을 사 달라는 이상한 부탁을 받는다.",
+        "popularity": 6.0367,
+        "poster_path": "/A6Ir3FgiJm9HHwLgkhDGIstCZ08.jpg",
+        "first_air_date": "2020-03-23",
+        "name": "반의반",
+        "vote_average": 7.3,
+        "vote_count": 41
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 11
+  }
+}

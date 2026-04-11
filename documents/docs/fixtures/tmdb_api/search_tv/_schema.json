@@ -1,0 +1,21 @@
+{
+  "description": "TMDB v3 GET /search/tv normalized for SQL-oriented fixtures",
+  "tmdb_reference": "https://developer.themoviedb.org/reference/search-tv",
+  "language": "ko-KR",
+  "result_item_keys": [
+    "adult",
+    "backdrop_path",
+    "genre_ids",
+    "id",
+    "origin_country",
+    "original_language",
+    "original_name",
+    "overview",
+    "popularity",
+    "poster_path",
+    "first_air_date",
+    "name",
+    "vote_average",
+    "vote_count"
+  ]
+}

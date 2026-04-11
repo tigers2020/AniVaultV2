@@ -12,7 +12,6 @@ from anivault.constants.gui.navigation import (
     VIEW_ICON_S,
     VIEW_ICON_XL,
 )
-from anivault.constants.gui.theme import VIEW_TOGGLE_SPACING_PX
 from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import ComboBox, Label
 from anivault.interfaces.gui.i18n import get_i18n_service, translate
@@ -57,7 +56,7 @@ class ViewToggleBar(QWidget):
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(VIEW_TOGGLE_SPACING_PX)
+        layout.setSpacing(theme.layout_spacing_xs_px())
 
         self._current_view = VIEW_DETAILS
 

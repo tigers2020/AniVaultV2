@@ -1,0 +1,60 @@
+{
+  "_meta": {
+    "slug": "cowboy_bebop",
+    "query": "カウボーイビバップ",
+    "language": "ko-KR",
+    "fetched_endpoint": "https://api.themoviedb.org/3/search/tv"
+  },
+  "response": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/A4PHx94G7mvM3b8vsDJ5HEaQ6uv.jpg",
+        "genre_ids": [
+          16,
+          10759,
+          10765,
+          37
+        ],
+        "id": 30991,
+        "origin_country": [
+          "JP"
+        ],
+        "original_language": "ja",
+        "original_name": "カウボーイビバップ",
+        "overview": "1998년 4월 TV Tokyo에서 방영을 시작한 SF물. 21세기 후반 2071년, 미국의 서부시대와 같이 현상금 제도가 제정되어있는 세계. 스파이크 스피겔과 그 동료들은, 태양계를 중심으로 현상금 수배자를 붙잡는 일을 생계로 하고 있는 현상금 사냥꾼 카우보이다. 때때로 대물의 현상금 수배자를 붙잡는 일도 있지만, 거친 일처리 때문에 같이 휩쓸린 일반시민으로부터 배상청구도 많은 그들은 낡은 어선을 개조한 우주선 비밥호를 이동수단 겸 거주지로 하여, 매일같이 새로운 현상금 수배자를 찾아 넓은 태양계를 동분서주하는데...",
+        "popularity": 48.7118,
+        "poster_path": "/hbLDwYri1pyiEIMpICgftu7s8NE.jpg",
+        "first_air_date": "1998-04-03",
+        "name": "카우보이 비밥",
+        "vote_average": 8.5,
+        "vote_count": 1895
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/fqKoCBkllbGeXF5jKmERtAy5eMP.jpg",
+        "genre_ids": [
+          10765,
+          10759,
+          80
+        ],
+        "id": 84469,
+        "origin_country": [
+          "US"
+        ],
+        "original_language": "en",
+        "original_name": "Cowboy Bebop",
+        "overview": "스타일은 차고 넘치는데 주머니는 텅텅 비었다. 돈을 벌기 위해 태양계를 누비며 범죄자를 쫓는 현상금 사냥꾼 스파이크, 제트, 페이. 세 사람은 스파이크의 과거로부터 도망칠 수 있을까?",
+        "popularity": 6.1562,
+        "poster_path": "/3QuUnBYsAcittQmHcJeI2Dx8oC6.jpg",
+        "first_air_date": "2021-11-19",
+        "name": "카우보이 비밥",
+        "vote_average": 6.549,
+        "vote_count": 460
+      }
+    ],
+    "total_pages": 1,
+    "total_results": 2
+  }
+}

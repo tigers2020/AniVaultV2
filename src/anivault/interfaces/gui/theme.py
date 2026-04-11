@@ -77,6 +77,8 @@ __all__ = [
     "poster_grid_spacing_px",
     "layout_spacing_md",
     "layout_spacing_lg",
+    "layout_spacing_sm_px",
+    "layout_spacing_xs_px",
     "layout_main_padding",
     "page_section_gap_px",
     "card_body_padding_px",
@@ -334,6 +336,18 @@ def layout_spacing_md() -> int:
 def layout_spacing_lg() -> int:
     profile = _p()
     return scaled_int(18, profile.grid_spacing_scale, minimum=12, maximum=26)
+
+
+def layout_spacing_sm_px() -> int:
+    """Row gaps for path rows, pipeline steps, execution action bars."""
+    profile = _p()
+    return scaled_int(10, profile.grid_spacing_scale, minimum=8, maximum=14)
+
+
+def layout_spacing_xs_px() -> int:
+    """Dense horizontal gaps (view toggles, pill row offsets)."""
+    profile = _p()
+    return scaled_int(8, profile.grid_spacing_scale, minimum=6, maximum=12)
 
 
 def layout_main_padding() -> int:

@@ -40,7 +40,7 @@ class LogList(QFrame):
         scroll.setStyleSheet(theme.scroll_area_transparent())
         self._container = QWidget()
         self._list_layout = QVBoxLayout(self._container)
-        self._list_layout.setSpacing(12)
+        self._list_layout.setSpacing(theme.inline_control_gap_px())
         scroll.setWidget(self._container)
         layout.addWidget(scroll)
         self.setStyleSheet(theme.card_panel())
@@ -66,7 +66,8 @@ class LogList(QFrame):
         """
         item = QWidget()
         item_layout = QVBoxLayout(item)
-        item_layout.setContentsMargins(14, 14, 14, 14)
+        pad = theme.settings_section_gap_px()
+        item_layout.setContentsMargins(pad, pad, pad, pad)
         strong = QLabel(time_str)
         strong.setStyleSheet(theme.list_item_strong())
         item_layout.addWidget(strong)

@@ -14,7 +14,7 @@ Cursor AI용 AniVault V2 프로젝트 가이드. [AGENTS.md](https://agents.md/)
 2. 배정받은 담당자가 한두 문장으로 접근 방식을 브리핑한다.
 3. 그 뒤에만 코드 작성·수정을 진행한다.
 
-구현이 끝나면 `[테스]`가 테스트를 맡고, `[렉스]`가 `pytest → ruff check . → mypy src → black .` 순서로 검증한다.
+구현이 끝나면 `[테스]`가 테스트를 맡고, `[렉스]`가 `pytest → ruff check . → mypy src → black .` 순서로 검증한다(CI에서는 마지막을 `black --check .`로 대체).
 
 레이어 빠른 매핑:
 
@@ -41,8 +41,8 @@ Cursor AI용 AniVault V2 프로젝트 가이드. [AGENTS.md](https://agents.md/)
 
 고정 게이트:
 
-- 리서치: 관련 코드와 규칙을 읽고 `docs/` 또는 `documents/`에 조사 문서를 남긴다.
-- 플랜: 변경 접근, 대상 경로, 트레이드오프를 담은 플랜 MD를 저장한다.
+- 리서치: 관련 코드와 규칙을 읽고 `documents/`에 조사 문서를 남긴다.
+- 플랜: 변경 접근, 대상 경로, 트레이드오프를 담은 플랜 MD를 `documents/`에 저장한다.
 - 승인: 사람이 플랜 문서 본문에서 검토·수정·승인한다.
 - 구현: 승인 후에만 코드 작성·수정으로 넘어간다.
 
@@ -69,11 +69,31 @@ Cursor AI용 AniVault V2 프로젝트 가이드. [AGENTS.md](https://agents.md/)
 
 ---
 
+## MCP 서버 (선택·적절 사용)
+
+원칙은 `@documents/mcp-servers-transcript-summary.md`와 같다. **CLI·로컬 파일·공식 문서로 충분하면 MCP를 켜지 않아도 된다.** 진짜로 반복·정확도 이득이 큰 것만 연결한다. 세부 호출 규칙은 `@.cursor/rules/anivault-mcp.mdc`가 우선한다.
+
+| 작업 성격 | MCP를 고려할 때 | 대안(없을 때) |
+|-----------|-----------------|---------------|
+| 라이브러리·API 최신 문서(PySide6, pytest, tmdb 관련 등) | Context7, (필요 시) Google Developer Knowledge | 공식 문서 URL을 직접 열고 요약을 `documents/`에 남김 |
+| Git 이력·PR·이슈 | GitHub MCP 또는 `gh` CLI | `git log` / 웹 UI에서 링크·요약 붙여넣기 |
+| 웹 페이지 상호작용·E2E 검증 | Playwright MCP, 또는 IDE 브라우저 MCP | 수동 확인, 스크린샷 |
+| Qt 데스크톱 GUI | 로컬 실행 `python -m anivault` + 사람 확인이 1순위 | MCP는 보조(문서·웹만 해당될 때) |
+| 큰 설계·분해 | Sequential Thinking(선택) | `documents/` 플랜 MD + Persona Dialogue |
+| DB·배포·에러 트래킹 | Supabase(읽기 전용), Vercel, Sentry 등 **이미 쓰는 서비스**가 있을 때만 | 대시보드·CLI로 로그 복사 |
+| 대규모 코드베이스 심볼 탐색 | Serena(선택) | Cursor 인덱싱·리포 내 검색 |
+
+설정 위치: 워크스페이스는 `@.cursor/mcp.json`, 사용자 전역은 OS 사용자 폴더의 Cursor `mcp.json`을 쓴다. **API 키·토큰은 JSON에 박지 말고** `${env:VAR_NAME}` 등 환경 변수로만 넘긴다. `env.example`에 필요한 변수만 문서화하고, **프로덕션 DB 쓰기·위험한 자동 배포**는 MCP로 맡기지 않는다.
+
+에이전트는 `call_mcp_tool` / `fetch_mcp_resource`를 쓰기 전에 해당 서버의 도구 스키마를 확인하고, 도구가 없거나 실패하면 **실패 이유와 로컬 대안**을 남긴다(`anivault-mcp.mdc`).
+
+---
+
 ## 하네스 엔지니어링
 
 - 프롬프트가 아니라 구조로 실수를 줄인다: 테스트, 린트, 레이어 규칙, 계획 승인 게이트.
-- 컨텍스트 지도는 `AGENTS.md`, `.cursor/rules/`, `docs/CURSOR_MEMO.md`다.
-- 재현된 실수는 테스트와 `docs/CURSOR_MEMO.md`에 남겨 반복을 줄인다.
+- 컨텍스트 지도는 `AGENTS.md`, `.cursor/rules/`, `documents/CURSOR_MEMO.md`다.
+- 재현된 실수는 테스트와 `documents/CURSOR_MEMO.md`에 남겨 반복을 줄인다.
 - 외부 기업 사례·수치·인용은 검증 가능한 출처 없이 사실처럼 단정하지 않는다.
 
 ---
@@ -85,7 +105,8 @@ Cursor AI용 AniVault V2 프로젝트 가이드. [AGENTS.md](https://agents.md/)
 | 설치 | `pip install -e .` |
 | GUI | `python -m anivault` |
 | 테스트 | `pytest` |
-| 검증 | `ruff check .` → `mypy src` → `black .` |
+| 검증 (로컬) | `ruff check .` → `mypy src` → `black .` (포맷 적용) |
+| 검증 (CI) | 동일 순서에서 **`black --check .`** 로 포맷만 검사 (파일 변경 없음) |
 
 Golden: `tests/golden/filenames/`, `tests/golden/normalize_series_title.txt`
 

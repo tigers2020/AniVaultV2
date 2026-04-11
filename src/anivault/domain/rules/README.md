@@ -2,7 +2,7 @@
 
 비즈니스 규칙·상수는 이 패키지(Python 코드)에 둡니다.
 
-Cursor 사용 규칙·실수 목록·진행 맥락은 **.cursor/rules** 및 **docs/CURSOR_MEMO.md**를 참조하세요. 에이전트의 프롬프트·세션 효율 규칙은 `.cursor/rules/anivault-cursor-usage.mdc`에서 관리하며 이 패키지에는 넣지 않습니다.
+Cursor 사용 규칙·실수 목록·진행 맥락은 **.cursor/rules** 및 **documents/CURSOR_MEMO.md**를 참조하세요. 에이전트의 프롬프트·세션 효율 규칙은 `.cursor/rules/anivault-cursor-usage.mdc`에서 관리하며 이 패키지에는 넣지 않습니다.
 
 **에이전트 기획 단계와의 관계**: `AGENTS.md`의 **리서치 MD → 플랜 MD → 승인 → 구현** 절차에서, 이 디렉터리를 건드릴 계획이면 보고서·플랜에 **기존 규칙 모듈과의 중복·책임 분리·테스트 추가 위치**를 명시한다. 워크플로 전체는 `AGENTS.md`·`persona/`가 주관하고, 여기는 **런타임에 적용되는 제품 규칙 코드**만 둔다.
 
@@ -13,6 +13,14 @@ Cursor 사용 규칙·실수 목록·진행 맥락은 **.cursor/rules** 및 **do
 
 | 구분 | 목적 | 위치 |
 |---|---|---|
-| 에이전트 협업 하네스 | 작업 절차, 금지사항, 검증 흐름 정의 | `AGENTS.md`, `.cursor/rules`, `docs/CURSOR_MEMO.md` |
+| 에이전트 협업 하네스 | 작업 절차, 금지사항, 검증 흐름 정의 | `AGENTS.md`, `.cursor/rules`, `documents/CURSOR_MEMO.md` |
 | 제품 비즈니스 하네스 | 파싱·정제·판단 규칙을 코드로 고정 | `src/anivault/domain/rules/` |
 | 품질 강제 루프 | 실패를 자동 노출하고 수정 루프 유도 | `tests/`, `pytest`, `ruff`, `mypy`, `black` |
+
+### 에이전트·MCP와의 관계 (이 디렉터리를 수정할 때)
+
+이 패키지의 **런타임 코드는 MCP를 import·호출하지 않는다.** 규칙은 순수 Python 함수·상수로만 유지한다.
+
+에이전트가 여기를 고칠 때 MCP는 **리서치·검증 보조**로만 쓴다. 예: PySide/Qt·TMDB·파일명 관련 API를 최신 문서와 맞추려면 `AGENTS.md`의 MCP 절차에 따라 Context7 등을 검토하고, 답을 **그대로 붙여넣지 말고** 포트·어댑터·도메인 경계에 맞게 옮긴다(`.cursor/rules/anivault-mcp.mdc`). 서버별 역할·장단점·보안 주의는 `documents/mcp-servers-transcript-summary.md`를 본다. 로컬에 어떤 MCP를 켰는지는 Cursor `mcp.json`(워크스페이스 또는 사용자 전역)을 따르되, **없는 도구를 가정하지 말고** 실패 시 로컬 검색·문서 링크로 대체한다.
+
+플랜·리서치 MD에는 **어떤 규칙 모듈을 바꾸는지**, **새 단위 테스트 경로**, 필요하면 **어떤 문서/MCP로 근거를 확인했는지**를 한 줄이라도 적어 재현성을 남긴다.

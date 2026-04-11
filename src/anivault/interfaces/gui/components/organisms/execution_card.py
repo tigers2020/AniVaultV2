@@ -13,8 +13,6 @@ from anivault.interfaces.gui.components.atoms import Button, Pill
 from anivault.interfaces.gui.components.molecules import PanelHeader
 from anivault.interfaces.gui.i18n import get_i18n_service, translate
 from anivault.interfaces.gui.i18n import keys as K
-from anivault.interfaces.gui.themes import get_current_density_key
-from anivault.interfaces.gui.themes.responsive import get_profile, scaled_int
 
 
 class ExecutionCard(QFrame):
@@ -26,9 +24,8 @@ class ExecutionCard(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        profile = get_profile(get_current_density_key())
-        body_margin = scaled_int(18, profile.grid_spacing_scale, minimum=12, maximum=28)
-        actions_spacing = scaled_int(10, profile.grid_spacing_scale, minimum=8, maximum=14)
+        body_margin = theme.card_body_padding_px()
+        actions_spacing = theme.layout_spacing_sm_px()
         self._status_pill = Pill(translate(K.EXEC_CARD_STATUS_READY), "green")
         self._header = PanelHeader(
             translate(K.EXEC_CARD_HEADER_TITLE),
@@ -49,7 +46,7 @@ class ExecutionCard(QFrame):
         body.addWidget(self._summary_text)
         pills = QWidget()
         pills_layout = QHBoxLayout(pills)
-        pills_layout.setContentsMargins(0, scaled_int(8, profile.grid_spacing_scale), 0, 0)
+        pills_layout.setContentsMargins(0, theme.layout_spacing_xs_px(), 0, 0)
         self._pill_preview = Pill(translate(K.EXEC_CARD_PILL_PREVIEW), "green")
         self._pill_review = Pill(translate(K.EXEC_CARD_PILL_REVIEW), "yellow")
         pills_layout.addWidget(self._pill_preview)
@@ -57,7 +54,7 @@ class ExecutionCard(QFrame):
         body.addWidget(pills)
         actions = QHBoxLayout()
         actions.setSpacing(actions_spacing)
-        actions.setContentsMargins(0, scaled_int(16, profile.grid_spacing_scale), 0, 0)
+        actions.setContentsMargins(0, theme.layout_spacing_md(), 0, 0)
         self._apply_btn = Button(translate(K.EXEC_CARD_BTN_MOVE), "primary")
         self._apply_btn.clicked.connect(self.move_files_clicked.emit)
         actions.addWidget(self._apply_btn)

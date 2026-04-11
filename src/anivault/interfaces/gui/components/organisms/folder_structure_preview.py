@@ -37,8 +37,9 @@ class FolderStructurePreview(QFrame):
             )
         )
         body = QVBoxLayout()
-        body.setSpacing(12)
-        body.setContentsMargins(18, 18, 18, 18)
+        body.setSpacing(theme.inline_control_gap_px())
+        body_pad = theme.card_body_padding_px()
+        body.setContentsMargins(body_pad, body_pad, body_pad, body_pad)
         for label, path in [
             ("FHD", r"G:\AniSorted\FHD\2023\장송의 프리렌\Season01"),
             ("FHD", r"G:\AniSorted\FHD\2023\약사의 혼잣말\Season01"),
@@ -47,7 +48,8 @@ class FolderStructurePreview(QFrame):
         ]:
             item = QWidget()
             item_layout = QVBoxLayout(item)
-            item_layout.setContentsMargins(14, 14, 14, 14)
+            item_pad = theme.settings_section_gap_px()
+            item_layout.setContentsMargins(item_pad, item_pad, item_pad, item_pad)
             strong = QLabel(label)
             strong.setStyleSheet(theme.list_item_strong())
             item_layout.addWidget(strong)

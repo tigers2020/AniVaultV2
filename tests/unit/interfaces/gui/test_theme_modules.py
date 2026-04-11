@@ -87,6 +87,8 @@ def test_theme_module_wrappers_and_metrics(monkeypatch) -> None:
     assert theme_module.poster_grid_spacing_px() > 0
     assert theme_module.layout_spacing_md() > 0
     assert theme_module.layout_spacing_lg() > 0
+    assert theme_module.layout_spacing_sm_px() > 0
+    assert theme_module.layout_spacing_xs_px() > 0
     assert theme_module.layout_main_padding() > 0
     assert theme_module.page_section_gap_px() > 0
     assert theme_module.card_body_padding_px() > 0
@@ -265,4 +267,7 @@ def test_dark_theme_public_methods_return_strings() -> None:
     ]
 
     assert all(isinstance(value, str) and value for value in outputs)
+    menu_qss = theme.view_toggle_menu()
+    assert "QMenu::item:hover" in menu_qss
+    assert "QMenu::item:pressed" in menu_qss
     assert theme.frame_radius_px() >= 8

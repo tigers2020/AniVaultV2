@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-FILENAMES_TXT = PROJECT_ROOT / "docs" / "filenames.txt"
+FILENAMES_TXT = PROJECT_ROOT / "tests" / "golden" / "filenames" / "filenames.txt"
 SAMPLE_SIZES = (100, 1_000, 10_000)
 
 

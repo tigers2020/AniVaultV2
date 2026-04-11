@@ -8,6 +8,7 @@ Author: Pom Kim
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QWidget
 
+from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.atoms import Button, LineEdit
 from anivault.interfaces.gui.i18n import get_i18n_service, translate
 from anivault.interfaces.gui.i18n import keys as K
@@ -28,7 +29,7 @@ class PathSelectField(QWidget):
         self._placeholder_key = placeholder_key or K.ORG_PATH_FIELD_PLACEHOLDER
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
+        layout.setSpacing(theme.layout_spacing_sm_px())
         self._edit = LineEdit()
         self._edit.setPlaceholderText(translate(self._placeholder_key))
         layout.addWidget(self._edit, 1)
