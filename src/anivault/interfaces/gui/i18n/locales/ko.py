@@ -63,8 +63,7 @@ MESSAGES: dict[str, str] = {
     ),
     K.ORG_SCAN_PATH_ERROR_TITLE: "폴더를 읽을 수 없음",
     K.ORG_SCAN_PATH_ERROR_MESSAGE: (
-        "지정한 폴더를 읽을 수 없습니다(저장소, 권한, 이동식 드라이브 등).\n\n"
-        "{path}\n\n{error}"
+        "지정한 폴더를 읽을 수 없습니다(저장소, 권한, 이동식 드라이브 등).\n\n" "{path}\n\n{error}"
     ),
     K.ORG_SCAN_PATH_MISSING_TITLE: "폴더를 찾을 수 없음",
     K.ORG_SCAN_PATH_MISSING_MESSAGE: (
@@ -79,8 +78,7 @@ MESSAGES: dict[str, str] = {
     K.ORG_PLAN_EMPTY_MESSAGE: "먼저 스캔과 제목 매칭을 완료하세요.",
     K.ORG_PLAN_NO_MATCHED_TITLE: "TMDB 매칭 없음",
     K.ORG_PLAN_NO_MATCHED_MESSAGE: (
-        "TMDB 한국어 제목이 있는 파일이 없습니다. "
-        "자동 또는 수동으로 매칭한 뒤 다시 시도하세요."
+        "TMDB 한국어 제목이 있는 파일이 없습니다. " "자동 또는 수동으로 매칭한 뒤 다시 시도하세요."
     ),
     K.ORG_PLAN_PATH_RULES_TITLE: "저장 위치 규칙 필요",
     K.ORG_PLAN_PATH_RULES_MESSAGE: (
@@ -186,8 +184,7 @@ MESSAGES: dict[str, str] = {
     K.DRY_RUN_BTN_CLOSE: "닫기",
     K.SETTINGS_SCAN_BUILD_TITLE: "폴더 스캔",
     K.SETTINGS_SCAN_BUILD_DESC: (
-        "입력 폴더를 단계별로 스캔합니다. "
-        "정리할 위치는 아래 저장 위치 규칙에서 지정하세요."
+        "입력 폴더를 단계별로 스캔합니다. " "정리할 위치는 아래 저장 위치 규칙에서 지정하세요."
     ),
     K.SETTINGS_SCAN_BUILD_PILL: "작업 단계",
     K.SETTINGS_SCAN_BUILD_SOURCE_PH: "예: G:/Animations; D:/Incoming_Downloads",

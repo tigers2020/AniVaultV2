@@ -6,9 +6,7 @@ from typing import Final
 
 EXECUTION_CARD_STATUS_READY: Final[str] = "Ready"
 EXECUTION_CARD_HEADER_TITLE: Final[str] = "Move files"
-EXECUTION_CARD_HEADER_DESCRIPTION: Final[str] = (
-    "Run the file move or undo a recent move."
-)
+EXECUTION_CARD_HEADER_DESCRIPTION: Final[str] = "Run the file move or undo a recent move."
 EXECUTION_CARD_SUMMARY_TITLE: Final[str] = "Move summary"
 EXECUTION_CARD_SUMMARY_TEXT: Final[str] = (
     "8,975 files will be moved using resolution, year, Korean title, and season folder rules."
@@ -91,15 +89,11 @@ SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_TITLE: Final[str] = "폴더를 찾을 �
 SCAN_PARSE_COORDINATOR_SCAN_PATH_MISSING_MESSAGE_TEMPLATE: Final[str] = (
     "폴더가 없거나 읽을 수 없습니다. 경로를 확인하거나 다시 선택하세요.\n\n{path}"
 )
-SCAN_PARSE_COORDINATOR_SCAN_PATH_EMPTY_MESSAGE: Final[str] = (
-    "스캔할 폴더를 먼저 선택해 주세요."
-)
+SCAN_PARSE_COORDINATOR_SCAN_PATH_EMPTY_MESSAGE: Final[str] = "스캔할 폴더를 먼저 선택해 주세요."
 SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_TITLE: Final[str] = "스캔 중"
 SCAN_PARSE_COORDINATOR_SCAN_PROGRESS_MESSAGE: Final[str] = "폴더 스캔 중…"
 SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_TITLE: Final[str] = "제목 읽는 중"
-SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_MESSAGE: Final[str] = (
-    "파일명에서 제목을 읽고 있습니다…"
-)
+SCAN_PARSE_COORDINATOR_PARSE_PROGRESS_MESSAGE: Final[str] = "파일명에서 제목을 읽고 있습니다…"
 # --- Status constants stored in PipelineRow.status (DO NOT CHANGE VALUES) ---
 SCAN_PARSE_COORDINATOR_STATUS_SCANNED: Final[str] = "스캔됨"
 SCAN_PARSE_COORDINATOR_STATUS_PARSED: Final[str] = "파싱됨"
@@ -165,8 +159,7 @@ PLAN_APPLY_EMPTY_TITLE: Final[str] = "항목 없음"
 PLAN_APPLY_EMPTY_MESSAGE: Final[str] = "먼저 스캔과 제목 매칭을 완료하세요."
 PLAN_APPLY_NO_MATCHED_TITLE: Final[str] = "TMDB 매칭 없음"
 PLAN_APPLY_NO_MATCHED_MESSAGE: Final[str] = (
-    "TMDB 한국어 제목이 있는 파일이 없습니다. "
-    "자동 또는 수동으로 매칭한 뒤 다시 시도하세요."
+    "TMDB 한국어 제목이 있는 파일이 없습니다. " "자동 또는 수동으로 매칭한 뒤 다시 시도하세요."
 )
 PLAN_APPLY_PATH_RULES_TITLE: Final[str] = "저장 위치 규칙 필요"
 PLAN_APPLY_PATH_RULES_MESSAGE: Final[str] = (

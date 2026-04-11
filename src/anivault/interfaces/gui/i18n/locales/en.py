@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .. import keys as K
-from .fragments import DRY_RUN_EN, PARSED_TITLE_EN
+from .fragments import DRY_RUN_EN, MOVE_FILES_EN, ORIGINAL_FILE_EN, PARSED_TITLE_EN
 
 MESSAGES: dict[str, str] = {
     K.APP_WINDOW_TITLE: "AniVault V2",
@@ -33,7 +33,7 @@ MESSAGES: dict[str, str] = {
     K.SETTINGS_APPEARANCE_THEME_LIGHT: "Light",
     K.SETTINGS_LANG_OPTION_KO: "Korean",
     K.SETTINGS_LANG_OPTION_EN: "English",
-    K.TBL_ORIGINAL_FILE: "Original file",
+    K.TBL_ORIGINAL_FILE: ORIGINAL_FILE_EN,
     K.TBL_PARSED_TITLE: PARSED_TITLE_EN,
     K.TBL_PARSE_GROUP: "Title group",
     K.TBL_TMDB_KO: "TMDB Korean title",
@@ -153,7 +153,7 @@ MESSAGES: dict[str, str] = {
     K.DETAILS_MANUAL_BTN: "Find title on TMDB",
     K.DETAILS_JOINER: " · ",
     K.DETAILS_LBL_GROUP_FILES: "Files",
-    K.DETAILS_LBL_ORIGINAL: "Original file",
+    K.DETAILS_LBL_ORIGINAL: ORIGINAL_FILE_EN,
     K.DETAILS_LBL_PARSED: PARSED_TITLE_EN,
     K.DETAILS_LBL_PARSE_GROUP: "Title group",
     K.DETAILS_LBL_TMDB: "TMDB Korean title",
@@ -164,17 +164,15 @@ MESSAGES: dict[str, str] = {
     K.CONTENT_MULTI_SUFFIX: " files",
     K.CONTENT_META_JOINER: " · ",
     K.CONTENT_LBL_GROUP_FILES: "Files",
-    K.CONTENT_LBL_ORIGINAL: "Original file",
+    K.CONTENT_LBL_ORIGINAL: ORIGINAL_FILE_EN,
     K.CONTENT_LBL_PARSED: "From filename",
     K.CONTENT_LBL_TMDB: "TMDB",
     K.CONTENT_LBL_YEAR_SEASON: "Year / season",
     K.CONTENT_LBL_RESOLUTION: "Resolution",
     K.CONTENT_LBL_PATH: "Path",
     K.EXEC_CARD_STATUS_READY: "Ready",
-    K.EXEC_CARD_HEADER_TITLE: "Move files",
-    K.EXEC_CARD_HEADER_DESC: (
-        "Run the file move or undo a recent move."
-    ),
+    K.EXEC_CARD_HEADER_TITLE: MOVE_FILES_EN,
+    K.EXEC_CARD_HEADER_DESC: ("Run the file move or undo a recent move."),
     K.EXEC_CARD_SUMMARY_TITLE: "Move summary",
     K.EXEC_CARD_SUMMARY_TEXT: (
         "8,975 files will be moved using resolution, year, Korean title, "
@@ -182,7 +180,7 @@ MESSAGES: dict[str, str] = {
     ),
     K.EXEC_CARD_PILL_PREVIEW: "Preview complete",
     K.EXEC_CARD_PILL_REVIEW: "73 review files",
-    K.EXEC_CARD_BTN_MOVE: "Move files",
+    K.EXEC_CARD_BTN_MOVE: MOVE_FILES_EN,
     K.EXEC_CARD_BTN_TREE: "Create folder tree only",
     K.EXEC_CARD_BTN_UNDO: "Undo last move",
     K.DRY_RUN_TITLE: "Preview & move",
@@ -190,7 +188,7 @@ MESSAGES: dict[str, str] = {
     K.DRY_RUN_HDR_DEST: "Destination",
     K.DRY_RUN_HDR_GROUP: "Group",
     K.DRY_RUN_HDR_RESOLUTION: "Resolution",
-    K.DRY_RUN_BTN_APPLY: "Move files",
+    K.DRY_RUN_BTN_APPLY: MOVE_FILES_EN,
     K.DRY_RUN_BTN_CLOSE: "Close",
     K.SETTINGS_SCAN_BUILD_TITLE: "Scan folders",
     K.SETTINGS_SCAN_BUILD_DESC: (
