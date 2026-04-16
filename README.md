@@ -19,9 +19,12 @@ pip install -e .
 
 ## TMDB / `.env`
 
-- `env.example`를 참고해 프로젝트 루트에 `.env`를 두고 `TMDB_API_KEY=` 를 설정한다.
+- 기본 `.env` 경로는 **`~/.anivault/.env`** (Windows: `%USERPROFILE%\.anivault\.env`)다.
+- `env.example`를 참고해 해당 위치에 `.env`를 두고 `TMDB_API_KEY=` 를 설정한다.
 - 다른 경로를 쓰려면 환경 변수 `ANIVAULT_DOTENV_PATH`에 `.env` 파일 절대 경로를 지정한다.
 - 설정 화면의 **TMDB API key**는 동일한 값을 읽고 `.env`에 저장한다 (`config.json`에는 넣지 않음).
+
+> 이전에 프로젝트 루트에 `.env`를 두던 경우 `~/.anivault/.env`로 옮기거나 `ANIVAULT_DOTENV_PATH`를 지정하면 된다.
 
 ## 구조
 
