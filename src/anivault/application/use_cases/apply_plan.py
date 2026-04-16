@@ -36,19 +36,11 @@ def _get_operations_or_error(input_dto: ApplyInput) -> ApplyResult | None:
     return None
 
 
-def _get_log_root_or_error(input_dto: ApplyInput) -> ApplyResult | None:
-    log_root = (input_dto.log_root or "").strip()
-    if not log_root:
-        return ApplyResult(log_path=None, moved_count=0, error="로그 루트 경로가 비어 있습니다.")
-    return None
-
-
 def _save_plan_log_or_error(
-    operation_log_factory: Callable[[Path], OperationLogRepository],
-    log_root: str,
+    operation_log_factory: Callable[[], OperationLogRepository],
     ops: list[FileOperation],
 ) -> tuple[Path | None, ApplyResult | None]:
-    op_log = operation_log_factory(Path(log_root))
+    op_log = operation_log_factory()
     try:
         serializable_ops: list[object] = list(ops)
         log_path = op_log.save_plan(serializable_ops)
@@ -174,7 +166,7 @@ def _execute_apply(
     cancel_token: Event,
     *,
     file_repo: FileRepository,
-    operation_log_factory: Callable[[Path], OperationLogRepository],
+    operation_log_factory: Callable[[], OperationLogRepository],
     library_index: LibraryIndexRepository | None = None,
     organize_plan: OrganizePlanRepository | None = None,
 ) -> ApplyResult:
@@ -182,17 +174,12 @@ def _execute_apply(
     if ops_error is not None:
         return ops_error
 
-    log_root_error = _get_log_root_or_error(input_dto)
-    if log_root_error is not None:
-        return log_root_error
-
     ops = list(input_dto.operations)
-    log_root = (input_dto.log_root or "").strip()
     plan_id = input_dto.organize_plan_id
     item_ids = list(input_dto.organize_item_ids)
     root_idx = input_dto.index_root_id
 
-    log_path, log_error = _save_plan_log_or_error(operation_log_factory, log_root, ops)
+    log_path, log_error = _save_plan_log_or_error(operation_log_factory, ops)
     if log_error is not None:
         return log_error
 
@@ -234,7 +221,7 @@ def _execute_apply(
 
 def make_apply_execute(
     file_repo: FileRepository,
-    operation_log_factory: Callable[[Path], OperationLogRepository],
+    operation_log_factory: Callable[[], OperationLogRepository],
     *,
     library_index: LibraryIndexRepository | None = None,
     organize_plan: OrganizePlanRepository | None = None,
@@ -243,7 +230,7 @@ def make_apply_execute(
 
     Args:
         file_repo: 파일 이동 포트.
-        operation_log_factory: log_root Path로 OperationLogRepository를 만드는 함수.
+        operation_log_factory: 인자 없이 OperationLogRepository를 만드는 함수.
         library_index: 적용 후 인덱스 경로 갱신. None이면 생략.
         organize_plan: 플랜·아이템 상태 갱신. None이면 생략.
 

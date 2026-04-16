@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Final
 
-OPERATION_LOG_DIRNAME_ROOT: Final[str] = ".anivault"
-OPERATION_LOG_DIRNAME_LOGS: Final[str] = "logs"
 OPERATION_LOG_FILENAME_PREFIX: Final[str] = "organize"
 OPERATION_LOG_FILENAME_SUFFIX: Final[str] = ".log"
 

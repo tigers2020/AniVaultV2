@@ -48,7 +48,6 @@ class ApplyInput:
 
     operations: tuple[FileOperation, ...]
     dry_run: bool
-    log_root: str
     source_root: str | None = None
     index_root_id: int | None = None
     organize_plan_id: int | None = None

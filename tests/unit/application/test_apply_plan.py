@@ -68,6 +68,10 @@ def _op(name: str) -> FileOperation:
     return FileOperation(OperationType.MOVE, f"/src/{name}.mkv", f"/dest/{name}.mkv")
 
 
+def _log_factory(fixed_path: Path):
+    return lambda: _OperationLog(fixed_path)
+
+
 def test_move_operation_or_error_updates_library_index() -> None:
     repo = _FileRepo()
     index = _LibraryIndex()
@@ -130,11 +134,11 @@ def test_execute_apply_returns_validation_errors_for_empty_inputs() -> None:
     repo = _FileRepo()
 
     result = _execute_apply(
-        ApplyInput(operations=(), dry_run=False, log_root=""),
+        ApplyInput(operations=(), dry_run=False),
         None,
         Event(),
         file_repo=repo,
-        operation_log_factory=lambda root: _OperationLog(root / "plan.log"),
+        operation_log_factory=_log_factory(Path("/logs/plan.log")),
     )
 
     assert result.error == "적용할 작업이 없습니다."
@@ -148,14 +152,13 @@ def test_execute_apply_dry_run_saves_log_without_moving() -> None:
         ApplyInput(
             operations=(_op("a"),),
             dry_run=True,
-            log_root="/logs",
             organize_plan_id=1,
             organize_item_ids=(9,),
         ),
         None,
         Event(),
         file_repo=repo,
-        operation_log_factory=lambda root: _OperationLog(root / "plan.log"),
+        operation_log_factory=_log_factory(Path("/logs/plan.log")),
         organize_plan=organize_plan,
     )
 
@@ -169,12 +172,12 @@ def test_execute_apply_updates_plan_and_prunes_dirs_after_success() -> None:
     repo = _FileRepo()
     organize_plan = _OrganizePlan()
     progress_events: list[tuple[int, int, str]] = []
+    log_fixed = Path("/logs/plan.log")
 
     result = _execute_apply(
         ApplyInput(
             operations=(_op("a"), _op("b")),
             dry_run=False,
-            log_root="/logs",
             source_root="/source",
             index_root_id=5,
             organize_plan_id=77,
@@ -183,14 +186,14 @@ def test_execute_apply_updates_plan_and_prunes_dirs_after_success() -> None:
         lambda event: progress_events.append((event.current, event.total, event.item_path or "")),
         Event(),
         file_repo=repo,
-        operation_log_factory=lambda root: _OperationLog(root / "plan.log"),
+        operation_log_factory=_log_factory(log_fixed),
         library_index=_LibraryIndex(),
         organize_plan=organize_plan,
     )
 
     assert result.error is None
     assert result.moved_count == 2
-    assert organize_plan.log_paths == [(77, str(Path("/logs/plan.log")))]
+    assert organize_plan.log_paths == [(77, str(log_fixed))]
     assert organize_plan.item_statuses == [(1, "applied"), (2, "applied")]
     assert organize_plan.plan_statuses == [(77, "applied")]
     assert repo.pruned == [Path("/source")]

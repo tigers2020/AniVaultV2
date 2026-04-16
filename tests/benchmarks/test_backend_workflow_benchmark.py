@@ -418,14 +418,16 @@ def test_apply_plan_dry_run_timing(
         None,
         Event(),
     )
-    execute = make_apply_execute(_StaticFileRepository(()), FsOperationLogRepository)
+    execute = make_apply_execute(
+        _StaticFileRepository(()),
+        lambda: FsOperationLogRepository(log_dir=tmp_path / "logs"),
+    )
 
     result = benchmark(
         lambda: execute(
             ApplyInput(
                 operations=plan.moves,
                 dry_run=True,
-                log_root=str(tmp_path / "logs"),
                 source_root=None,
             ),
             None,

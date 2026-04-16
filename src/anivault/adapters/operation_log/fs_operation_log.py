@@ -2,6 +2,9 @@
 
 로컬 디스크에 operation log(JSON)를 저장·로드한다.
 
+기본 저장 위치: `~/.anivault/logs/organize{timestamp}.log`
+테스트 격리가 필요하면 생성자의 `log_dir` 인자로 직접 지정한다.
+
 Author: Pom Kim
 """
 
@@ -12,10 +15,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from anivault.adapters.persistence.sqlite.db_path import default_operation_logs_dir
 from anivault.constants.adapters.operation_log import (
     OPERATION_LOG_DEFAULT_OPERATION_TYPE,
-    OPERATION_LOG_DIRNAME_LOGS,
-    OPERATION_LOG_DIRNAME_ROOT,
     OPERATION_LOG_FILENAME_PREFIX,
     OPERATION_LOG_FILENAME_SUFFIX,
     OPERATION_LOG_JSON_ARRAY_ERROR,
@@ -28,25 +30,24 @@ from anivault.domain.models.file_operation import FileOperation, OperationType
 
 
 class FsOperationLogRepository:
-    """`{log_root}/.anivault/logs/organize{timestamp}.log` 에 JSON 배열을 쓴다."""
+    """`~/.anivault/logs/organize{timestamp}.log` 에 JSON 배열을 쓴다.
 
-    def __init__(self, log_root: Path) -> None:
-        """로그 루트(스캔 소스 또는 target_root 등 한 디렉터리)를 받는다.
+    기본 경로는 `default_operation_logs_dir()`(`~/.anivault/logs`)이며,
+    테스트에서 격리가 필요할 때는 `log_dir` 인자로 임시 디렉터리를 지정한다.
+    """
+
+    def __init__(self, log_dir: Path | None = None) -> None:
+        """로그 디렉터리를 설정한다.
 
         Args:
-            self: 이 저장소.
-            log_root: `.anivault/logs` 가 만들어질 기준 디렉터리.
-
-        Returns:
-            None.
+            log_dir: 로그 파일을 저장할 디렉터리. None이면 `default_operation_logs_dir()`.
         """
-        self._log_root = log_root
+        self._log_dir = log_dir if log_dir is not None else default_operation_logs_dir()
 
     def save_plan(self, operations: list[object]) -> Path:
         """계획을 타임스탬프 로그 파일에 저장한다.
 
         Args:
-            self: 이 저장소.
             operations: FileOperation 등 직렬화 가능한 작업 목록.
 
         Returns:
@@ -55,10 +56,9 @@ class FsOperationLogRepository:
         Raises:
             OSError: 쓰기 실패 시.
         """
-        log_dir = self._log_root / OPERATION_LOG_DIRNAME_ROOT / OPERATION_LOG_DIRNAME_LOGS
-        log_dir.mkdir(parents=True, exist_ok=True)
+        self._log_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-        path = log_dir / f"{OPERATION_LOG_FILENAME_PREFIX}{ts}{OPERATION_LOG_FILENAME_SUFFIX}"
+        path = self._log_dir / f"{OPERATION_LOG_FILENAME_PREFIX}{ts}{OPERATION_LOG_FILENAME_SUFFIX}"
         payload: list[dict[str, Any]] = []
         for op in operations:
             if isinstance(op, FileOperation):
@@ -80,7 +80,6 @@ class FsOperationLogRepository:
         """로그 파일에서 FileOperation 목록을 복원한다.
 
         Args:
-            self: 이 저장소.
             log_path: 로그 파일 경로.
 
         Returns:
@@ -88,6 +87,7 @@ class FsOperationLogRepository:
 
         Raises:
             OSError, json.JSONDecodeError: 파일 없음·손상 시.
+            ValueError: JSON 최상위가 배열이 아닐 때.
         """
         raw = log_path.read_text(encoding="utf-8")
         data = json.loads(raw)
