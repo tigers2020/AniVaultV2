@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from pathlib import Path
 from typing import Any, Final
 
-CONFIG_DIR: Final[Path] = Path.home() / ".anivault"
-CONFIG_FILE: Final[Path] = CONFIG_DIR / "config.json"
+from anivault.constants.paths import APP_STATE_DIR
+
+CONFIG_DIR = APP_STATE_DIR
+CONFIG_FILE = CONFIG_DIR / "config.json"
 DEFAULT_THEME_NAME: Final[str] = "dark"
 DEFAULT_UI_LANGUAGE: Final[str] = "ko"
 ALLOWED_UI_LANGUAGES: Final[frozenset[str]] = frozenset({"ko", "en"})

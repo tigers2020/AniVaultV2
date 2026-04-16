@@ -12,17 +12,23 @@ from pathlib import Path
 
 from dotenv import dotenv_values, load_dotenv, set_key, unset_key
 
-from anivault.constants.bootstrap import DEFAULT_DOTENV_FILENAME, DOTENV_PATH_ENV, TMDB_API_KEY_ENV
+from anivault.constants.bootstrap import DOTENV_PATH_ENV, TMDB_API_KEY_ENV
+from anivault.constants.paths import APP_STATE_DIR
 
 TMDB_API_KEY = TMDB_API_KEY_ENV
 
 
 def resolve_dotenv_path() -> Path:
-    """Resolve the dotenv path for this installation."""
+    """Resolve the dotenv path for this installation.
+
+    Priority:
+    1. ``ANIVAULT_DOTENV_PATH`` environment variable (absolute path, for CI / custom installs).
+    2. ``~/.anivault/.env`` — default user data location.
+    """
     override = os.environ.get(DOTENV_PATH_ENV)
     if override:
         return Path(override).expanduser().resolve()
-    return (Path.cwd() / DEFAULT_DOTENV_FILENAME).resolve()
+    return APP_STATE_DIR / ".env"
 
 
 def load_into_os_environ() -> None:

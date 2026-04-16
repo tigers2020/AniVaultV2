@@ -1,23 +1,24 @@
 """db_path.py
 
-전역 SQLite DB 파일 경로(MVP 단일 파일). implementation_policy §1.
+AniVault SQLite DB·포스터 캐시·operation 로그 경로.
+
+모든 경로는 APP_STATE_DIR(~/.anivault)에서 파생한다.
 
 Author: Pom Kim
 """
 
 from pathlib import Path
 
+from anivault.constants.paths import APP_STATE_DIR
+
 
 def default_anivault_db_path() -> Path:
     """기본 AniVault DB 경로를 반환한다.
 
-    Args:
-        없음.
-
     Returns:
         `~/.anivault/anivault.db`.
     """
-    return Path.home() / ".anivault" / "anivault.db"
+    return APP_STATE_DIR / "anivault.db"
 
 
 def ensure_db_parent_dir(db_path: Path) -> None:
@@ -25,9 +26,6 @@ def ensure_db_parent_dir(db_path: Path) -> None:
 
     Args:
         db_path: SQLite 파일 절대 경로.
-
-    Returns:
-        None.
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -35,20 +33,14 @@ def ensure_db_parent_dir(db_path: Path) -> None:
 def default_poster_cache_dir() -> Path:
     """TMDB 포스터·백드롭 로컬 캐시 디렉터리를 반환한다.
 
-    Args:
-        없음.
-
     Returns:
         `~/.anivault/posters`.
     """
-    return Path.home() / ".anivault" / "posters"
+    return APP_STATE_DIR / "posters"
 
 
 def ensure_poster_cache_dir() -> Path:
     """포스터 캐시 디렉터리가 없으면 만들고 절대 경로를 반환한다.
-
-    Args:
-        없음.
 
     Returns:
         `default_poster_cache_dir()`의 resolve 결과.
@@ -56,3 +48,12 @@ def ensure_poster_cache_dir() -> Path:
     d = default_poster_cache_dir()
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def default_operation_logs_dir() -> Path:
+    """정리(apply) operation 로그 디렉터리를 반환한다.
+
+    Returns:
+        `~/.anivault/logs`.
+    """
+    return APP_STATE_DIR / "logs"

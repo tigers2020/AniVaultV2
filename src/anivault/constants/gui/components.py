@@ -43,7 +43,7 @@ PARSE_TMDB_FORM_HEADER_DESCRIPTION: Final[str] = (
     "파일명에서 제목을 읽는 방식과 TMDB 한국어 제목 연결 기준"
 )
 PARSE_TMDB_FORM_LABEL_API_KEY: Final[str] = "TMDB API key"
-PARSE_TMDB_FORM_API_KEY_HELP: Final[str] = "Stored in .env as TMDB_API_KEY"
+PARSE_TMDB_FORM_API_KEY_HELP: Final[str] = "Stored in ~/.anivault/.env as TMDB_API_KEY"
 PARSE_TMDB_FORM_LABEL_IGNORE_TOKENS: Final[str] = "무시할 단어"
 PARSE_TMDB_FORM_LABEL_SEASON_FORMAT: Final[str] = "시즌 폴더 형식"
 
@@ -142,7 +142,7 @@ CONTENT_VIEW_PATH_LABEL: Final[str] = "경로"
 
 MATCH_COORDINATOR_MISSING_API_TITLE: Final[str] = "TMDB API 키 없음"
 MATCH_COORDINATOR_MISSING_API_MESSAGE: Final[str] = (
-    "설정 → 파일명 및 TMDB에서 API 키를 저장하거나 .env에 TMDB_API_KEY를 설정하세요."
+    "설정 → 파일명 및 TMDB에서 API 키를 저장하거나 ~/.anivault/.env에 TMDB_API_KEY를 설정하세요."
 )
 MATCH_COORDINATOR_NO_ROWS_TITLE: Final[str] = "매칭할 항목 없음"
 MATCH_COORDINATOR_NO_ROWS_MESSAGE: Final[str] = (
@@ -159,7 +159,7 @@ PLAN_APPLY_EMPTY_TITLE: Final[str] = "항목 없음"
 PLAN_APPLY_EMPTY_MESSAGE: Final[str] = "먼저 스캔과 제목 매칭을 완료하세요."
 PLAN_APPLY_NO_MATCHED_TITLE: Final[str] = "TMDB 매칭 없음"
 PLAN_APPLY_NO_MATCHED_MESSAGE: Final[str] = (
-    "TMDB 한국어 제목이 있는 파일이 없습니다. " "자동 또는 수동으로 매칭한 뒤 다시 시도하세요."
+    "TMDB 한국어 제목이 있는 파일이 없습니다. 자동 또는 수동으로 매칭한 뒤 다시 시도하세요."
 )
 PLAN_APPLY_PATH_RULES_TITLE: Final[str] = "저장 위치 규칙 필요"
 PLAN_APPLY_PATH_RULES_MESSAGE: Final[str] = (
