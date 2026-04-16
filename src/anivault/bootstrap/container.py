@@ -8,7 +8,6 @@ import threading
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
-from pathlib import Path
 from threading import Event
 from typing import TYPE_CHECKING
 
@@ -56,7 +55,12 @@ from anivault.constants.gui.settings import parse_ignore_tokens_from_loaded
 from anivault.contracts.parse import ParseInput, ParseResult
 from anivault.contracts.pipeline import MatchInput, MatchResult
 from anivault.contracts.progress import ProgressEvent
-from anivault.contracts.tmdb import TmdbSearchInput, TmdbSeriesCandidate
+from anivault.contracts.tmdb import (
+    TmdbSearchInput,
+    TmdbSeasonOverviewInput,
+    TmdbSeriesCandidate,
+    TvSeasonOverview,
+)
 from anivault.domain.media.extensions import SUBTITLE_SCAN_EXTENSIONS
 from anivault.domain.rules.tmdb_search_query import iter_strip_last_word_chain
 from anivault.interfaces.gui.models import PipelineTableModel
@@ -64,6 +68,7 @@ from anivault.interfaces.gui.pages import OrganizerPage, SettingsPage
 from anivault.interfaces.gui.presenters import (
     OrganizerPresenter,
     OrganizerPresenterPorts,
+    OrganizerPresenterUseCases,
     SettingsPresenter,
 )
 from anivault.interfaces.gui.settings_storage import load_all
@@ -75,6 +80,10 @@ if TYPE_CHECKING:
 TmdbSearchExecute = Callable[
     [TmdbSearchInput, Callable[[ProgressEvent], None] | None, Event],
     tuple[TmdbSeriesCandidate, ...],
+]
+TmdbSeasonOverviewExecute = Callable[
+    [TmdbSeasonOverviewInput, Callable[[ProgressEvent], None] | None, Event],
+    TvSeasonOverview | None,
 ]
 
 
@@ -172,6 +181,22 @@ def make_tmdb_search_execute(provider: MetadataProvider) -> TmdbSearchExecute:
             if found:
                 return found
         return ()
+
+    return execute
+
+
+def make_tmdb_season_overview_execute(provider: MetadataProvider) -> TmdbSeasonOverviewExecute:
+    """Create a background-safe TMDB season overview execute function."""
+
+    def execute(
+        input_dto: TmdbSeasonOverviewInput,
+        progress_callback: Callable[[ProgressEvent], None] | None,
+        cancel_token: Event,
+    ) -> TvSeasonOverview | None:
+        del progress_callback
+        if cancel_token.is_set():
+            return None
+        return provider.tv_season_overview(input_dto.tv_id, input_dto.season_number)
 
     return execute
 
@@ -283,23 +308,30 @@ def _build_organizer_page(
 
     presenter = OrganizerPresenter(
         pipeline_model=model,
-        scan_execute=scan_execute,
-        parse_execute=parse_execute,
-        match_execute=match_execute,
-        tmdb_search_execute=tmdb_search_execute,
-        plan_execute=make_plan_execute(organize_plan=repos.organize_plan),
-        apply_execute=make_apply_execute(
-            dependencies.file_repo,
-            _make_operation_log_repository,
-            library_index=repos.library_index,
-            organize_plan=repos.organize_plan,
+        use_cases=OrganizerPresenterUseCases(
+            scan_execute=scan_execute,
+            parse_execute=parse_execute,
+            match_execute=match_execute,
+            tmdb_search_execute=tmdb_search_execute,
+            tv_season_overview_execute=(
+                make_tmdb_season_overview_execute(tmdb_runtime.metadata)
+                if tmdb_runtime is not None
+                else None
+            ),
+            plan_execute=make_plan_execute(organize_plan=repos.organize_plan),
+            apply_execute=make_apply_execute(
+                dependencies.file_repo,
+                _make_operation_log_repository,
+                library_index=repos.library_index,
+                organize_plan=repos.organize_plan,
+            ),
+            sync_title_groups_execute=make_sync_title_groups_execute(repos.title_groups),
+            cached_tmdb_hydrate_execute=cached_tmdb_hydrate_execute,
+            cached_tmdb_missing_fill_execute=cached_tmdb_missing_fill_execute,
         ),
         progress_dialog=progress_dialog,
         include_companion_subtitles=include_companion_subtitles,
         exclude_subtitles_with_paired_video=exclude_subtitles_with_paired_video,
-        sync_title_groups_execute=make_sync_title_groups_execute(repos.title_groups),
-        cached_tmdb_hydrate_execute=cached_tmdb_hydrate_execute,
-        cached_tmdb_missing_fill_execute=cached_tmdb_missing_fill_execute,
         ports=OrganizerPresenterPorts(
             title_match=repos.title_match,
             title_groups=repos.title_groups,
@@ -389,5 +421,5 @@ def _create_metadata_provider(
     )
 
 
-def _make_operation_log_repository(root: Path) -> OperationLogRepository:
-    return FsOperationLogRepository(root)
+def _make_operation_log_repository() -> OperationLogRepository:
+    return FsOperationLogRepository()

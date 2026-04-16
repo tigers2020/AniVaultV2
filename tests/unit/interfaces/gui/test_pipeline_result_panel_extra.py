@@ -3,6 +3,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from PySide6.QtCore import QPointF, Qt
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QApplication
 
 from anivault.interfaces.gui.components.molecules.view_toggle_bar import (
@@ -125,6 +127,31 @@ def test_ensure_poster_grid_for_view_key_builds_once_and_reuses_cache() -> None:
     assert missing == []
     grid.set_cards.assert_called_once_with(fresh_cards)
     assert panel._make_card_clickable.call_count == 2  # type: ignore[attr-defined]
+
+
+def test_make_card_clickable_emits_episode_overview_on_double_click() -> None:
+    panel = PipelineResultPanel.__new__(PipelineResultPanel)
+    panel.episode_overview_requested = SimpleNamespace(emit=MagicMock())  # type: ignore[attr-defined]
+    panel._on_icon_grid_card_clicked = MagicMock()  # type: ignore[attr-defined]
+
+    class _Card:
+        def setCursor(self, cursor) -> None:
+            self.cursor = cursor
+
+    card = _Card()
+    panel._make_card_clickable(card, 3)  # type: ignore[attr-defined]
+    event = QMouseEvent(
+        QMouseEvent.Type.MouseButtonDblClick,
+        QPointF(0, 0),
+        QPointF(0, 0),
+        Qt.MouseButton.LeftButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    card.mouseDoubleClickEvent(event)
+
+    panel._on_icon_grid_card_clicked.assert_called_once_with(3)  # type: ignore[attr-defined]
+    panel.episode_overview_requested.emit.assert_called_once_with(3)  # type: ignore[attr-defined]
 
 
 def test_persist_and_restore_ui_state_round_trip(monkeypatch) -> None:

@@ -215,28 +215,33 @@ def test_on_dry_run_apply_clicked_schedules_apply_worker(monkeypatch) -> None:
     assert scheduled[1] == presenter._pending_plan
 
 
-def test_start_apply_worker_warns_without_log_root(monkeypatch) -> None:
-    warnings: list[str] = []
-    monkeypatch.setattr(module, "QWidget", object)
-    monkeypatch.setattr(
-        module.QMessageBox, "warning", lambda parent, title, body: warnings.append(title)
-    )
+def test_start_apply_worker_starts_worker_without_source_root(monkeypatch) -> None:
+    """소스 경로가 없어도 apply 워커가 스케줄된다(로그는 앱 데이터 디렉터리로 고정)."""
+    thread = _Thread()
+    monkeypatch.setattr(module, "WorkerSignals", _WorkerSignals)
+    monkeypatch.setattr(module, "UseCaseWorker", _Worker)
+    monkeypatch.setattr(module, "run_worker", lambda worker: thread)
     monkeypatch.setattr(
         module,
         "load_all",
         lambda: {"scan_build": {"source_path": ""}, "path_rules": {"target_root": ""}},
     )
+    register = MagicMock()
+    monkeypatch.setattr(module.presenter_runtime, "has_active_pipeline_work", lambda _p: False)
+    monkeypatch.setattr(module.presenter_runtime, "register_worker_thread", register)
     presenter = SimpleNamespace(
         _apply_execute=lambda *args: None,
-        parent=lambda: object(),
         _current_library_root_id=None,
         _on_scan_error=MagicMock(),
+        _progress_dialog=None,
+        parent=lambda: None,
     )
     coord = _coord(presenter)
 
     coord._start_apply_worker(_plan())
+    thread.finished.emit()
 
-    assert warnings == ["기록 경로"]
+    register.assert_called_once_with(presenter, thread)
 
 
 def test_start_apply_worker_starts_worker(monkeypatch) -> None:

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from .. import keys as K
 
+_ORIGINAL_FILE_LABEL = "원본 파일"
+_PARSED_TITLE_LABEL = "파일명 제목"
+
 MESSAGES: dict[str, str] = {
     K.APP_WINDOW_TITLE: "AniVault V2",
     K.SHELL_SIDEBAR_TITLE: "화면",
@@ -30,8 +33,8 @@ MESSAGES: dict[str, str] = {
     K.SETTINGS_APPEARANCE_THEME_LIGHT: "밝은 테마",
     K.SETTINGS_LANG_OPTION_KO: "한국어",
     K.SETTINGS_LANG_OPTION_EN: "English",
-    K.TBL_ORIGINAL_FILE: "원본 파일",
-    K.TBL_PARSED_TITLE: "파일명 제목",
+    K.TBL_ORIGINAL_FILE: _ORIGINAL_FILE_LABEL,
+    K.TBL_PARSED_TITLE: _PARSED_TITLE_LABEL,
     K.TBL_PARSE_GROUP: "제목 그룹",
     K.TBL_TMDB_KO: "TMDB 한국어 제목",
     K.TBL_YEAR: "연도",
@@ -47,7 +50,7 @@ MESSAGES: dict[str, str] = {
     ),
     K.ORG_MATCH_MISSING_API_TITLE: "TMDB API 키 없음",
     K.ORG_MATCH_MISSING_API_MESSAGE: (
-        "설정 → 파일명 및 TMDB에서 API 키를 저장하거나 .env에 TMDB_API_KEY를 설정하세요."
+        "설정 → 파일명 및 TMDB에서 API 키를 저장하거나 ~/.anivault/.env에 TMDB_API_KEY를 설정하세요."
     ),
     K.ORG_MATCH_NO_ROWS_TITLE: "매칭할 항목 없음",
     K.ORG_MATCH_NO_ROWS_MESSAGE: "먼저 폴더를 스캔하고 제목 읽기가 끝난 뒤 다시 시도하세요.",
@@ -61,9 +64,21 @@ MESSAGES: dict[str, str] = {
     K.ORG_MANUAL_TMDB_ERROR_MESSAGE: (
         "검색을 완료할 수 없습니다. 네트워크와 API 키를 확인한 뒤 다시 시도하세요."
     ),
+    K.ORG_EP_OVERVIEW_MATCH_REQUIRED_TITLE: "TMDB 매칭 필요",
+    K.ORG_EP_OVERVIEW_MATCH_REQUIRED_MESSAGE: (
+        "이 그룹을 TMDB에 먼저 매칭해야 에피소드 개요를 열 수 있습니다."
+    ),
+    K.ORG_EP_OVERVIEW_SEASON_MISSING_TITLE: "시즌 정보 없음",
+    K.ORG_EP_OVERVIEW_SEASON_MISSING_MESSAGE: (
+        "이 그룹에서 사용할 수 있는 시즌 번호를 찾을 수 없습니다."
+    ),
+    K.ORG_EP_OVERVIEW_LOAD_FAILED_TITLE: "에피소드 개요를 불러올 수 없음",
+    K.ORG_EP_OVERVIEW_LOAD_FAILED_MESSAGE: (
+        "TMDB에서 시즌 에피소드 목록을 불러오지 못했습니다. {error}"
+    ),
     K.ORG_SCAN_PATH_ERROR_TITLE: "폴더를 읽을 수 없음",
     K.ORG_SCAN_PATH_ERROR_MESSAGE: (
-        "지정한 폴더를 읽을 수 없습니다(저장소, 권한, 이동식 드라이브 등).\n\n" "{path}\n\n{error}"
+        "지정한 폴더를 읽을 수 없습니다(저장소, 권한, 이동식 드라이브 등).\n\n{path}\n\n{error}"
     ),
     K.ORG_SCAN_PATH_MISSING_TITLE: "폴더를 찾을 수 없음",
     K.ORG_SCAN_PATH_MISSING_MESSAGE: (
@@ -78,7 +93,7 @@ MESSAGES: dict[str, str] = {
     K.ORG_PLAN_EMPTY_MESSAGE: "먼저 스캔과 제목 매칭을 완료하세요.",
     K.ORG_PLAN_NO_MATCHED_TITLE: "TMDB 매칭 없음",
     K.ORG_PLAN_NO_MATCHED_MESSAGE: (
-        "TMDB 한국어 제목이 있는 파일이 없습니다. " "자동 또는 수동으로 매칭한 뒤 다시 시도하세요."
+        "TMDB 한국어 제목이 있는 파일이 없습니다. 자동 또는 수동으로 매칭한 뒤 다시 시도하세요."
     ),
     K.ORG_PLAN_PATH_RULES_TITLE: "저장 위치 규칙 필요",
     K.ORG_PLAN_PATH_RULES_MESSAGE: (
@@ -93,8 +108,6 @@ MESSAGES: dict[str, str] = {
     K.ORG_PLAN_EXECUTE_UNAVAILABLE_MESSAGE: (
         "파일 이동 기능을 사용할 수 없습니다. 앱을 다시 실행해 주세요."
     ),
-    K.ORG_PLAN_LOG_ROOT_TITLE: "기록 경로",
-    K.ORG_PLAN_LOG_ROOT_MESSAGE: "스캔 폴더 또는 정리할 위치를 먼저 설정하세요.",
     K.ORG_PLAN_MOVE_PROGRESS_TITLE: "파일 이동 중",
     K.ORG_PLAN_MOVE_PROGRESS_MESSAGE: "이동 중…",
     K.ORG_PLAN_MOVE_ERROR_TITLE: "이동 오류",
@@ -114,6 +127,14 @@ MESSAGES: dict[str, str] = {
     K.DLG_TMDB_UNKNOWN_TITLE: "제목 없음",
     K.DLG_TMDB_UNKNOWN_YEAR: "연도 미상",
     K.DLG_TMDB_RESULT_ITEM: "{line}\nID {tmdb_id} · {year}",
+    K.DLG_EP_OVERVIEW_TITLE: "{title} · 시즌 {season_number}",
+    K.DLG_EP_OVERVIEW_FALLBACK_TITLE: "에피소드 개요",
+    K.DLG_EP_OVERVIEW_LOADING: "TMDB에서 시즌 에피소드 정보를 불러오는 중입니다...",
+    K.DLG_EP_OVERVIEW_EMPTY: "시즌 에피소드 정보가 없습니다.",
+    K.DLG_EP_OVERVIEW_SUMMARY: "전체 {count}화",
+    K.DLG_EP_OVERVIEW_EPISODE: "{number}화",
+    K.DLG_EP_OVERVIEW_UNTITLED: "제목 없는 에피소드",
+    K.DLG_EP_OVERVIEW_MISSING: "로컬 파일 없음",
     K.ORG_SCANBAR_PATH_PLACEHOLDER: "스캔할 폴더 경로 (또는 폴더 선택 버튼)",
     K.ORG_SCANBAR_BTN_SCAN: "스캔",
     K.ORG_SCANBAR_BTN_MATCH: "제목 매칭",
@@ -146,8 +167,8 @@ MESSAGES: dict[str, str] = {
     K.DETAILS_MANUAL_BTN: "TMDB에서 제목 찾기",
     K.DETAILS_JOINER: " · ",
     K.DETAILS_LBL_GROUP_FILES: "파일",
-    K.DETAILS_LBL_ORIGINAL: "원본 파일",
-    K.DETAILS_LBL_PARSED: "파일명 제목",
+    K.DETAILS_LBL_ORIGINAL: _ORIGINAL_FILE_LABEL,
+    K.DETAILS_LBL_PARSED: _PARSED_TITLE_LABEL,
     K.DETAILS_LBL_PARSE_GROUP: "제목 그룹",
     K.DETAILS_LBL_TMDB: "TMDB 한국어 제목",
     K.DETAILS_LBL_YEAR_SEASON_EP: "연도 / 시즌 / 화",
@@ -157,8 +178,8 @@ MESSAGES: dict[str, str] = {
     K.CONTENT_MULTI_SUFFIX: "개 파일",
     K.CONTENT_META_JOINER: " · ",
     K.CONTENT_LBL_GROUP_FILES: "파일",
-    K.CONTENT_LBL_ORIGINAL: "원본 파일",
-    K.CONTENT_LBL_PARSED: "파일명 제목",
+    K.CONTENT_LBL_ORIGINAL: _ORIGINAL_FILE_LABEL,
+    K.CONTENT_LBL_PARSED: _PARSED_TITLE_LABEL,
     K.CONTENT_LBL_TMDB: "TMDB",
     K.CONTENT_LBL_YEAR_SEASON: "연도 / 시즌",
     K.CONTENT_LBL_RESOLUTION: "해상도",
@@ -184,7 +205,7 @@ MESSAGES: dict[str, str] = {
     K.DRY_RUN_BTN_CLOSE: "닫기",
     K.SETTINGS_SCAN_BUILD_TITLE: "폴더 스캔",
     K.SETTINGS_SCAN_BUILD_DESC: (
-        "입력 폴더를 단계별로 스캔합니다. " "정리할 위치는 아래 저장 위치 규칙에서 지정하세요."
+        "입력 폴더를 단계별로 스캔합니다. 정리할 위치는 아래 저장 위치 규칙에서 지정하세요."
     ),
     K.SETTINGS_SCAN_BUILD_PILL: "작업 단계",
     K.SETTINGS_SCAN_BUILD_SOURCE_PH: "예: G:/Animations; D:/Incoming_Downloads",
@@ -197,7 +218,7 @@ MESSAGES: dict[str, str] = {
     K.SETTINGS_PARSE_TITLE: "파일명 및 TMDB",
     K.SETTINGS_PARSE_DESC: "파일명에서 제목을 읽는 방식과 TMDB 한국어 제목 연결 기준",
     K.SETTINGS_PARSE_LBL_API: "TMDB API 키",
-    K.SETTINGS_PARSE_API_HELP: ".env에 TMDB_API_KEY로 저장됩니다",
+    K.SETTINGS_PARSE_API_HELP: "~/.anivault/.env에 TMDB_API_KEY로 저장됩니다",
     K.SETTINGS_PARSE_LBL_IGNORE: "무시할 단어",
     K.SETTINGS_PARSE_LBL_SEASON: "시즌 폴더 형식",
     K.SETTINGS_ACTION_SAVE: "저장",

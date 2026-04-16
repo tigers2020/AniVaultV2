@@ -202,6 +202,14 @@ def tmdb_search_execute(host: object) -> Any:
     return _call_or_attr(host, "tmdb_search_execute", "_tmdb_search_execute")
 
 
+def tv_season_overview_execute(host: object) -> Any:
+    return _call_or_attr(
+        host,
+        "tv_season_overview_execute",
+        "_tv_season_overview_execute",
+    )
+
+
 def plan_execute(host: object) -> Any:
     return _call_or_attr(host, "plan_execute", "_plan_execute")
 

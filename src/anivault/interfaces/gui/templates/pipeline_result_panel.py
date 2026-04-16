@@ -99,6 +99,7 @@ class PipelineResultPanel(QFrame):
 
     selection_changed = Signal(int)
     manual_match_requested = Signal()
+    episode_overview_requested = Signal(int)
 
     def __init__(
         self,
@@ -187,6 +188,7 @@ class PipelineResultPanel(QFrame):
         # 1: Content
         content_view = ContentView()
         content_view.selection_changed.connect(self._on_selection)
+        content_view.group_double_clicked.connect(self.episode_overview_requested.emit)
         self._stack.addWidget(content_view)
         self._content_view = content_view
 
@@ -500,6 +502,16 @@ class PipelineResultPanel(QFrame):
             QFrame.mousePressEvent(card, event)
 
         card.mousePressEvent = _on_press  # type: ignore[method-assign]
+
+        def _on_double_click(event: QMouseEvent) -> None:
+            if event.button() == Qt.MouseButton.LeftButton:
+                self._on_icon_grid_card_clicked(index)
+                self.episode_overview_requested.emit(index)
+                event.accept()
+                return
+            QFrame.mouseDoubleClickEvent(card, event)
+
+        card.mouseDoubleClickEvent = _on_double_click  # type: ignore[method-assign]
 
     def _clear_all_poster_grids(self) -> None:
         """아이콘 그리드 위젯을 비우고 모두 재구성 필요로 표시한다.

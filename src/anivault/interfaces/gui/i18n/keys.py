@@ -75,6 +75,16 @@ ORG_MATCH_EMPTY_QUERY_TITLE: Final[str] = "organizer.match.empty_query.title"
 ORG_MATCH_EMPTY_QUERY_MESSAGE: Final[str] = "organizer.match.empty_query.message"
 ORG_MANUAL_TMDB_ERROR_TITLE: Final[str] = "organizer.manual_tmdb.error.title"
 ORG_MANUAL_TMDB_ERROR_MESSAGE: Final[str] = "organizer.manual_tmdb.error.message"
+ORG_EP_OVERVIEW_MATCH_REQUIRED_TITLE: Final[str] = "organizer.episode_overview.match_required.title"
+ORG_EP_OVERVIEW_MATCH_REQUIRED_MESSAGE: Final[str] = (
+    "organizer.episode_overview.match_required.message"
+)
+ORG_EP_OVERVIEW_SEASON_MISSING_TITLE: Final[str] = "organizer.episode_overview.season_missing.title"
+ORG_EP_OVERVIEW_SEASON_MISSING_MESSAGE: Final[str] = (
+    "organizer.episode_overview.season_missing.message"
+)
+ORG_EP_OVERVIEW_LOAD_FAILED_TITLE: Final[str] = "organizer.episode_overview.load_failed.title"
+ORG_EP_OVERVIEW_LOAD_FAILED_MESSAGE: Final[str] = "organizer.episode_overview.load_failed.message"
 
 ORG_SCAN_PATH_ERROR_TITLE: Final[str] = "organizer.scan.path_error.title"
 ORG_SCAN_PATH_ERROR_MESSAGE: Final[str] = "organizer.scan.path_error.message"
@@ -99,8 +109,6 @@ ORG_PLAN_DRY_RUN_TITLE: Final[str] = "organizer.plan.dry_run.title"
 ORG_PLAN_DRY_RUN_EMPTY_MESSAGE: Final[str] = "organizer.plan.dry_run_empty.message"
 ORG_PLAN_EXECUTE_UNAVAILABLE_TITLE: Final[str] = "organizer.plan.execute_unavailable.title"
 ORG_PLAN_EXECUTE_UNAVAILABLE_MESSAGE: Final[str] = "organizer.plan.execute_unavailable.message"
-ORG_PLAN_LOG_ROOT_TITLE: Final[str] = "organizer.plan.log_root.title"
-ORG_PLAN_LOG_ROOT_MESSAGE: Final[str] = "organizer.plan.log_root.message"
 ORG_PLAN_MOVE_PROGRESS_TITLE: Final[str] = "organizer.plan.move_progress.title"
 ORG_PLAN_MOVE_PROGRESS_MESSAGE: Final[str] = "organizer.plan.move_progress.message"
 ORG_PLAN_MOVE_ERROR_TITLE: Final[str] = "organizer.plan.move_error.title"
@@ -122,6 +130,14 @@ DLG_TMDB_EMPTY_SEL_MESSAGE: Final[str] = "dialog.tmdb_manual.empty_selection.mes
 DLG_TMDB_UNKNOWN_TITLE: Final[str] = "dialog.tmdb_manual.unknown_title"
 DLG_TMDB_UNKNOWN_YEAR: Final[str] = "dialog.tmdb_manual.unknown_year"
 DLG_TMDB_RESULT_ITEM: Final[str] = "dialog.tmdb_manual.result_item"
+DLG_EP_OVERVIEW_TITLE: Final[str] = "dialog.episode_overview.title"
+DLG_EP_OVERVIEW_FALLBACK_TITLE: Final[str] = "dialog.episode_overview.fallback_title"
+DLG_EP_OVERVIEW_LOADING: Final[str] = "dialog.episode_overview.loading"
+DLG_EP_OVERVIEW_EMPTY: Final[str] = "dialog.episode_overview.empty"
+DLG_EP_OVERVIEW_SUMMARY: Final[str] = "dialog.episode_overview.summary"
+DLG_EP_OVERVIEW_EPISODE: Final[str] = "dialog.episode_overview.episode"
+DLG_EP_OVERVIEW_UNTITLED: Final[str] = "dialog.episode_overview.untitled"
+DLG_EP_OVERVIEW_MISSING: Final[str] = "dialog.episode_overview.missing"
 
 # Organizer chrome
 ORG_SCANBAR_PATH_PLACEHOLDER: Final[str] = "organizer.scan_bar.path_placeholder"

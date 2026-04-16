@@ -7,10 +7,7 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
 
-from anivault.constants.gui.settings import (
-    scan_source_path_from_loaded,
-    target_root_from_loaded,
-)
+from anivault.constants.gui.settings import scan_source_path_from_loaded
 from anivault.contracts.planning import ApplyInput, ApplyResult, PlanInput, PlanResult
 from anivault.contracts.progress import (
     ProgressEvent,
@@ -29,8 +26,6 @@ from anivault.interfaces.gui.i18n.keys import (
     ORG_PLAN_EMPTY_TITLE,
     ORG_PLAN_EXECUTE_UNAVAILABLE_MESSAGE,
     ORG_PLAN_EXECUTE_UNAVAILABLE_TITLE,
-    ORG_PLAN_LOG_ROOT_MESSAGE,
-    ORG_PLAN_LOG_ROOT_TITLE,
     ORG_PLAN_MOVE_ERROR_TITLE,
     ORG_PLAN_MOVE_PROGRESS_MESSAGE,
     ORG_PLAN_MOVE_PROGRESS_TITLE,
@@ -233,21 +228,10 @@ class PlanApplyCoordinator(QObject):
             return
         settings = load_all()
         source_root = scan_source_path_from_loaded(settings).strip()
-        log_root = source_root or target_root_from_loaded(settings).strip()
-        if not log_root:
-            parent = presenter_runtime.parent_widget(self._p)
-            if isinstance(parent, QWidget):
-                QMessageBox.warning(
-                    parent,
-                    translate(ORG_PLAN_LOG_ROOT_TITLE),
-                    translate(ORG_PLAN_LOG_ROOT_MESSAGE),
-                )
-            return
         apply_input = ApplyInput(
             operations=plan.moves,
             dry_run=False,
-            log_root=log_root,
-            source_root=str(source_root).strip() or None,
+            source_root=source_root or None,
             index_root_id=presenter_runtime.current_library_root_id(self._p),
             organize_plan_id=plan.organize_plan_id,
             organize_item_ids=plan.organize_item_ids,

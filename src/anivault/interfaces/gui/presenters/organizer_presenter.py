@@ -22,7 +22,12 @@ from anivault.contracts.pipeline import MatchInput, MatchResult, PipelineRow
 from anivault.contracts.planning import ApplyInput, ApplyResult, PlanInput, PlanResult
 from anivault.contracts.progress import ProgressEvent
 from anivault.contracts.scan import ScanInput, ScanResult
-from anivault.contracts.tmdb import TmdbSearchInput, TmdbSeriesCandidate
+from anivault.contracts.tmdb import (
+    TmdbSearchInput,
+    TmdbSeasonOverviewInput,
+    TmdbSeriesCandidate,
+    TvSeasonOverview,
+)
 from anivault.interfaces.gui.components.molecules import ProgressDialog
 from anivault.interfaces.gui.models import PipelineTableModel, group_pipeline_rows
 from anivault.interfaces.gui.presenters.organizing.match_coordinator import MatchCoordinator
@@ -53,6 +58,10 @@ ParseExecuteFn = Callable[
 ]
 CachedTmdbHydrateFn = Callable[[MatchInput], MatchResult]
 CachedTmdbMissingFillFn = Callable[[MatchInput, object, Event], MatchResult]
+TvSeasonOverviewExecuteFn = Callable[
+    [TmdbSeasonOverviewInput, Callable[[ProgressEvent], None] | None, Event],
+    TvSeasonOverview | None,
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +93,7 @@ class OrganizerPresenterUseCases:
         ]
         | None
     ) = None
+    tv_season_overview_execute: TvSeasonOverviewExecuteFn | None = None
     plan_execute: PlanExecuteFn | None = None
     apply_execute: ApplyExecuteFn | None = None
     sync_title_groups_execute: Callable[[int], None] | None = None
@@ -117,6 +127,7 @@ class OrganizerPresenter(QObject):
         self._parse_execute = resolved_use_cases.parse_execute
         self._match_execute = resolved_use_cases.match_execute
         self._tmdb_search_execute = resolved_use_cases.tmdb_search_execute
+        self._tv_season_overview_execute = resolved_use_cases.tv_season_overview_execute
         self._plan_execute = resolved_use_cases.plan_execute
         self._apply_execute = resolved_use_cases.apply_execute
         self._progress_dialog = progress_dialog
@@ -159,6 +170,7 @@ class OrganizerPresenter(QObject):
             "parse_execute",
             "match_execute",
             "tmdb_search_execute",
+            "tv_season_overview_execute",
             "plan_execute",
             "apply_execute",
             "sync_title_groups_execute",
@@ -203,6 +215,9 @@ class OrganizerPresenter(QObject):
 
     def plan_execute(self) -> PlanExecuteFn | None:
         return self._plan_execute
+
+    def tv_season_overview_execute(self) -> TvSeasonOverviewExecuteFn | None:
+        return self._tv_season_overview_execute
 
     def apply_execute(self) -> ApplyExecuteFn | None:
         return self._apply_execute

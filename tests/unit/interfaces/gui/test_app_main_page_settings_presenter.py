@@ -708,6 +708,7 @@ def test_organizer_page_constructor_wires_components(monkeypatch) -> None:
 
     class FakeResultPanel(QWidget):
         manual_match_requested = Signal()
+        episode_overview_requested = Signal(int)
 
         def __init__(self, model=None):
             super().__init__()

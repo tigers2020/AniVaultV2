@@ -20,6 +20,7 @@ from anivault.interfaces.gui import theme
 from anivault.interfaces.gui.components.organisms import FolderScanBar, StatsGrid
 from anivault.interfaces.gui.models import PipelineTableModel
 from anivault.interfaces.gui.presenters import OrganizerPresenter
+from anivault.interfaces.gui.presenters.organizing import EpisodeOverviewCoordinator
 from anivault.interfaces.gui.settings_storage import load_all, save_all
 from anivault.interfaces.gui.templates import PipelineResultPanel
 
@@ -55,6 +56,7 @@ class OrganizerPage(QWidget):
         )
         if presenter is not None:
             self._presenter.setParent(self)
+        self._episode_overview_coordinator = EpisodeOverviewCoordinator(self._presenter)
         self._result_panel = PipelineResultPanel(model=self._model)
         self._result_panel.setSizePolicy(
             QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -79,6 +81,9 @@ class OrganizerPage(QWidget):
         self._presenter.refresh_pipeline_action_bar_state()
         self._result_panel.manual_match_requested.connect(
             self._presenter.on_manual_tmdb_match_clicked
+        )
+        self._result_panel.episode_overview_requested.connect(
+            self._episode_overview_coordinator.open_group_index
         )
         content_layout.addWidget(self._scan_bar)
         self._stats_grid = StatsGrid()

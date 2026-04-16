@@ -152,7 +152,9 @@ def test_poster_grid_and_content_view_public_rows_flow() -> None:
 
     view = ContentView()
     selected: list[int] = []
+    doubled: list[int] = []
     view.selection_changed.connect(selected.append)
+    view.group_double_clicked.connect(doubled.append)
     view.set_rows([single, multi])
     view.show()
     QApplication.processEvents()
@@ -161,6 +163,8 @@ def test_poster_grid_and_content_view_public_rows_flow() -> None:
     assert grid.minimumHeight() >= 0
     assert len(view.poster_cards()) == 2
     assert selected == [0]
+    view._on_double_click(1)
+    assert doubled == [1]
 
     meta_texts = [label.text() for label in view.findChildren(QLabel)]
     assert any("Frieren - 01.mkv" in text for text in meta_texts)

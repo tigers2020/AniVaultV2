@@ -6,6 +6,7 @@ Author: Pom Kim
 """
 
 from anivault.interfaces.gui.dialogs.dry_run_dialog import DryRunDialog
+from anivault.interfaces.gui.dialogs.episode_overview_dialog import EpisodeOverviewDialog
 from anivault.interfaces.gui.dialogs.tmdb_manual_match_dialog import TmdbManualMatchDialog
 
-__all__ = ["DryRunDialog", "TmdbManualMatchDialog"]
+__all__ = ["DryRunDialog", "EpisodeOverviewDialog", "TmdbManualMatchDialog"]

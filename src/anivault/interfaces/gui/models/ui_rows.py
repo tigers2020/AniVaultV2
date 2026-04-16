@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import re
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from anivault.contracts.pipeline import PipelineRow
 from anivault.domain.rules.pipeline_grouping import pipeline_row_group_key
+from anivault.interfaces.gui.models.episode_parsing import (
+    episode_numbers_to_text,
+    extract_episode_numbers,
+)
 
 
 def pipeline_row_ready_for_plan(row: PipelineRow) -> bool:
@@ -43,36 +46,11 @@ def _aggregate_resolution(members: tuple[PipelineRow, ...]) -> str:
 
 
 def _episode_numbers_from_text(value: str) -> list[int]:
-    text = (value or "").strip()
-    if not text:
-        return []
-    range_match = re.fullmatch(r"(\d+)\s*[-~]\s*(\d+)", text)
-    if range_match:
-        start = int(range_match.group(1))
-        end = int(range_match.group(2))
-        if start <= end:
-            return list(range(start, end + 1))
-        return [start, end]
-    if text.isdigit():
-        return [int(text)]
-    return [int(match) for match in re.findall(r"\d+", text)]
+    return extract_episode_numbers(value)
 
 
 def _episode_numbers_to_text(values: list[int]) -> str:
-    numbers: list[int] = []
-    seen: set[int] = set()
-    for value in values:
-        if value <= 0 or value in seen:
-            continue
-        seen.add(value)
-        numbers.append(value)
-    if not numbers:
-        return ""
-    if len(numbers) == 1:
-        return str(numbers[0])
-    if numbers == list(range(numbers[0], numbers[-1] + 1)):
-        return f"{numbers[0]}-{numbers[-1]}"
-    return ",".join(str(value) for value in numbers)
+    return episode_numbers_to_text(values)
 
 
 def _aggregate_integer_list_field(members: tuple[PipelineRow, ...], attr: str) -> str:

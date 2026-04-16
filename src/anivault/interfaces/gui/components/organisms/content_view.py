@@ -17,6 +17,7 @@ class ContentView(QFrame):
     """Left poster-card list plus right metadata content area."""
 
     selection_changed = Signal(int)
+    group_double_clicked = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -147,7 +148,17 @@ class ContentView(QFrame):
         )
         card.setMinimumWidth(theme.result_list_panel_min_width_px() - theme.card_body_padding_px())
         card.setCursor(Qt.CursorShape.PointingHandCursor)
-        card.mousePressEvent = lambda event, idx=index: self._on_select(idx)  # type: ignore[method-assign,misc]
+
+        def _on_press(event, idx: int = index) -> None:
+            del event
+            self._on_select(idx)
+
+        def _on_double_click(event, idx: int = index) -> None:
+            del event
+            self._on_double_click(idx)
+
+        card.mousePressEvent = _on_press  # type: ignore[method-assign]
+        card.mouseDoubleClickEvent = _on_double_click  # type: ignore[method-assign]
         self._list_layout.addWidget(card)
         self._cards.append(card)
 
@@ -191,3 +202,7 @@ class ContentView(QFrame):
         group = self._groups[index]
         self._meta_label.setText(self._meta_html_for_group(group))
         self.selection_changed.emit(index)
+
+    def _on_double_click(self, index: int) -> None:
+        self._on_select(index)
+        self.group_double_clicked.emit(index)

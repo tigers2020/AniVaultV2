@@ -50,7 +50,7 @@ MESSAGES: dict[str, str] = {
     ),
     K.ORG_MATCH_MISSING_API_TITLE: "TMDB API key missing",
     K.ORG_MATCH_MISSING_API_MESSAGE: (
-        "Add your API key in Settings → Filenames & TMDB, or set TMDB_API_KEY in .env."
+        "Add your API key in Settings → Filenames & TMDB, or set TMDB_API_KEY in ~/.anivault/.env."
     ),
     K.ORG_MATCH_NO_ROWS_TITLE: "Nothing to match",
     K.ORG_MATCH_NO_ROWS_MESSAGE: (
@@ -65,6 +65,18 @@ MESSAGES: dict[str, str] = {
     K.ORG_MANUAL_TMDB_ERROR_TITLE: "TMDB search failed",
     K.ORG_MANUAL_TMDB_ERROR_MESSAGE: (
         "The search could not be completed. Check your network and API key, then try again."
+    ),
+    K.ORG_EP_OVERVIEW_MATCH_REQUIRED_TITLE: "TMDB match required",
+    K.ORG_EP_OVERVIEW_MATCH_REQUIRED_MESSAGE: (
+        "Match this group to TMDB before opening the episode overview."
+    ),
+    K.ORG_EP_OVERVIEW_SEASON_MISSING_TITLE: "Season info missing",
+    K.ORG_EP_OVERVIEW_SEASON_MISSING_MESSAGE: (
+        "This group does not have a usable season number yet."
+    ),
+    K.ORG_EP_OVERVIEW_LOAD_FAILED_TITLE: "Episode overview unavailable",
+    K.ORG_EP_OVERVIEW_LOAD_FAILED_MESSAGE: (
+        "The season episode list could not be loaded from TMDB. {error}"
     ),
     K.ORG_SCAN_PATH_ERROR_TITLE: "Cannot read folder",
     K.ORG_SCAN_PATH_ERROR_MESSAGE: (
@@ -100,8 +112,6 @@ MESSAGES: dict[str, str] = {
     K.ORG_PLAN_EXECUTE_UNAVAILABLE_MESSAGE: (
         "File moving is not available right now. Please restart the application."
     ),
-    K.ORG_PLAN_LOG_ROOT_TITLE: "Log path",
-    K.ORG_PLAN_LOG_ROOT_MESSAGE: "Set the scan folder or destination folder first.",
     K.ORG_PLAN_MOVE_PROGRESS_TITLE: "Moving files",
     K.ORG_PLAN_MOVE_PROGRESS_MESSAGE: "Moving…",
     K.ORG_PLAN_MOVE_ERROR_TITLE: "Move error",
@@ -121,6 +131,14 @@ MESSAGES: dict[str, str] = {
     K.DLG_TMDB_UNKNOWN_TITLE: "Untitled",
     K.DLG_TMDB_UNKNOWN_YEAR: "Unknown year",
     K.DLG_TMDB_RESULT_ITEM: "{line}\nID {tmdb_id} · {year}",
+    K.DLG_EP_OVERVIEW_TITLE: "{title} · Season {season_number}",
+    K.DLG_EP_OVERVIEW_FALLBACK_TITLE: "Episode overview",
+    K.DLG_EP_OVERVIEW_LOADING: "Loading season episodes from TMDB...",
+    K.DLG_EP_OVERVIEW_EMPTY: "No season episode data was returned.",
+    K.DLG_EP_OVERVIEW_SUMMARY: "{count} episode slot(s)",
+    K.DLG_EP_OVERVIEW_EPISODE: "Ep. {number}",
+    K.DLG_EP_OVERVIEW_UNTITLED: "Untitled episode",
+    K.DLG_EP_OVERVIEW_MISSING: "Missing locally",
     K.ORG_SCANBAR_PATH_PLACEHOLDER: "Folder to scan (or use Browse)",
     K.ORG_SCANBAR_BTN_SCAN: "Scan",
     K.ORG_SCANBAR_BTN_MATCH: "Match titles",
@@ -206,7 +224,7 @@ MESSAGES: dict[str, str] = {
     K.SETTINGS_PARSE_TITLE: "Filenames & TMDB",
     K.SETTINGS_PARSE_DESC: "How filenames are read and matched to TMDB Korean titles",
     K.SETTINGS_PARSE_LBL_API: "TMDB API key",
-    K.SETTINGS_PARSE_API_HELP: "Stored in .env as TMDB_API_KEY",
+    K.SETTINGS_PARSE_API_HELP: "Stored in ~/.anivault/.env as TMDB_API_KEY",
     K.SETTINGS_PARSE_LBL_IGNORE: "Ignore tokens",
     K.SETTINGS_PARSE_LBL_SEASON: "Season folder format",
     K.SETTINGS_ACTION_SAVE: "Save",

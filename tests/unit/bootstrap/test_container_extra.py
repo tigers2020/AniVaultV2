@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from threading import Event
 from types import SimpleNamespace
+from typing import Any, cast
 
+from anivault.application.ports.metadata_provider import MetadataProvider
 from anivault.bootstrap import container as container_module
 from anivault.bootstrap.container import (
     AniVaultAppContainer,
@@ -12,31 +15,53 @@ from anivault.bootstrap.container import (
     _make_operation_log_repository,
     create_settings_page,
     make_tmdb_search_execute,
+    make_tmdb_season_overview_execute,
 )
+from anivault.contracts.parse import ParseInput
+from anivault.contracts.tmdb import TmdbSearchInput, TmdbSeasonOverviewInput
 
 
 def test_make_tmdb_search_execute_handles_cancel_blank_and_fallback() -> None:
     provider_calls: list[tuple[str, int | None]] = []
-    provider = SimpleNamespace(
-        search_series=lambda query, year=None: provider_calls.append((query, year))
-        or ([] if query == "show extra" else ["hit"])
+    provider = cast(
+        MetadataProvider,
+        SimpleNamespace(
+            search_series=lambda query, year=None: provider_calls.append((query, year))
+            or ([] if query == "show extra" else ["hit"]),
+            tv_season_overview=lambda _tv_id, _season: None,
+        ),
     )
     execute = make_tmdb_search_execute(provider)
 
-    cancelled = execute(
-        SimpleNamespace(query="show", year=2024), None, SimpleNamespace(is_set=lambda: True)
-    )
-    blank = execute(
-        SimpleNamespace(query="   ", year=None), None, SimpleNamespace(is_set=lambda: False)
-    )
-    found = execute(
-        SimpleNamespace(query="show extra", year=2024), None, SimpleNamespace(is_set=lambda: False)
-    )
+    cancel_set = Event()
+    cancel_set.set()
+    cancelled = execute(TmdbSearchInput(query="show", year=2024), None, cancel_set)
+    blank = execute(TmdbSearchInput(query="   ", year=None), None, Event())
+    found = execute(TmdbSearchInput(query="show extra", year=2024), None, Event())
 
     assert cancelled == ()
     assert blank == ()
     assert found == ("hit",)
     assert provider_calls == [("show extra", 2024), ("show", 2024)]
+
+
+def test_make_tmdb_season_overview_execute_handles_cancel() -> None:
+    provider = cast(
+        MetadataProvider,
+        SimpleNamespace(
+            search_series=lambda _q, year=None: [],
+            tv_season_overview=lambda tv_id, season_number: ("overview", tv_id, season_number),
+        ),
+    )
+    execute = make_tmdb_season_overview_execute(provider)
+
+    cancel_set = Event()
+    cancel_set.set()
+    cancelled = execute(TmdbSeasonOverviewInput(tv_id=1, season_number=2), None, cancel_set)
+    result = execute(TmdbSeasonOverviewInput(tv_id=1, season_number=2), None, Event())
+
+    assert cancelled is None
+    assert result == ("overview", 1, 2)
 
 
 def test_container_factory_helpers_wire_dependencies(monkeypatch, tmp_path) -> None:
@@ -96,19 +121,18 @@ def test_container_factory_helpers_wire_dependencies(monkeypatch, tmp_path) -> N
         return inner
 
     monkeypatch.setattr(container_module, "make_parse_execute", fake_make_parse_execute)
-    parse_execute = _create_parse_execute(
-        SimpleNamespace(library_index="library", parse_cache="cache")
-    )
-    fake_input = SimpleNamespace(paths=())
-    fake_token = SimpleNamespace(is_set=lambda: False)
-    out = parse_execute(fake_input, None, fake_token)
+    fake_repos = SimpleNamespace(library_index="library", parse_cache="cache")
+    parse_execute = _create_parse_execute(cast(Any, fake_repos))
+    fake_input = ParseInput(paths=[])
+    fake_token = Event()
+    out: Any = parse_execute(fake_input, None, fake_token)
     assert out[0] == "parse-result"
     assert out[1] is fake_input
     assert out[3] is fake_token
     assert inner_calls[0][0] == ("parser", "x264")
     assert inner_calls[0][1] == {"library_index": "library", "parse_cache": "cache"}
 
-    out2 = parse_execute(fake_input, None, fake_token)
+    out2: Any = parse_execute(fake_input, None, fake_token)
     assert out2[0] == "parse-result"
     assert inner_calls[1][0] == ("parser", "HEVC")
 
@@ -132,8 +156,8 @@ def test_container_factory_helpers_wire_dependencies(monkeypatch, tmp_path) -> N
         "CachingMetadataProvider",
         lambda inner, title_match, language="": ("cached", inner, title_match, language),
     )
-    metadata = _create_metadata_provider(
-        "key", SimpleNamespace(title_match="tmdb", search_tv_library="lib")
+    metadata: Any = _create_metadata_provider(
+        "key", cast(Any, SimpleNamespace(title_match="tmdb", search_tv_library="lib"))
     )
     assert metadata[0] == "cached"
 
@@ -144,7 +168,7 @@ def test_container_factory_helpers_wire_dependencies(monkeypatch, tmp_path) -> N
     settings_page = create_settings_page()
     assert settings_page == ("settings-page", "presenter")
 
-    op_repo = _make_operation_log_repository(tmp_path)
+    op_repo = _make_operation_log_repository()
     assert op_repo is not None
 
 
@@ -197,7 +221,7 @@ def test_create_organizer_page_handles_api_key_and_scan_extensions(monkeypatch) 
     monkeypatch.setattr(container_module, "read_tmdb_api_key", lambda: "api-key")
     monkeypatch.setattr(container_module.os, "environ", {})
 
-    page = _create_organizer_page(
+    page: Any = _create_organizer_page(
         pipeline_model=None,
         progress_dialog=None,
         scan_extensions=(".srt",),
@@ -206,13 +230,15 @@ def test_create_organizer_page_handles_api_key_and_scan_extensions(monkeypatch) 
 
     assert page[0] == "page"
     presenter_kwargs = page[1]["presenter"][1]
-    scan_execute = presenter_kwargs["scan_execute"]
+    use_cases = presenter_kwargs["use_cases"]
+    scan_execute = use_cases.scan_execute
     assert scan_execute[2]["parse_cache"] == "parse-cache"
     assert scan_execute[2]["resolution_probe"] == "ffprobe-probe"
     assert scan_execute[2]["extensions"] == (".srt",)
-    assert presenter_kwargs["plan_execute"][1]["organize_plan"] == "organize-plan"
-    assert presenter_kwargs["apply_execute"][2]["library_index"] == "library-index"
-    assert presenter_kwargs["apply_execute"][2]["organize_plan"] == "organize-plan"
+    assert use_cases.plan_execute[1]["organize_plan"] == "organize-plan"
+    assert use_cases.apply_execute[2]["library_index"] == "library-index"
+    assert use_cases.apply_execute[2]["organize_plan"] == "organize-plan"
+    assert callable(use_cases.tv_season_overview_execute)
 
 
 def test_create_organizer_page_wires_scan_resolution_fallback_for_default_scan(monkeypatch) -> None:
@@ -253,14 +279,14 @@ def test_create_organizer_page_wires_scan_resolution_fallback_for_default_scan(m
     monkeypatch.setattr(container_module, "read_tmdb_api_key", lambda: "")
     monkeypatch.setattr(container_module.os, "environ", {})
 
-    page = _create_organizer_page(
+    page: Any = _create_organizer_page(
         pipeline_model=None,
         progress_dialog=None,
         scan_extensions=None,
         include_companion_subtitles=True,
     )
 
-    scan_execute = page[1]["presenter"][1]["scan_execute"]
+    scan_execute = page[1]["presenter"][1]["use_cases"].scan_execute
     assert scan_execute[2]["library_index"] == "library-index"
     assert scan_execute[2]["parse_cache"] == "parse-cache"
     assert scan_execute[2]["resolution_probe"] == "ffprobe-probe"
