@@ -103,6 +103,7 @@ Cursor AI용 AniVault V2 프로젝트 가이드. [AGENTS.md](https://agents.md/)
 | 목적 | 명령 |
 |------|------|
 | 설치 | `pip install -e .` |
+| Windows exe (onedir) | `pip install -e ".[build]"` 후 `.\packaging\pyinstaller\build_windows.ps1` → `dist\AniVault\AniVault.exe` (`%USERPROFILE%\.anivault\.env`에 TMDB 키 설정, 또는 `ANIVAULT_DOTENV_PATH`로 경로 지정) |
 | GUI | `python -m anivault` |
 | 테스트 | `pytest` |
 | 검증 (로컬) | `ruff check .` → `mypy src` → `black .` (포맷 적용) |
