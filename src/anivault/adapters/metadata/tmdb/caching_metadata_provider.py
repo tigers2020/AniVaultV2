@@ -27,7 +27,7 @@ from anivault.constants.adapters.tmdb import (
     TMDB_SEARCH_CACHE_TTL_OK_DAYS,
     UNKNOWN_TMDB_LANGUAGE,
 )
-from anivault.contracts.tmdb import TmdbSeriesCandidate
+from anivault.contracts.tmdb import TmdbSeriesCandidate, TvSeasonOverview
 from anivault.domain.rules.tmdb_search_cache_key import build_tmdb_search_cache_key
 from anivault.domain.rules.tmdb_search_query import normalize_tmdb_search_query
 
@@ -110,6 +110,9 @@ class CachingMetadataProvider:
             candidates=candidates,
         )
         return candidates
+
+    def tv_season_overview(self, tv_id: int, season_number: int) -> TvSeasonOverview | None:
+        return self._inner.tv_season_overview(tv_id, season_number)
 
 
 def _put_search_cache(

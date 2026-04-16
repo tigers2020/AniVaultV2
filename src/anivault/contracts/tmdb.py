@@ -4,6 +4,14 @@ from dataclasses import dataclass
 
 
 @dataclass(slots=True, frozen=True)
+class TmdbSeasonOverviewInput:
+    """Input for TMDB season overview operations."""
+
+    tv_id: int
+    season_number: int
+
+
+@dataclass(slots=True, frozen=True)
 class TmdbSearchInput:
     """Input for TMDB search operations."""
 
@@ -24,6 +32,23 @@ class TmdbSeriesCandidate:
     poster_path: str
     backdrop_path: str
     popularity: float
+
+
+@dataclass(slots=True, frozen=True)
+class TvSeasonEpisodeInfo:
+    """Normalized TMDB season episode summary."""
+
+    number: int
+    name: str = ""
+    still_url: str = ""
+
+
+@dataclass(slots=True, frozen=True)
+class TvSeasonOverview:
+    """Normalized TMDB season overview."""
+
+    season_number: int
+    episodes: tuple[TvSeasonEpisodeInfo, ...]
 
 
 @dataclass(frozen=True, slots=True)

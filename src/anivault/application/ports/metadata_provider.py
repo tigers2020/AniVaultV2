@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Protocol, runtime_checkable
 
-from anivault.contracts.tmdb import TmdbSeriesCandidate
+from anivault.contracts.tmdb import TmdbSeriesCandidate, TvSeasonOverview
 
 
 @runtime_checkable
@@ -13,3 +13,5 @@ class MetadataProvider(Protocol):
     def search_series(
         self, query: str, *, year: int | None = None
     ) -> Sequence[TmdbSeriesCandidate]: ...
+
+    def tv_season_overview(self, tv_id: int, season_number: int) -> TvSeasonOverview | None: ...

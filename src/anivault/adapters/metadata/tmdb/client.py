@@ -98,3 +98,37 @@ class TmdbApiClient:
         except NotFound:
             return []
         return list(pagination.get_results(amount=max_results))
+
+    def tv_season_raw(self, tv_id: int, season_number: int) -> Any | None:
+        """Fetch a TMDB TV season object, returning None when the season is missing."""
+
+        if tv_id <= 0:
+            return None
+        if self._min_interval_s > 0:
+            with self._rate_lock:
+                now = time.monotonic()
+                wait = self._min_interval_s - (now - self._last_request_mono)
+                if wait > 0:
+                    time.sleep(wait)
+                self._last_request_mono = time.monotonic()
+        try:
+            return self._api().tv_season(tv_id, season_number)
+        except NotFound:
+            return None
+
+    def tv_show_raw(self, tv_id: int) -> Any | None:
+        """Fetch a TMDB TV show object, returning None when the show is missing."""
+
+        if tv_id <= 0:
+            return None
+        if self._min_interval_s > 0:
+            with self._rate_lock:
+                now = time.monotonic()
+                wait = self._min_interval_s - (now - self._last_request_mono)
+                if wait > 0:
+                    time.sleep(wait)
+                self._last_request_mono = time.monotonic()
+        try:
+            return self._api().tv_show(tv_id)
+        except NotFound:
+            return None

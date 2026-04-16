@@ -11,11 +11,16 @@ from collections.abc import Callable, Sequence
 
 from anivault.adapters.metadata.tmdb.client import TmdbApiClient
 from anivault.adapters.metadata.tmdb.mapper import (
+    season_to_overview,
     tv_show_to_candidate,
     tv_show_to_search_tv_library_record,
 )
 from anivault.constants.domain.matching import TMDB_MAX_CANDIDATES
-from anivault.contracts.tmdb import SearchTvLibraryRecord, TmdbSeriesCandidate
+from anivault.contracts.tmdb import (
+    SearchTvLibraryRecord,
+    TmdbSeriesCandidate,
+    TvSeasonOverview,
+)
 
 
 class TmdbMetadataProvider:
@@ -62,3 +67,40 @@ class TmdbMetadataProvider:
                 [tv_show_to_search_tv_library_record(obj, lang) for obj in raw_list],
             )
         return [tv_show_to_candidate(obj) for obj in raw_list]
+
+    def tv_season_overview(self, tv_id: int, season_number: int) -> TvSeasonOverview | None:
+        season = self._client.tv_season_raw(
+            tv_id, self._resolve_season_number(tv_id, season_number)
+        )
+        if season is None:
+            return None
+        return season_to_overview(season)
+
+    def _resolve_season_number(self, tv_id: int, requested_season_number: int) -> int:
+        if requested_season_number <= 0:
+            return 1
+        show = self._client.tv_show_raw(tv_id)
+        available = self._available_season_numbers(show)
+        if not available or requested_season_number in available:
+            return requested_season_number
+        lower_or_equal = [number for number in available if number <= requested_season_number]
+        if lower_or_equal:
+            return max(lower_or_equal)
+        return min(available)
+
+    @staticmethod
+    def _available_season_numbers(show: object | None) -> list[int]:
+        raw_seasons = getattr(show, "seasons", None) or []
+        numbers: list[int] = []
+        for season in raw_seasons:
+            raw = getattr(season, "season_number", None)
+            if raw is None:
+                continue
+            try:
+                value = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if value > 0 and value not in numbers:
+                numbers.append(value)
+        numbers.sort()
+        return numbers

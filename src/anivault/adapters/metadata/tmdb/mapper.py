@@ -11,7 +11,12 @@ import json
 from datetime import date, datetime
 from typing import Any
 
-from anivault.contracts.tmdb import SearchTvLibraryRecord, TmdbSeriesCandidate
+from anivault.contracts.tmdb import (
+    SearchTvLibraryRecord,
+    TmdbSeriesCandidate,
+    TvSeasonEpisodeInfo,
+    TvSeasonOverview,
+)
 
 
 def _as_str(value: Any) -> str:
@@ -165,3 +170,32 @@ def tv_show_to_search_tv_library_record(tv: Any, language: str) -> SearchTvLibra
         vote_average=vote_average,
         vote_count=vote_count,
     )
+
+
+def season_to_overview(season: Any) -> TvSeasonOverview:
+    """Map a tmdbapis Season-like object to a normalized overview DTO."""
+
+    raw_episodes = getattr(season, "episodes", None) or []
+    season_number_raw = getattr(season, "season_number", 0)
+    try:
+        season_number = int(season_number_raw)
+    except (TypeError, ValueError):
+        season_number = 0
+    episodes: list[TvSeasonEpisodeInfo] = []
+    for episode in raw_episodes:
+        number_raw = getattr(episode, "episode_number", 0)
+        try:
+            number = int(number_raw)
+        except (TypeError, ValueError):
+            continue
+        if number <= 0:
+            continue
+        episodes.append(
+            TvSeasonEpisodeInfo(
+                number=number,
+                name=_as_str(getattr(episode, "name", None) or getattr(episode, "title", None)),
+                still_url=_as_str(getattr(episode, "still_url", None)),
+            )
+        )
+    episodes.sort(key=lambda item: item.number)
+    return TvSeasonOverview(season_number=season_number, episodes=tuple(episodes))
